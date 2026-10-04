@@ -72,9 +72,11 @@ final class AssistTests: XCTestCase {
     }
 
     func testOrchestraAndChoirSelection() {
-        let names = ["Kick In", "Vox", "Violin 1", "Violin 2", "Viola", "Cello", "Flute", "Choir S", "Choir A", "Choir T", "Bass"]
+        let names = ["Kick In", "Vox", "Violin 1", "Violin 2", "Viola", "Cello", "Flute", "Choir S", "Choir A", "Choir T", "Bass",
+                     "Snare Top", "OH L", "Bass DI", "Gtr", "Keys", "MC", "Playback L"]
         let strips = names.enumerated().map { ChannelStrip(id: $0.offset + 1, name: $0.element) }
-        XCTAssertEqual(AssistGroupSelection.orchestra.channels(in: strips), [3, 4, 5, 6, 7])
+        // Every musical instrument is part of the orchestra: drums and band too; voices, choir, speech, playback not.
+        XCTAssertEqual(AssistGroupSelection.orchestra.channels(in: strips), [1, 3, 4, 5, 6, 7, 12, 13, 14, 15, 16])
         XCTAssertEqual(AssistGroupSelection.choir.channels(in: strips), [8, 9, 10, 11])
         XCTAssertEqual(AssistGroupSelection.range(10, 8).channels(in: strips), [8, 9, 10])
     }

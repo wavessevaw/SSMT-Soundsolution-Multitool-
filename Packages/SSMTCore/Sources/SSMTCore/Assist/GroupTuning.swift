@@ -2,7 +2,8 @@ import Foundation
 
 /// Which channels go into a group tuning.
 public enum AssistGroupSelection: Equatable, Codable, Sendable {
-    /// Every channel whose name reads as an orchestral instrument ("Violin 1", "Vc", "Скрипка", "Tpt"…).
+    /// Every channel whose name reads as a musical instrument: drums, band and orchestral ("Kick In", "Bass DI",
+    /// "Violin 1", "Vc", "Скрипка", "Tpt"…).
     case orchestra
     /// Every channel whose name reads as a choir or backing vocal ("Choir L", "Хор 2", "Sopr", "BV").
     case choir
@@ -15,7 +16,10 @@ public enum AssistGroupSelection: Equatable, Codable, Sendable {
         let choirContext = names.contains { SourceClassifier.kind(forName: $0) == .choir }
         switch self {
         case .orchestra:
-            return strips.filter { SourceClassifier.kind(forName: $0.name)?.isOrchestral == true }.map(\.id)
+            // Same reading as the choir button, so a choir's "Bass" / "Alto" stays in the choir.
+            return strips.filter {
+                SourceClassifier.kind(forName: $0.name, choirContext: choirContext)?.isOrchestral == true
+            }.map(\.id)
         case .choir:
             return strips.filter {
                 SourceClassifier.kind(forName: $0.name, choirContext: choirContext) == .choir

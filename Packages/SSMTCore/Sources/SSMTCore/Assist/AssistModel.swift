@@ -26,11 +26,13 @@ public enum SourceKind: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    /// True for sources that belong to an orchestra (one-button orchestra tuning picks these).
+    /// True for every musical instrument — drums, band, strings, woodwinds, brass. Owner's rule: all musical
+    /// instruments are part of the orchestra, so the one-button "Orchestra" tuning picks all of them (only voices,
+    /// choir, speech, playback and unknown sources are left out).
     public var isOrchestral: Bool {
         switch family {
-        case .strings, .woodwinds, .brass: return true
-        default: return self == .percussion
+        case .drums, .band, .strings, .woodwinds, .brass: return true
+        case .vocals, .choir, .other: return false
         }
     }
 }
