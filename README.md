@@ -19,8 +19,8 @@
 
 > [!NOTE]
 > **FOH Assist — beta.** Работа с пультом Behringer X32 / Midas M32 и X Air / MR построена по открытому описанию
-> протокола и ещё не сверена с реальным пультом. Начните с режима «Тест пульта» — он проверит всё на вашем пульте
-> и вернёт настройки как были.
+> протокола и ещё не сверена с реальным пультом. Начните с режима «Тест пульта»: «Диагностика связи» покажет, что
+> приходит с пульта, а сам тест проверит всё на вашем пульте и вернёт настройки как были.
 
 ## 📥 Скачать
 
@@ -57,14 +57,18 @@ input list и план сцены, подготовить фонограммы, 
     проблемного монитора, сохраняет разборчивость солиста в массовых сценах; фейдеры каналов не трогает;
   - 🧪 **тест пульта и симуляция шоу** — вся работа с вашим пультом на учебном сценарии шоу, с восстановлением исходных настроек.
 
-<details>
+<details open>
 <summary>📸 Скриншоты</summary>
 
-| Настройка системы | Ptch |
+| 🤖 FOH Assist — саундчек | 🤖 FOH Assist — страховка шоу |
 |---|---|
-| ![](App/Tests/Snapshots/References/step7-eq.png) | ![](App/Tests/Snapshots/References/input-list.png) |
-| **Qtrl** | **Отчёт** |
-| ![](App/Tests/Snapshots/References/show-show.png) | ![](App/Tests/Snapshots/References/report.png) |
+| ![](App/Tests/Snapshots/References/assist.png) | ![](App/Tests/Snapshots/References/assist-show.png) |
+| **🤖 FOH Assist — тест пульта и волна фейдеров** | **📐 Настройка системы — EQ** |
+| ![](App/Tests/Snapshots/References/assist-test.png) | ![](App/Tests/Snapshots/References/step7-eq.png) |
+| **📄 Отчёт о настройке** | **▶️ Qtrl — шоу и таймлайн** |
+| ![](App/Tests/Snapshots/References/report.png) | ![](App/Tests/Snapshots/References/show-show.png) |
+| **▶️ Qtrl — трек: петля, огибающая громкости** | **📋 Ptch — каналы и план сцены** |
+| ![](App/Tests/Snapshots/References/show-waveform.png) | ![](App/Tests/Snapshots/References/input-list.png) |
 
 </details>
 
@@ -84,7 +88,7 @@ input list и план сцены, подготовить фонограммы, 
 2. macOS предупредит о неподтверждённом разработчике (бесплатная программа без подписи Apple Developer ID):
    **Системные настройки → Конфиденциальность и безопасность → «Всё равно открыть»**.
 3. При первом запуске разрешите доступ к микрофону.
-4. Выберите функцию в боковой панели: **Настройка системы**, **Input list**, **Qtrl** или **FOH Assist**.
+4. Выберите функцию в боковой панели: **Настройка системы**, **Ptch**, **Qtrl** или **FOH Assist**.
 
 > [!TIP]
 > Нет оборудования под рукой? В настройке системы выберите **«Симуляция (виртуальный зал)»**, а в FOH Assist —
