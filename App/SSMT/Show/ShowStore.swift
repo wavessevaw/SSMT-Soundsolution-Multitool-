@@ -908,6 +908,9 @@ final class ShowStore: ObservableObject {
 
     private func handleKey(_ event: NSEvent) -> Bool {
         guard isActive else { return false }
+        // Keys typed into a sheet, an open/save panel or an alert belong to it, not to the show.
+        if NSApp.modalWindow != nil { return false }
+        if let w = NSApp.keyWindow, w.sheetParent != nil || w.attachedSheet != nil || w is NSPanel { return false }
         if Self.isTyping(in: NSApp.keyWindow) {
             // Esc ends typing in a field (the next Esc is Stop all as usual).
             if event.type == .keyDown && event.keyCode == 53 { NSApp.keyWindow?.makeFirstResponder(nil); return true }
@@ -925,7 +928,7 @@ final class ShowStore: ObservableObject {
         }
         guard event.type == .keyDown else { return false }
         switch event.keyCode {
-        case 49: go(); return true            // space
+        case 49: if !event.isARepeat { go() }; return true   // space (held down = one GO)
         case 53: panic(); return true         // esc
         default: break
         }

@@ -55,7 +55,7 @@ struct CueListView: View {
 
     private var header: some View {
         HStack(spacing: 0) {
-            Color.clear.frame(width: 44)
+            Color.clear.frame(width: 40)
             col(loc.t("show.col.number"), 54)
             Color.clear.frame(width: 26)
             Text(loc.t("show.col.name")).frame(maxWidth: .infinity, alignment: .leading)
@@ -219,7 +219,7 @@ struct CueRow: View {
                 }
             }
             .frame(width: 18)
-            stateIcon.frame(width: 22)
+            ZStack { stateIcon }.frame(width: 22)
             Text(cue.number).font(Theme.mono(13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                 .lineLimit(1).frame(width: 54, alignment: .leading)
             HStack(spacing: 4) {
@@ -255,7 +255,7 @@ struct CueRow: View {
                  live: running?.phase == .preWait ? running?.remaining : nil)
             time(actionText, width: 76, live: running?.phase == .running ? running?.remaining : nil)
             time(cue.continueMode == .autoContinue ? showTime(cue.postWait) : "", width: 64, live: nil)
-            continueGlyph.frame(width: 34)
+            ZStack { continueGlyph }.frame(width: 34)
         }
         .padding(.horizontal, 8)
         .frame(height: 38)

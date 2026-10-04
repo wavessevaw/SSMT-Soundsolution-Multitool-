@@ -35,9 +35,10 @@ struct StagePlanEditor: View {
                         VStack(spacing: 4) {
                             StageSymbolIcon(kind: kind).frame(width: 38, height: 28)
                             Text(loc.t("stage.kind.\(kind.rawValue)")).font(.system(size: 10)).foregroundStyle(Theme.textSecondary)
-                                .lineLimit(1)
+                                .lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.85)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .frame(width: 74, height: 58)
+                        .frame(width: 78, height: 70)
                         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.05)))
                         .contentShape(Rectangle())
                     }

@@ -759,16 +759,10 @@ private struct EQCurveView: View {
             for f in [50.0, 100, 200, 500, 1000, 2000, 5000, 10000] {
                 var p = Path(); p.move(to: CGPoint(x: x(f), y: 0)); p.addLine(to: CGPoint(x: x(f), y: size.height))
                 ctx.stroke(p, with: .color(.white.opacity(0.06)), lineWidth: 1)
-                ctx.draw(Text(PEQFilter.label(f)).font(.system(size: 9)).foregroundColor(Theme.textMuted),
-                         at: CGPoint(x: x(f) + 3, y: size.height - 3), anchor: .bottomLeading)
             }
             for db in [-12.0, -6, 0, 6, 12] {
                 var p = Path(); p.move(to: CGPoint(x: 0, y: y(db))); p.addLine(to: CGPoint(x: size.width, y: y(db)))
                 ctx.stroke(p, with: .color(.white.opacity(db == 0 ? 0.16 : 0.06)), lineWidth: 1)
-                if db != 0 {
-                    ctx.draw(Text(String(format: "%+.0f", db)).font(.system(size: 9)).foregroundColor(Theme.textMuted),
-                             at: CGPoint(x: 4, y: y(db) - 1), anchor: .bottomLeading)
-                }
             }
             if let spectrum, spectrum.count == ThirdOctave.centers.count {
                 let mid = ThirdOctave.centers.indices.filter { ThirdOctave.centers[$0] >= 100 && ThirdOctave.centers[$0] <= 8000 }
@@ -798,6 +792,15 @@ private struct EQCurveView: View {
                     let c = CGPoint(x: x(b.frequency), y: y(strip.filterResponseDB(at: b.frequency)))
                     ctx.fill(Path(ellipseIn: CGRect(x: c.x - 4, y: c.y - 4, width: 8, height: 8)), with: .color(Theme.accent))
                 }
+            }
+            // Scale labels last, so the curve never covers them.
+            for f in [50.0, 100, 200, 500, 1000, 2000, 5000, 10000] {
+                ctx.draw(Text(PEQFilter.label(f)).font(.system(size: 9)).foregroundColor(Theme.textMuted),
+                         at: CGPoint(x: x(f) + 3, y: size.height - 3), anchor: .bottomLeading)
+            }
+            for db in [-12.0, -6, 6, 12] {
+                ctx.draw(Text(String(format: "%+.0f", db)).font(.system(size: 9)).foregroundColor(Theme.textMuted),
+                         at: CGPoint(x: 4, y: y(db) - 1), anchor: .bottomLeading)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))

@@ -68,7 +68,7 @@ struct ExpertGraphs: View {
     var body: some View {
         let tf = model.displayTransfer.map { Smoothing.smooth($0, resolution: model.smoothing) }
         let kinds = GraphKind.allCases.filter { model.visibleGraphs.contains($0) }
-        return Panel(title: loc.t("graphs.title"), marking: model.smoothing == .none ? "RAW" : "1/\(model.smoothing.rawValue) OCT") {
+        return Panel(title: loc.t("graphs.title"), marking: model.smoothing == .none ? loc.t("graphs.raw") : String(format: loc.t("graphs.octave"), model.smoothing.rawValue)) {
             if tf == nil {
                 VStack(spacing: 8) {
                     Image(systemName: "waveform.path.ecg").font(.system(size: 30)).foregroundStyle(Theme.textMuted)

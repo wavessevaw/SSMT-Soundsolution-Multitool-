@@ -238,7 +238,7 @@ struct ChannelTable: View {
                 }
                 .labelsHidden()
             }
-            .width(min: 100, ideal: 130)
+            .width(min: 140, ideal: 160)
             TableColumn("+48V") { ch in
                 Toggle("", isOn: binding(ch.id, \.phantom)).labelsHidden()
             }

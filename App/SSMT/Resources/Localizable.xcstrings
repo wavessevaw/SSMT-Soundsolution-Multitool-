@@ -8094,6 +8094,40 @@
         }
       }
     },
+    "graphs.octave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1/%ld octave"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1/%ld октавы"
+          }
+        }
+      }
+    },
+    "graphs.raw": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unsmoothed"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "без сглаживания"
+          }
+        }
+      }
+    },
     "graphs.title": {
       "extractionState": "manual",
       "localizations": {
@@ -13041,6 +13075,40 @@
         }
       }
     },
+    "report.crossover": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crossover %.0f Hz"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Раздел %.0f Hz"
+          }
+        }
+      }
+    },
+    "report.delayLocked": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locked system delay"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зафиксированная задержка системы"
+          }
+        }
+      }
+    },
     "report.eq": {
       "extractionState": "manual",
       "localizations": {
@@ -13054,6 +13122,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "EQ по зоне прослушивания"
+          }
+        }
+      }
+    },
+    "report.eqMarking": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld points · %ld rounds"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "точек: %ld · итераций: %ld"
           }
         }
       }
@@ -13343,6 +13428,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "FOH Assist"
+          }
+        }
+      }
+    },
+    "section.assist.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistant at the console"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ассистент за пультом"
           }
         }
       }
@@ -17354,7 +17456,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Система, сабвуферы, сателлиты"
+            "value": "Система и группы"
           }
         }
       }
@@ -17388,7 +17490,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Задержка, полярность, уровень"
+            "value": "Задержка, полярность"
           }
         }
       }

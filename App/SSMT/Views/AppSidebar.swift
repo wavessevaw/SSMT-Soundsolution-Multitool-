@@ -73,7 +73,7 @@ struct AppSidebar: View {
             sectionRow(.setup, icon: "dial.medium", title: loc.t("section.setup"))
             sectionRow(.inputList, icon: "list.bullet.rectangle", title: loc.t("section.inputList"))
             sectionRow(.show, icon: "play.rectangle.on.rectangle", title: loc.t("section.show"), subtitle: "Show Control Center")
-            sectionRow(.assist, icon: "slider.vertical.3", title: loc.t("section.assist"), subtitle: "AI soundcheck")
+            sectionRow(.assist, icon: "slider.vertical.3", title: loc.t("section.assist"), subtitle: loc.t("section.assist.subtitle"))
         }
         .padding(4)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.black.opacity(0.18)))
