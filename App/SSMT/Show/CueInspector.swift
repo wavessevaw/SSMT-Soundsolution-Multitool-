@@ -282,8 +282,17 @@ private struct CueInspectorContent: View {
                 show.updateCue(cue.id) { $0.fade?.level = v ? showSilenceDB : nil }
             }))
             if cue.fade?.level != nil {
-                level(loc.t("show.fade.to"), Binding(get: { cue.fade?.level ?? showSilenceDB },
-                                                     set: { v in show.updateCue(cue.id) { $0.fade?.level = v } }))
+                // Absolute: "to −∞ / to −10 dB"; relative (QLab): "by −6 dB" from where the target is.
+                Picker("", selection: Binding(get: { cue.fade?.relative ?? false }, set: { v in
+                    show.updateCue(cue.id) { $0.fade?.relative = v; $0.fade?.level = v ? -6 : showSilenceDB }
+                })) {
+                    Text(loc.t("show.fade.absolute")).tag(false)
+                    Text(loc.t("show.fade.relative")).tag(true)
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                level(loc.t(cue.fade?.relative == true ? "show.fade.by" : "show.fade.to"),
+                      Binding(get: { cue.fade?.level ?? showSilenceDB },
+                              set: { v in show.updateCue(cue.id) { $0.fade?.level = v } }))
             }
             Toggle(loc.t("show.fade.stop"), isOn: fade(\.stopWhenDone, true))
         }
@@ -445,6 +454,7 @@ private struct CueInspectorContent: View {
             if cue.groupMode == .playlist {
                 Toggle(loc.t("show.playlist.loop"), isOn: bind(\.loopPlaylist))
                 Toggle(loc.t("show.playlist.shuffle"), isOn: bind(\.shuffle))
+                seconds(loc.t("show.playlist.crossfade"), bind(\.crossfade))
             }
             Text(String(format: loc.t("show.group.count"), cue.children.count))
                 .font(.system(size: 11)).foregroundStyle(Theme.textSecondary)

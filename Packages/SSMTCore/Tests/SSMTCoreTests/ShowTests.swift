@@ -363,6 +363,53 @@ final class ShowTests: XCTestCase {
         XCTAssertTrue(rig.out[0].contains { abs($0 - 0.1) < 1e-6 }, "the chain went on to the next cue")
     }
 
+    func testPlaylistCrossfadeStartsTheNextEntryEarly() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .playlist
+        g.crossfade = 0.5
+        g.children = [audioCue("a", "1.1"), audioCue("b", "1.2")]
+        doc.lists[0].cues = [g]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 48000)
+        rig.clips["b"] = constClip(0.5, frames: 48000)
+        rig.engine.go(now: 0)
+        rig.runSeconds(2)
+        let starts: [(UUID, Int64)] = rig.ops.compactMap { if case let .start(id, _, _, at) = $0 { return (id, at) } else { return nil } }
+        XCTAssertEqual(starts.count, 2)
+        XCTAssertEqual(starts[1].1 - starts[0].1, 24000, "b starts 0.5 s before a ends")
+        let setups: [VoiceSetup] = rig.ops.compactMap { if case let .start(_, _, s, _) = $0 { return s } else { return nil } }
+        XCTAssertEqual(setups[0].fadeOutFrames, 24000, "a fades out over the crossfade")
+        XCTAssertEqual(setups[1].fadeInFrames, 24000, "b fades in over the crossfade")
+        XCTAssertEqual(setups[0].fadeInFrames, 0, "the first entry does not fade in")
+        XCTAssertFalse(rig.engine.isActive, "the playlist ends after b, once")
+    }
+
+    func testRelativeFadeChangesTheCurrentLevel() {
+        var doc = ShowDocument()
+        var a = audioCue("a", "1", plays: 0)
+        a.audio?.level = -6
+        var f = Cue(kind: .fade, number: "2")
+        f.target = a.id
+        f.fade?.relative = true
+        f.fade?.level = -6
+        f.fade?.stopWhenDone = false
+        var f2 = f
+        f2.id = UUID()
+        f2.number = "3"
+        doc.lists[0].cues = [a, f, f2]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 48000)
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.4)                       // past the double-GO guard
+        rig.engine.go(now: rig.now)
+        rig.runSeconds(3.5)                       // the first fade (3 s) is over
+        rig.engine.go(now: rig.now)
+        rig.runSeconds(0.4)
+        let levels: [Double?] = rig.ops.compactMap { if case let .fade(_, _, _, _, l, _) = $0 { return l } else { return nil } }
+        XCTAssertEqual(levels, [-12, -18], "each relative fade takes 6 dB off where the cue is")
+    }
+
     func testFileThatNeverBecomesReadyIsReportedAfterTimeout() {
         var doc = ShowDocument()
         let a = audioCue("a", "1")

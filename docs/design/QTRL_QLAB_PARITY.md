@@ -28,11 +28,11 @@
 | Mic | ❌ | живой вход с маршрутизацией и уровнями |
 | Video / Camera / Text | ➖ | решение владельца |
 | Light | ➖ | (свет — через OSC-кью) |
-| Fade | 🟡 | абсолютный / относительный, кривые, «стоп цели по окончании», фейд скорости и панорамы |
+| Fade | 🟡 | ✅ абсолютный / относительный, кривые, «стоп цели по окончании»; осталось: фейд скорости и панорамы |
 | Network (OSC) | ✅ | шаблоны QLab-сообщений, UDP/TCP |
 | MIDI, MIDI File, Timecode | ❌ | MIDI-кью (CoreMIDI), выдача таймкода (LTC / MTC) |
 | Group: Timeline | ✅ | мультитрек: сдвиг, обрезка, прилипание; срезы на дорожке ⚠ |
-| Group: Playlist (crossfade, loop, shuffle) | 🟡 | кроссфейд между треками |
+| Group: Playlist (crossfade, loop, shuffle) | ✅ | — |
 | Group: Start first and enter / go to next, Random | ✅ | — |
 | Start, Stop, Pause, Load, Reset, GoTo, Target, Arm, Disarm, Devamp | ✅ | — |
 | Wait, Memo | ✅ | — |

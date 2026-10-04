@@ -14435,6 +14435,40 @@
         }
       }
     },
+    "show.fade.absolute": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To a level"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "До уровня"
+          }
+        }
+      }
+    },
+    "show.fade.by": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change by"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменить на"
+          }
+        }
+      }
+    },
     "show.fade.changeLevel": {
       "extractionState": "manual",
       "localizations": {
@@ -14448,6 +14482,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Менять уровень"
+          }
+        }
+      }
+    },
+    "show.fade.relative": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By (relative)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На величину (относительно)"
           }
         }
       }
@@ -15910,6 +15961,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Запустить эту кью"
+          }
+        }
+      }
+    },
+    "show.playlist.crossfade": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crossfade"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Кроссфейд"
           }
         }
       }

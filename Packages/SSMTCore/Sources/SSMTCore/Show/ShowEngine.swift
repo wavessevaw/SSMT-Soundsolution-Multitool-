@@ -92,6 +92,13 @@ public final class ShowEngine {
         var clip: AudioClip?
         var playlist: [UUID] = []
         var playlistIndex = 0
+        /// Playlist group: it has wrapped around at least once (looping); entries it already crossfaded away from.
+        var playlistWrapped = false
+        var crossfaded: Set<UUID> = []
+        /// Playlist entry: when the next entry starts (crossfade).
+        var crossfadeAt: Int64?
+        /// Audio: current main level (dB), for relative fades.
+        var levelDB: Double = 0
         var stopTargetsAtEnd: [UUID] = []
         var holdTargets: [UUID] = []
         var onEnd: (cue: UUID, list: UUID, parent: UUID?)?
@@ -271,6 +278,7 @@ public final class ShowEngine {
             case .action: beginAction(id, at: t)
             case .postWait: postWaitElapsed(id, at: t)
             case .end: actionFinished(id, at: t)
+            case .crossfade: crossfadeElapsed(id, at: t)
             }
         }
     }
@@ -353,7 +361,7 @@ public final class ShowEngine {
 
     // MARK: Scheduling
 
-    private enum Event { case action, postWait, end }
+    private enum Event { case action, postWait, end, crossfade }
 
     private func nextEvent(upTo horizon: Int64) -> (UUID, Int64, Event)? {
         var best: (UUID, Int64, Event)?
@@ -367,6 +375,7 @@ public final class ShowEngine {
             case .running:
                 if let p = inst.postWaitAt { consider(id, p, .postWait) }
                 if !inst.actionEnded, let e = inst.actionEnd { consider(id, e, .end) }
+                if !inst.actionEnded, !inst.stopping, let x = inst.crossfadeAt { consider(id, x, .crossfade) }
             }
         }
         return best
@@ -465,7 +474,14 @@ public final class ShowEngine {
             problems[cue.id] = "error.show.notReady"
             return
         }
-        guard let setup = Self.voiceSetup(cue, clip: clip, outputs: document.outputs.count) else {
+        var playing = cue
+        let xf = playlistCrossfade(cue.id)
+        if let xf, var a = playing.audio {
+            if !xf.first { a.fadeIn = max(a.fadeIn, xf.seconds) }
+            if xf.hasNext { a.fadeOut = max(a.fadeOut, xf.seconds) }
+            playing.audio = a
+        }
+        guard let setup = Self.voiceSetup(playing, clip: clip, outputs: document.outputs.count) else {
             problems[cue.id] = "error.show.missingFile"
             instances[cue.id]?.actionEnd = t   // nothing to play: the cue ends now and the chain goes on
             return
@@ -476,6 +492,27 @@ public final class ShowEngine {
         instances[cue.id]?.clip = clip
         instances[cue.id]?.rate = setup.rate
         instances[cue.id]?.actionEnd = setup.outputFrames.map { t + $0 }
+        instances[cue.id]?.levelDB = cue.audio?.level ?? 0
+        if let xf, xf.hasNext, let len = setup.outputFrames {
+            instances[cue.id]?.crossfadeAt = t + max(0, Int64(len) - frames(xf.seconds))
+        }
+    }
+
+    /// For an entry of a playlist group with a crossfade: its length, whether it is the very first entry and whether
+    /// another entry follows.
+    private func playlistCrossfade(_ id: UUID) -> (seconds: Double, first: Bool, hasNext: Bool)? {
+        guard let parent = instances[id]?.parent, let g = instances[parent], let gc = document.cue(parent),
+              gc.groupMode == .playlist, gc.crossfade > 0 else { return nil }
+        let first = g.playlistIndex == 0 && !g.playlistWrapped
+        let hasNext = g.playlistIndex + 1 < g.playlist.count || gc.loopPlaylist
+        return (gc.crossfade, first, hasNext)
+    }
+
+    /// Crossfade point of a playlist entry: the next entry starts now; this one is already fading out.
+    private func crossfadeElapsed(_ id: UUID, at t: Int64) {
+        instances[id]?.crossfadeAt = nil
+        guard let parent = instances[id]?.parent else { return }
+        if advancePlaylist(parent, at: t) { instances[parent]?.crossfaded.insert(id) }
     }
 
     /// Starts audio cues whose file has become ready since GO; gives up after `clipWaitSeconds`.
@@ -538,7 +575,10 @@ public final class ShowEngine {
         let len = frames(f.duration)
         let targets = voiceTargets(target)
         for v in targets {
-            send(.fade(v, at: t, frames: len, curve: f.curve, levelDB: f.level, outputsDB: f.outputLevels))
+            // Relative (QLab): the level is a change from where the target is now.
+            let level = f.relative ? f.level.map { max(showSilenceDB, (instances[v]?.levelDB ?? 0) + $0) } : f.level
+            if let level { instances[v]?.levelDB = level }
+            send(.fade(v, at: t, frames: len, curve: f.curve, levelDB: level, outputsDB: f.outputLevels))
         }
         instances[cue.id]?.actionEnd = t + len
         instances[cue.id]?.holdTargets = targets
@@ -626,24 +666,35 @@ public final class ShowEngine {
 
     private func childFinished(_ child: Instance, group: UUID, at t: Int64) {
         guard var g = instances[group], let cue = document.cue(group) else { return }
-        if cue.groupMode == .playlist && !g.stopping && !child.stopping {
-            var i = g.playlistIndex + 1
-            if i >= g.playlist.count, cue.loopPlaylist, !g.playlist.isEmpty {
-                g.playlist = cue.shuffle ? shuffled(cue.children.map(\.id)) : cue.children.map(\.id)
-                i = 0
-            }
-            g.playlistIndex = i
-            instances[group] = g
-            if i < g.playlist.count {
-                trigger(g.playlist[i], list: g.listID, parent: group, at: t)
-                return
-            }
+        if g.crossfaded.contains(child.cueID) {
+            // Its successor already started at the crossfade point.
+            instances[group]?.crossfaded.remove(child.cueID)
+            g = instances[group] ?? g
+        } else if cue.groupMode == .playlist && !g.stopping && !child.stopping {
+            if advancePlaylist(group, at: t) { return }
+            g = instances[group] ?? g
         }
         if !instances.values.contains(where: { $0.parent == group }) && g.phase == .running && !g.actionEnded {
             g.actionEnd = t
             instances[group] = g
             actionFinished(group, at: t)
         }
+    }
+
+    /// Starts the next playlist entry (wrapping when looping). False when the playlist is over.
+    private func advancePlaylist(_ group: UUID, at t: Int64) -> Bool {
+        guard var g = instances[group], let cue = document.cue(group), !g.stopping else { return false }
+        var i = g.playlistIndex + 1
+        if i >= g.playlist.count, cue.loopPlaylist, !g.playlist.isEmpty {
+            g.playlist = cue.shuffle ? shuffled(cue.children.map(\.id)) : cue.children.map(\.id)
+            g.playlistWrapped = true
+            i = 0
+        }
+        g.playlistIndex = i
+        instances[group] = g
+        guard i < g.playlist.count else { return false }
+        trigger(g.playlist[i], list: g.listID, parent: group, at: t)
+        return true
     }
 
     /// Stops a cue (and the children of a group). Stopped cues do not continue.
@@ -655,6 +706,7 @@ public final class ShowEngine {
         inst.follow = false
         inst.onEnd = nil
         inst.stopTargetsAtEnd = []
+        inst.crossfadeAt = nil
         inst.stopping = true
         inst.paused = false
         if inst.phase == .preWait {
@@ -695,6 +747,7 @@ public final class ShowEngine {
             inst.pausedTotal += delta
             if let e = inst.actionEnd, !inst.actionEnded { inst.actionEnd = e + delta }
             if let p = inst.postWaitAt { inst.postWaitAt = p + delta }
+            if let x = inst.crossfadeAt { inst.crossfadeAt = x + delta }
         }
         instances[id] = inst
         if inst.hasVoice { send(.resume(id, at: t)) }

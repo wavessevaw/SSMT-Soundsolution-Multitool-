@@ -129,7 +129,19 @@ public struct FadeCueParams: Codable, Equatable, Sendable {
     public var outputLevels: [Double?] = []
     /// Stop the target when the fade is done (typical for fade-outs).
     public var stopWhenDone: Bool = true
+    /// QLab's relative fade: `level` is added to the target's current level (e.g. −6 dB) instead of replacing it.
+    public var relative: Bool = false
     public init() {}
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        duration = try c.decodeIfPresent(Double.self, forKey: .duration) ?? 3
+        curve = try c.decodeIfPresent(FadeCurve.self, forKey: .curve) ?? .sCurve
+        level = try c.decodeIfPresent(Double.self, forKey: .level)
+        outputLevels = try c.decodeIfPresent([Double?].self, forKey: .outputLevels) ?? []
+        stopWhenDone = try c.decodeIfPresent(Bool.self, forKey: .stopWhenDone) ?? true
+        relative = try c.decodeIfPresent(Bool.self, forKey: .relative) ?? false
+    }
 }
 
 public struct Cue: Codable, Equatable, Identifiable, Sendable {
@@ -159,6 +171,8 @@ public struct Cue: Codable, Equatable, Identifiable, Sendable {
     /// Playlist: loop forever / shuffle order.
     public var loopPlaylist: Bool
     public var shuffle: Bool
+    /// Playlist: the next entry starts this many seconds before the current one ends, the two crossfading.
+    public var crossfade: Double
     /// Stop cue: fade the target out over this time instead of cutting it.
     public var stopFade: Double
     /// Devamp: also trigger the next cue in the list when the target leaves its loop.
@@ -188,6 +202,7 @@ public struct Cue: Codable, Equatable, Identifiable, Sendable {
         groupMode = .sequence
         loopPlaylist = false
         shuffle = false
+        crossfade = 0
         stopFade = 0
         devampStartsNext = false
         padMode = .toggle
@@ -216,6 +231,7 @@ public struct Cue: Codable, Equatable, Identifiable, Sendable {
         groupMode = try c.decodeIfPresent(GroupMode.self, forKey: .groupMode) ?? .sequence
         loopPlaylist = try c.decodeIfPresent(Bool.self, forKey: .loopPlaylist) ?? false
         shuffle = try c.decodeIfPresent(Bool.self, forKey: .shuffle) ?? false
+        crossfade = try c.decodeIfPresent(Double.self, forKey: .crossfade) ?? 0
         stopFade = try c.decodeIfPresent(Double.self, forKey: .stopFade) ?? 0
         devampStartsNext = try c.decodeIfPresent(Bool.self, forKey: .devampStartsNext) ?? false
         padMode = try c.decodeIfPresent(PadMode.self, forKey: .padMode) ?? .toggle
