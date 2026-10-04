@@ -1,3 +1,43 @@
+# SSMT 1.3.1 — Qtrl: таймлайн группы как в QLab 5
+
+## Русский
+
+**Qtrl — таймлайн группы**
+- **Курсор воспроизведения**, как в DAW: жёлтая линия точно по шкале и волне, движется плавно, показывает время;
+  таймлайн прокручивается за ним.
+- **Линейка:** щелчок или протяжка — воспроизведение переходит туда. Играющая группа продолжает с этого места,
+  неиграющая начнёт оттуда при следующем запуске (также ⌘T). Треки стартуют с нужного места, идущий фейд
+  продолжается с того уровня, где был бы.
+- **Фейд в тот же момент, что и трек, теперь работает** (раньше мог пропасть); фейд для трека, файл которого ещё
+  готовится, применяется при его старте.
+- Перетаскивание с ⌥ сдвигает звук внутри клипа; клипы прилипают к линии воспроизведения; цвет кью на клипах;
+  ⌥← / ⌥→ — пауза до ±0,1 с; ⌘= / ⌘− — масштаб.
+
+**Qtrl — как в QLab**
+- Режим группы **«Первая и войти»** (Start First And Enter): GO идёт по кью внутри группы и выходит после последней.
+- **Повторный запуск играющей кью:** ничего, плавно остановить, остановить, остановить сразу, начать заново, выйти
+  из петли; для плейлиста — следующий трек.
+- Рамка GO красная, пока действует защита от двойного GO.
+
+**Qtrl — исправления**
+- Пауза посреди фейда больше не перескакивает в его конец: фейд замирает и продолжается после паузы.
+- «Пауза всего», Esc и «Стоп» без цели действуют и на кью группы, запущенную отдельно.
+- Остановка группы, пока её кью ждут паузу до, больше не запускает следующую кью.
+- Группа, остановленная с затуханием, полностью завершается.
+- Фейд-ин группы больше не оставляет незапущенные кью «тихими» на потом.
+
+## English
+
+**SSMT 1.3.1.** Qtrl group timeline as in QLab 5: a yellow playback line exactly on the ruler and waveforms, moving
+smoothly and followed by the view; click or drag the ruler to play from there (a stopped group is loaded there, also
+with ⌘T), tracks start part-way and fades under way continue from their current point; a fade at the same moment as
+its track now fades it; ⌥-drag slips the sound inside a clip; snapping to the playback line; cue colours; ⌥← / ⌥→ and
+⌘= / ⌘−. Start First And Enter groups; second trigger options (incl. playlist "plays next"); red GO border during
+double-GO protection. Fixes: pause freezes fades, Pause/Stop all reach cues of a group started on their own,
+stopping a waiting group no longer follows on, faded group stops end cleanly, fade-ins no longer leave cues silent.
+
+---
+
 # SSMT 1.3.0 — Qtrl ближе к QLab
 
 ## Русский
