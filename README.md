@@ -114,7 +114,7 @@ show playback and a console assistant in one app.**
 
 - 📐 **System setup** — guided sub ↔ mains alignment from dual-channel FFT measurements, delay and polarity,
   EQ suggestions on standard processor frequencies, verification and a PDF report; measurement-mic calibration.
-- 📋 **Input list & stage plan** — channels from templates, monitor mixes, a pull list, a stage plot; PDF / PNG / CSV.
+- 📋 **Ptch — channels, monitors, stage plan** — channels from templates, monitor mixes, a pull list, a stage plot; PDF / PNG / CSV.
 - ▶️ **Qtrl — Show Control Center** — cue-based playback with sample-accurate starts, fades, groups, OSC to
   lighting, video and consoles, one-shot pads, a timeline, two-stage Stop all.
 - 🤖 **FOH Assist** *(beta)* — connects to Behringer X32 / Midas M32 and X Air over Wi-Fi;
