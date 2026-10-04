@@ -13,7 +13,7 @@
 ![Apple Silicon | Intel](https://img.shields.io/badge/Apple%20Silicon%20%7C%20Intel-universal-10A86E)
 ![RU | EN](https://img.shields.io/badge/язык-RU%20%7C%20EN-A7F3D0)
 
-<img src="docs/media/hero.png" alt="SSMT" width="100%">
+<img src="docs/media/hero-1.3.2.png" alt="SSMT" width="100%">
 
 </div>
 
