@@ -1,3 +1,26 @@
+# SSMT 1.3.3 — Ptch без вылетов
+
+## Русский
+
+**Ptch**
+- **Исправлены вылеты** при удалении канала, «Новый патч», открытии файла и отмене удаления (⌘Z). Таблицы каналов
+  и мониторных миксов больше не используют системную таблицу macOS, из-за которой происходили вылеты.
+- Выделение строк: щелчок — одна строка, ⌘-щелчок — добавить / убрать, ⇧-щелчок — диапазон; Delete удаляет
+  выделенные каналы целиком (если курсор не в поле ввода).
+- Инспектор сцены: поворот, размеры и шрифт предмета больше не могут записаться в чужой или удалённый предмет.
+
+**Везде:** убраны упоминания сторонних программ; импорт шоу из другой программы удалён.
+
+Всё из 1.3.2 (FOH Assist на настоящем пульте, Qtrl) — без изменений.
+
+## English
+
+**SSMT 1.3.3.** Ptch: crashes on channel delete, New patch, Open and undo fixed — the channel and monitor-mix lists no
+longer use the macOS system table; row selection with click, ⌘-click and ⇧-click; Delete removes whole channels; the
+stage inspector edits the selected item by id. Mentions of third-party programs removed, along with the show import.
+
+---
+
 # SSMT 1.3.2 — FOH Assist на настоящем пульте
 
 ## Русский
