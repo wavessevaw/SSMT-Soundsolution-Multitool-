@@ -46,14 +46,14 @@ At most two correction rounds in a row.
 
 **Done.** Settings, scores, filter export (text/CSV), **PDF/PNG report**, session save (⌘S).
 
-## Input list and stage plan (function #2)
+## Ptch — channels, monitors and stage plan (function #2)
 
-Sidebar → "Input list & stage plan".
+Sidebar → "Ptch".
 - **Show:** artist, event, venue, date, engineer, contact, notes — printed on every sheet.
 - **Channels:** "+ Channel" (after the selection), "Template" (drums, bass, guitars, keys, vocals, BVs, playback…), stereo pair L/R, duplicate, up/down (or drag a row), delete (⌫), renumber, "Stage box…" (SB1-01, SB1-02…). The Mic / DI column suggests models; picking a condenser or active DI turns on +48 V. Problems (number or input used twice, empty source) are listed under the table.
 - **Monitor mixes** and the **pull list** (mics, DIs, stands, +48 V).
 - **Stage plan:** click a symbol to add it, drag it (25 cm snap), arrows nudge, ⌫ deletes; the inspector sets caption, channels/mix, rotation, size, layer. Text is its own item.
-- **Export:** PDF (all sheets), PNG (input list or stage plan), CSV. File: "Save input list" (⌘S) — `.ssmtinput`; undo — ⌘Z.
+- **Export:** PDF (all sheets), PNG (channel list or stage plan), CSV. File: "Save patch" (⌘S) — `.ssmtinput`; undo — ⌘Z.
 
 ## Qtrl — Show Control Center (function #3)
 

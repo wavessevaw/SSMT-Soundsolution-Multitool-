@@ -5,7 +5,7 @@
 # SSMT — SoundSolution Multi Tool
 
 **Рабочий инструмент звукорежиссёра и инженера на macOS**<br>
-настройка системы · input list · плейбек шоу · ассистент за пультом
+настройка системы · Ptch · плейбек шоу · ассистент за пультом
 
 [![Release](https://img.shields.io/github/v/release/wavessevaw/SSMT-Soundsolution-Multitool-?label=release&color=2EE59D)](../../releases/latest)
 [![CI](https://github.com/wavessevaw/SSMT-Soundsolution-Multitool-/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
@@ -44,7 +44,7 @@ input list и план сцены, подготовить фонограммы, 
 - 📐 **Настройка системы** — пошаговый мастер: двухканальный FFT, задержка и полярность, согласование сабвуферов с
   основными акустическими системами, EQ на стандартных частотах процессора, проверка после ввода и отчёт в PDF. Калибровочные файлы
   измерительных микрофонов и типовые профили.
-- 📋 **Input list и план сцены** — каналы из шаблонов, мониторные миксы, сводка «что выдать на сцену»
+- 📋 **Ptch — каналы и план сцены** — каналы из шаблонов, мониторные миксы, сводка «что выдать на сцену»
   (микрофоны, DI, стойки, +48 V), план сцены. PDF, PNG, CSV — готовый райдер для площадки.
 - ▶️ **Qtrl — Show Control Center** — воспроизведение фонограмм по списку команд: старт с точностью до сэмпла, плавные изменения уровня, группы, паузы,
   OSC для света, видео и пультов (Resolume, ETC Eos, grandMA3, MagicQ, X32/M32, QLab), кнопки one-shot,
@@ -60,7 +60,7 @@ input list и план сцены, подготовить фонограммы, 
 <details>
 <summary>📸 Скриншоты</summary>
 
-| Настройка системы | Input list и сцена |
+| Настройка системы | Ptch |
 |---|---|
 | ![](App/Tests/Snapshots/References/step7-eq.png) | ![](App/Tests/Snapshots/References/input-list.png) |
 | **Qtrl** | **Отчёт** |

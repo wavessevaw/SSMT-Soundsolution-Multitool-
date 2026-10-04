@@ -8695,13 +8695,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Export PDF (input list + stage plan)"
+            "value": "Export PDF (channels + stage plan)"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Экспорт PDF (input list + сцена)"
+            "value": "Экспорт PDF (каналы + сцена)"
           }
         }
       }
@@ -8712,13 +8712,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Export PNG — input list"
+            "value": "Export PNG — channel list"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Экспорт PNG — input list"
+            "value": "Экспорт PNG — список каналов"
           }
         }
       }
@@ -8916,13 +8916,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "New input list"
+            "value": "New patch"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Новый input list"
+            "value": "Новый патч"
           }
         }
       }
@@ -8950,13 +8950,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open input list…"
+            "value": "Open patch…"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Открыть input list…"
+            "value": "Открыть патч…"
           }
         }
       }
@@ -9001,13 +9001,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Save input list"
+            "value": "Save patch"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сохранить input list"
+            "value": "Сохранить патч"
           }
         }
       }
@@ -9273,13 +9273,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Input list"
+            "value": "Ptch"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Input list"
+            "value": "Ptch"
           }
         }
       }
@@ -13608,13 +13608,30 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Input list & stage plan"
+            "value": "Ptch"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Input list и сцена"
+            "value": "Ptch"
+          }
+        }
+      }
+    },
+    "section.inputList.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channels, monitors, stage plan"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Каналы, мониторы, сцена"
           }
         }
       }

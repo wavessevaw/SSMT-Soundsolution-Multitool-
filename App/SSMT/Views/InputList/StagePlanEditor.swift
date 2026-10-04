@@ -90,7 +90,7 @@ struct StagePlanEditor: View {
             .background(RoundedRectangle(cornerRadius: Theme.radiusSmall, style: .continuous).fill(Color.black.opacity(0.2)))
         }
         .focusable()
-        .onDeleteCommand { deleteSelected() }
+        .onDeleteCommand { if !isTypingText() { deleteSelected() } }
         .onMoveCommand { dir in nudge(dir) }
     }
 
@@ -117,8 +117,10 @@ struct StagePlanEditor: View {
 
     private func deleteSelected() {
         guard let id = store.selectedItem else { return }
-        store.edit(loc.t("action.delete")) { $0.stage.remove([id]) }
-        store.selectedItem = nil
+        afterEndingEdit {
+            store.edit(loc.t("action.delete")) { $0.stage.remove([id]) }
+            store.selectedItem = nil
+        }
     }
 
     private func nudge(_ dir: MoveCommandDirection) {
