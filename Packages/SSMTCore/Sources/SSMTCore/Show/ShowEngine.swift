@@ -49,7 +49,15 @@ public struct ShowSnapshot: Equatable, Sendable {
 /// scheduled `lookahead` frames ahead of the clock and sent to the mixer as `MixerOp`s.
 /// Not thread-safe: confine to one serial queue.
 public final class ShowEngine {
-    public var document: ShowDocument { didSet { keepPlayhead(after: oldValue) } }
+    public var document: ShowDocument { didSet { keepPlayhead(after: oldValue); stopRemovedCues() } }
+
+    /// A cue deleted while it plays (or waits) stops at once, with a short de-click fade (QLab).
+    private func stopRemovedCues() {
+        let gone = instances.keys.filter { document.cue($0) == nil }
+        guard !gone.isEmpty else { return }
+        let t = (lastAdvance ?? 0) + lookahead
+        for id in gone where instances[id] != nil { terminate(id, at: t, fade: frames(0.02)) }
+    }
     public let sampleRate: Double
     public var lookahead: Int64
     /// Receives mixer operations.
@@ -124,6 +132,8 @@ public final class ShowEngine {
     private var lastGo: Int64?
     private var lastClipRetry: Int64?
     private var lastPanic: Int64?
+    /// Clock of the latest `advance` (for actions that come without a time, like an edit).
+    private var lastAdvance: Int64?
 
     public init(document: ShowDocument, sampleRate: Double, lookahead: Int64 = 1024,
                 send: @escaping (MixerOp) -> Void, clipProvider: @escaping (Cue) -> AudioClip?) {
@@ -378,6 +388,7 @@ public final class ShowEngine {
 
     /// Processes everything due up to `now + lookahead`. Call often (every few milliseconds).
     public func advance(to now: Int64) {
+        lastAdvance = now
         let horizon = now + lookahead
         retryAwaitingClips(now: now, at: horizon)
         var guardCount = 0
@@ -907,7 +918,12 @@ public final class ShowEngine {
     }
 
     private func childFinished(_ child: Instance, group: UUID, at t: Int64) {
-        guard var g = instances[group], let cue = document.cue(group) else { return }
+        guard var g = instances[group] else { return }
+        guard let cue = document.cue(group) else {
+            // The group was deleted: it goes with its last child.
+            if !instances.values.contains(where: { $0.parent == group }) { instances[group] = nil }
+            return
+        }
         if g.crossfaded.contains(child.cueID) {
             // Its successor already started at the crossfade point.
             instances[group]?.crossfaded.remove(child.cueID)

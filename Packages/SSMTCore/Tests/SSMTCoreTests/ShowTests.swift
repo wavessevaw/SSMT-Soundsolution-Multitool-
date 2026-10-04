@@ -255,6 +255,27 @@ final class ShowTests: XCTestCase {
         XCTAssertEqual(p.envelopeDB(atFile: 5, fileLength: 10), -10, accuracy: 1e-9)
     }
 
+    /// Deleting a cue while it plays stops its sound at once (a group: everything in it).
+    func testDeletingAPlayingCueStopsIt() {
+        var doc = ShowDocument()
+        let a = audioCue("a", "1", plays: 0)
+        var g = Cue(kind: .group, number: "2")
+        g.groupMode = .simultaneous
+        g.children = [audioCue("a", "2.1", plays: 0)]
+        doc.lists[0].cues = [a, g]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 4800)
+        rig.engine.start(a.id, now: 0)
+        rig.engine.start(g.id, now: 0)
+        rig.runSeconds(0.2)
+        var edited = doc
+        edited.lists[0].cues = []
+        rig.engine.document = edited
+        rig.runSeconds(0.2)
+        XCTAssertFalse(rig.engine.isActive, "nothing left playing")
+        XCTAssertEqual(rig.out[0].last ?? 1, 0, accuracy: 1e-6, "silent")
+    }
+
     func testDevampPredictionMatchesAudio() {
         var doc = ShowDocument()
         var a = audioCue("a", "1", plays: 0)

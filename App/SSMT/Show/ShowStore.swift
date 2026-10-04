@@ -503,6 +503,8 @@ final class ShowStore: ObservableObject {
 
     func deleteSelection() {
         let ids = selection
+        // A deleted cue stops sounding at once (the engine stops it when the edit reaches it); so does its preview.
+        if let a = audition, ids.contains(a.cue) || ids.contains(where: { doc.cue($0)?.children.findCue(a.cue) != nil }) { stopAudition() }
         edit(loc("action.delete")) { $0.delete(ids) }
         selection = []
     }
