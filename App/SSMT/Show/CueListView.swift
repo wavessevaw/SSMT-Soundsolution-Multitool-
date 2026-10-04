@@ -26,7 +26,8 @@ struct CueListView: View {
                                    problem: isMissing(row.cue) ? "show.fileMissing"
                                        : isUnreadable(row.cue) ? "show.fileUnreadable" : show.snapshot.problems[row.cue.id])
                                 .id(row.cue.id)
-                                .onTapGesture(count: 2) { show.setPlayhead(row.cue.id) }
+                                // Double click: the cue's settings (inspector on its own tab); a single click selects.
+                                .onTapGesture(count: 2) { show.openSettings(row.cue.id) }
                                 .simultaneousGesture(TapGesture().onEnded { select(row.cue.id, rows: rows) })
                                 .contextMenu { menu(row.cue) }
                                 .onDrag { NSItemProvider(object: row.cue.id.uuidString as NSString) }
@@ -55,7 +56,7 @@ struct CueListView: View {
 
     private var header: some View {
         HStack(spacing: 0) {
-            Color.clear.frame(width: 44)
+            Color.clear.frame(width: 40)
             col(loc.t("show.col.number"), 54)
             Color.clear.frame(width: 26)
             Text(loc.t("show.col.name")).frame(maxWidth: .infinity, alignment: .leading)
@@ -111,12 +112,16 @@ struct CueListView: View {
         } else {
             show.selection = [id]
             anchor = id
-            // As in QLab: the clicked cue is the next one for GO / Space (top-level cues only).
-            if rows.first(where: { $0.cue.id == id })?.depth == 0 { show.setPlayhead(id) }
+            // As in QLab: the clicked cue is the next one for GO / Space (a cue of the list, or inside a Start First And
+            // Enter group; the engine ignores others). A cue that is playing is only selected (e.g. to look into a
+            // running group): the playhead stays on what comes next.
+            let playing = show.snapshot.running.contains { $0.id == id }
+            if !playing { show.setPlayhead(id) }
         }
     }
 
     @ViewBuilder private func menu(_ cue: Cue) -> some View {
+        Button(loc.t("show.openSettings")) { show.openSettings(cue.id) }.disabled(show.showMode)
         Button(loc.t("show.setPlayhead")) { show.setPlayhead(cue.id) }
         Button(loc.t("show.playNow")) { show.start(cue.id) }
         Button(loc.t("show.stopCue")) { show.stop(cue.id) }
@@ -217,7 +222,7 @@ struct CueRow: View {
                 }
             }
             .frame(width: 18)
-            stateIcon.frame(width: 22)
+            ZStack { stateIcon }.frame(width: 22)
             Text(cue.number).font(Theme.mono(13, weight: .semibold)).foregroundStyle(Theme.textPrimary)
                 .lineLimit(1).frame(width: 54, alignment: .leading)
             HStack(spacing: 4) {
@@ -253,7 +258,7 @@ struct CueRow: View {
                  live: running?.phase == .preWait ? running?.remaining : nil)
             time(actionText, width: 76, live: running?.phase == .running ? running?.remaining : nil)
             time(cue.continueMode == .autoContinue ? showTime(cue.postWait) : "", width: 64, live: nil)
-            continueGlyph.frame(width: 34)
+            ZStack { continueGlyph }.frame(width: 34)
         }
         .padding(.horizontal, 8)
         .frame(height: 38)

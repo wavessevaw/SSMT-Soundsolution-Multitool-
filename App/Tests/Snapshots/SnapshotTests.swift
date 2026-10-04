@@ -252,11 +252,12 @@ final class SnapshotTests: XCTestCase {
             c.audio?.loopStart = 10
             c.audio?.loopEnd = 22
             c.audio?.plays = 0
+            c.audio?.envelope = VolumeEnvelope(points: [.init(u: 0.3, db: 0), .init(u: 0.45, db: -12), .init(u: 0.7, db: -12), .init(u: 0.85, db: -3)])
         }
         show.doc = doc
         let cue = show.doc.cue(show.selection.first!)!
         try snapshot(WaveformEditor(cue: cue, compact: false).padding(20).frame(width: 1000).background(Backdrop()),
-                     size: CGSize(width: 1000, height: 520), name: "show-waveform", loc: Self.ru)
+                     size: CGSize(width: 1000, height: 600), name: "show-waveform", loc: Self.ru)
     }
 
     func testOSCSetup() throws {
@@ -299,9 +300,12 @@ final class SnapshotTests: XCTestCase {
         // Show mode: the guard backs up the engineer.
         store.mode = .show
         store.startGuard()
-        store.runGuardNow(steps: 6)
+        store.runGuardNow(steps: 24)   // 6 s at 4 steps a second
         try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-show", loc: Self.ru)
         store.stopGuard()
+        // Console test with the fader wave panel.
+        store.mode = .test
+        try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-test", loc: Self.ru)
         store.mode = .soundcheck
         store.selectedChannel = nil
         store.disconnect()

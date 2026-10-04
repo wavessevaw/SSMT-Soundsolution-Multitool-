@@ -35,9 +35,10 @@ struct StagePlanEditor: View {
                         VStack(spacing: 4) {
                             StageSymbolIcon(kind: kind).frame(width: 38, height: 28)
                             Text(loc.t("stage.kind.\(kind.rawValue)")).font(.system(size: 10)).foregroundStyle(Theme.textSecondary)
-                                .lineLimit(1)
+                                .lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.85)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .frame(width: 74, height: 58)
+                        .frame(width: 78, height: 70)
                         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.05)))
                         .contentShape(Rectangle())
                     }
@@ -89,7 +90,7 @@ struct StagePlanEditor: View {
             .background(RoundedRectangle(cornerRadius: Theme.radiusSmall, style: .continuous).fill(Color.black.opacity(0.2)))
         }
         .focusable()
-        .onDeleteCommand { deleteSelected() }
+        .onDeleteCommand { if !isTypingText() { deleteSelected() } }
         .onMoveCommand { dir in nudge(dir) }
     }
 
@@ -116,8 +117,10 @@ struct StagePlanEditor: View {
 
     private func deleteSelected() {
         guard let id = store.selectedItem else { return }
-        store.edit(loc.t("action.delete")) { $0.stage.remove([id]) }
-        store.selectedItem = nil
+        afterEndingEdit {
+            store.edit(loc.t("action.delete")) { $0.stage.remove([id]) }
+            store.selectedItem = nil
+        }
     }
 
     private func nudge(_ dir: MoveCommandDirection) {

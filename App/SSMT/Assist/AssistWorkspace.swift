@@ -17,7 +17,7 @@ struct AssistWorkspace: View {
         VStack(alignment: .leading, spacing: 12) {
             AssistHeader()
             if let m = store.message {
-                ErrorBanner(text: m == "nothing found" ? loc.t("assist.nothingFound") : m) { store.message = nil }
+                ErrorBanner(text: m == "nothing found" ? loc.t("assist.nothingFound") : m.hasPrefix("assist.") ? loc.t(m) : m) { store.message = nil }
             }
             switch store.mode {
             case .soundcheck: SoundcheckScreen()
@@ -31,6 +31,16 @@ struct AssistWorkspace: View {
         .sheet(isPresented: $store.showSettings) {
             AssistSettingsSheet().environmentObject(store).environmentObject(loc)
         }
+    }
+}
+
+/// Why the console did not connect, in the interface language.
+@MainActor
+func assistFailure(_ reason: String, store: AssistStore, loc: Localizer) -> String {
+    switch reason {
+    case "not supported yet": return loc.t("assist.soon")
+    case "noAnswer": return String(format: loc.t("assist.noAnswer"), "\(store.host):\(store.family.defaultPort)")
+    default: return reason
     }
 }
 
@@ -107,7 +117,7 @@ private struct AssistHeader: View {
         case .disconnected: return loc.t("assist.offline")
         case .connecting: return loc.t("assist.connecting")
         case let .connected(t): return t
-        case let .failed(t): return t == "not supported yet" ? loc.t("assist.soon") : t
+        case let .failed(t): return assistFailure(t, store: store, loc: loc)
         }
     }
 }
@@ -141,7 +151,13 @@ private struct AssistSettingsSheet: View {
             }
             .padding(16)
             Divider().overlay(Theme.hairline)
-            ScrollView { ConnectionPanel().padding(18) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    if store.isConnected && store.family != .simulator { LinkDiagnostics() }
+                    ConnectionPanel()
+                }
+                .padding(18)
+            }
         }
         .frame(width: 860, height: 520)
         .background(Backdrop())
@@ -232,7 +248,7 @@ private struct AssistConnectScreen: View {
     private var statusText: String {
         switch store.connection {
         case .connecting: return String(format: loc.t("assist.connect.connecting"), store.host)
-        case let .failed(t): return t == "not supported yet" ? loc.t("assist.soon") : loc.t("assist.connect.failed") + ": " + t
+        case let .failed(t): return loc.t("assist.connect.failed") + ": " + assistFailure(t, store: store, loc: loc)
         default: return loc.t("assist.link.none")
         }
     }
@@ -759,16 +775,10 @@ private struct EQCurveView: View {
             for f in [50.0, 100, 200, 500, 1000, 2000, 5000, 10000] {
                 var p = Path(); p.move(to: CGPoint(x: x(f), y: 0)); p.addLine(to: CGPoint(x: x(f), y: size.height))
                 ctx.stroke(p, with: .color(.white.opacity(0.06)), lineWidth: 1)
-                ctx.draw(Text(PEQFilter.label(f)).font(.system(size: 9)).foregroundColor(Theme.textMuted),
-                         at: CGPoint(x: x(f) + 3, y: size.height - 3), anchor: .bottomLeading)
             }
             for db in [-12.0, -6, 0, 6, 12] {
                 var p = Path(); p.move(to: CGPoint(x: 0, y: y(db))); p.addLine(to: CGPoint(x: size.width, y: y(db)))
                 ctx.stroke(p, with: .color(.white.opacity(db == 0 ? 0.16 : 0.06)), lineWidth: 1)
-                if db != 0 {
-                    ctx.draw(Text(String(format: "%+.0f", db)).font(.system(size: 9)).foregroundColor(Theme.textMuted),
-                             at: CGPoint(x: 4, y: y(db) - 1), anchor: .bottomLeading)
-                }
             }
             if let spectrum, spectrum.count == ThirdOctave.centers.count {
                 let mid = ThirdOctave.centers.indices.filter { ThirdOctave.centers[$0] >= 100 && ThirdOctave.centers[$0] <= 8000 }
@@ -798,6 +808,15 @@ private struct EQCurveView: View {
                     let c = CGPoint(x: x(b.frequency), y: y(strip.filterResponseDB(at: b.frequency)))
                     ctx.fill(Path(ellipseIn: CGRect(x: c.x - 4, y: c.y - 4, width: 8, height: 8)), with: .color(Theme.accent))
                 }
+            }
+            // Scale labels last, so the curve never covers them.
+            for f in [50.0, 100, 200, 500, 1000, 2000, 5000, 10000] {
+                ctx.draw(Text(PEQFilter.label(f)).font(.system(size: 9)).foregroundColor(Theme.textMuted),
+                         at: CGPoint(x: x(f) + 3, y: size.height - 3), anchor: .bottomLeading)
+            }
+            for db in [-12.0, -6, 6, 12] {
+                ctx.draw(Text(String(format: "%+.0f", db)).font(.system(size: 9)).foregroundColor(Theme.textMuted),
+                         at: CGPoint(x: 4, y: y(db) - 1), anchor: .bottomLeading)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -1162,14 +1181,117 @@ private struct ConsoleTestScreen: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Panel(title: loc.t("assist.test"), tint: Theme.signalYellow) { ConsoleTestPanel() }
-                .frame(width: 440)
+            VStack(spacing: 12) {
+                if store.family != .simulator {
+                    Panel(title: loc.t("assist.diag"), tint: Theme.dataBlue) { LinkDiagnostics() }
+                }
+                Panel(title: loc.t("assist.test"), tint: Theme.signalYellow) { ConsoleTestPanel() }
+                Panel(title: loc.t("assist.wave"), tint: Theme.accent) { FaderWavePanel() }
+            }
+            .frame(width: 440)
             Card(title: loc.t("assist.test.report"), tint: Theme.dataSecondary, accessory: { EmptyView() }) {
                 ScrollView { TestStepper().padding(16) }
             }
             .frame(maxHeight: .infinity)
         }
         .frame(maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// What the link to a real console brings right now: the console's answer, meter frames per second, parameters
+/// read, and whether the preamp gains are reachable (with the routing set by hand if the console's is not read).
+struct LinkDiagnostics: View {
+    @EnvironmentObject var store: AssistStore
+    @EnvironmentObject var loc: Localizer
+
+    var body: some View {
+        let st = store.linkStats
+        VStack(alignment: .leading, spacing: 6) {
+            row(loc.t("assist.diag.console"), st.model.isEmpty ? loc.t("assist.diag.noInfo") : st.model, ok: st.model.isEmpty ? .bad : .good)
+            row(loc.t("assist.diag.levels"), perSecond(st.channelFrames), ok: rate(st.channelFrames))
+            row(loc.t("assist.diag.buses"), perSecond(st.busFrames), ok: rate(st.busFrames))
+            row(loc.t("assist.diag.rta"), perSecond(st.rtaFrames), ok: rate(st.rtaFrames))
+            row(loc.t("assist.diag.params"), "\(st.paramsHeard) / \(st.paramsExpected)",
+                ok: st.paramsExpected == 0 ? .bad : st.paramsHeard >= st.paramsExpected * 95 / 100 ? .good : st.paramsHeard > 0 ? .warn : .bad)
+            row(loc.t("assist.diag.gain"), "\(st.gainKnown) / \(st.channels)",
+                ok: st.gainKnown == st.channels ? .good : st.gainKnown > 0 ? .warn : .bad)
+            if store.family == .x32 {
+                HStack {
+                    Text(loc.t("assist.diag.routing")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                    Picker("", selection: $store.routingPreset) {
+                        ForEach(X32InputRouting.Preset.allCases, id: \.self) { Text(loc.t("assist.routing.\($0.rawValue)")).tag($0) }
+                    }
+                    .labelsHidden().frame(width: 230)
+                }
+                if st.gainKnown < st.channels && store.routingPreset == .auto {
+                    Text(loc.t("assist.diag.gainHint")).font(.system(size: 11)).foregroundStyle(Theme.signalYellow)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .font(.system(size: 12))
+    }
+
+    enum Level { case good, warn, bad }
+
+    private func rate(_ n: Int) -> Level { n >= 10 ? .good : n > 0 ? .warn : .bad }
+    private func perSecond(_ n: Int) -> String { String(format: loc.t("assist.diag.perSecond"), n) }
+
+    private func row(_ title: String, _ value: String, ok: Level) -> some View {
+        HStack(spacing: 8) {
+            Circle().fill(ok == .good ? Theme.statusGood : ok == .warn ? Theme.signalYellow : Theme.statusError).frame(width: 7, height: 7)
+            Text(title).foregroundStyle(Theme.textSecondary)
+            Spacer()
+            Text(value).font(Theme.mono(12)).foregroundStyle(Theme.textPrimary)
+        }
+    }
+}
+
+/// Fader wave: every channel fader of the console runs a sine wave top to bottom, to judge the motor faders'
+/// smoothness; the same wave is drawn here, so the console can be compared with it.
+private struct FaderWavePanel: View {
+    @EnvironmentObject var store: AssistStore
+    @EnvironmentObject var loc: Localizer
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(loc.t("assist.wave.hint")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            TimelineView(.animation(minimumInterval: 1 / 30, paused: !store.waving)) { tl in
+                let n = max(1, store.waveChannels)
+                let t = store.waving ? tl.date.timeIntervalSince(store.waveStart) : 0
+                let pos = FaderWave(cycleSeconds: store.waveCycle).positions(at: t, channels: n)
+                Canvas { ctx, size in
+                    let w = size.width / CGFloat(n)
+                    for (i, p) in pos.enumerated() {
+                        let x = CGFloat(i) * w + w / 2
+                        var slot = Path(); slot.move(to: CGPoint(x: x, y: 4)); slot.addLine(to: CGPoint(x: x, y: size.height - 4))
+                        ctx.stroke(slot, with: .color(Color.white.opacity(0.1)), lineWidth: 2)
+                        let y = 4 + (1 - CGFloat(p)) * (size.height - 8)
+                        let cap = CGRect(x: x - max(2, w * 0.35), y: y - 3, width: max(4, w * 0.7), height: 6)
+                        ctx.fill(Path(roundedRect: cap, cornerRadius: 1.5), with: .color(store.waving ? Theme.accent : Theme.textMuted))
+                    }
+                }
+            }
+            .frame(height: 110)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.25)))
+            HStack(spacing: 10) {
+                Text(loc.t("assist.wave.cycle")).font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                Slider(value: $store.waveCycle, in: 1...12, step: 0.5)
+                Text(String(format: "%.1f s", store.waveCycle)).font(Theme.mono(11)).frame(width: 44)
+            }
+            Button {
+                store.waving ? store.stopWave() : store.startWave()
+            } label: {
+                Label(loc.t(store.waving ? "assist.wave.stop" : "assist.wave.start"),
+                      systemImage: store.waving ? "stop.fill" : "water.waves").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(SSMTButtonStyle(kind: store.waving ? .danger : .primary))
+            .disabled(store.testing)
+            Text(loc.t("assist.wave.safety")).font(.system(size: 11)).foregroundStyle(Theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
@@ -1312,7 +1434,7 @@ private struct ConnectionPanel: View {
         case .disconnected: StatusBadge(level: .idle, text: loc.t("assist.offline"))
         case .connecting: StatusBadge(level: .warning, text: loc.t("assist.connecting"))
         case let .connected(t): StatusBadge(level: .good, text: t)
-        case let .failed(t): StatusBadge(level: .error, text: t == "not supported yet" ? loc.t("assist.soon") : t)
+        case let .failed(t): StatusBadge(level: .error, text: assistFailure(t, store: store, loc: loc))
         }
     }
 }

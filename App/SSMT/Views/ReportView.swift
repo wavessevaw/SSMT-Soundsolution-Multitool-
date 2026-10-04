@@ -37,7 +37,7 @@ struct ReportView: View {
     }
 
     private func alignmentSection(_ a: SetupReport.Alignment) -> some View {
-        Panel(title: loc.t("report.alignment"), marking: String(format: "XO %.0f Hz", a.crossover)) {
+        Panel(title: loc.t("report.alignment"), marking: String(format: loc.t("report.crossover"), a.crossover)) {
             HStack(spacing: 12) {
                 cell(loc.t(a.delayTarget == .mains ? "card.delay.mains" : "card.delay.sub"),
                      a.delayTarget == .none ? "0.00 ms" : String(format: "+%.2f ms", a.delayMs),
@@ -61,7 +61,7 @@ struct ReportView: View {
     }
 
     private func eqSection(_ e: SetupReport.EQ) -> some View {
-        Panel(title: loc.t("report.eq"), marking: "\(e.points) PTS · \(e.iterations)×") {
+        Panel(title: loc.t("report.eq"), marking: String(format: loc.t("report.eqMarking"), e.points, e.iterations)) {
             HStack(spacing: 12) {
                 cell(loc.t("gauge.deviation"), e.deviationAfterDB.map { String(format: "±%.1f dB", $0) } ?? "—",
                      loc.t("curve.before") + String(format: ": ±%.1f dB", e.deviationBeforeDB))
@@ -80,10 +80,10 @@ struct ReportView: View {
     private var conditions: some View {
         Panel(title: loc.t("report.conditions")) {
             Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 4) {
-                row(loc.t("setup.interface"), "\(report.interfaceName) · \(Int(report.sampleRate)) Hz")
+                row(loc.t("setup.interface"), "\(report.interfaceName == "Simulation" ? loc.t("setup.simulation") : report.interfaceName) · \(Int(report.sampleRate)) Hz")
                 row(loc.t("setup.temperature"), String(format: "%.0f °C", report.temperatureCelsius))
                 row(loc.t("cal.mic"), report.microphoneCalibrationName ?? loc.t("cal.mic.uncalibrated"))
-                if let d = report.referenceDelayMs { row(loc.t("delay.locked"), String(format: "%.2f ms", d)) }
+                if let d = report.referenceDelayMs { row(loc.t("report.delayLocked"), String(format: "%.2f ms", d)) }
             }
         }
     }

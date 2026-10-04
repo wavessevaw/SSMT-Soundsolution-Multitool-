@@ -1,3 +1,128 @@
+# SSMT 1.3.2 — FOH Assist на настоящем пульте, Qtrl как в QLab
+
+## Русский
+
+**FOH Assist — работа с настоящим пультом X32 / M32 и X Air / MR**
+- **Диагностика связи** (вкладка «Тест пульта» и окно настроек): отвечает ли пульт, сколько кадров уровней каналов,
+  шин и RTA приходит в секунду, сколько параметров прочитано, на скольких каналах доступен гейн.
+- **Входы каналов:** по умолчанию «Локальные входы 1–32» (пульт как с завода); в настройках — «Определить по пульту»
+  и стейджбокс на AES50 A / B. Ассистент не трогает гейн, если не знает, какой предусилитель питает канал.
+- **Надёжный опрос по Wi-Fi:** параметры читаются небольшими порциями, потерянные ответы переспрашиваются; упавшая
+  связь восстанавливается сама; подсказка про разрешение «Локальная сеть» (macOS 15).
+- **Компрессор / экспандер:** режим блока динамики читается; экспандер звукорежиссёра не принимается за компрессор.
+- **Страховка шоу 4 раза в секунду:** звенящий монитор прижимается за ≈0,75 с и ещё раз через 0,5 с, если звенит
+  дальше; фидбэк в зале вырезается и углубляется быстрее.
+- **«Оркестр»** настраивает все музыкальные инструменты: ударные, бэнд, струнные, духовые.
+- **Волна фейдеров** в тесте пульта: все фейдеры волной сверху вниз, чтобы оценить плавность моторных фейдеров;
+  главный выход на это время выключен.
+- **Тест пульта** возвращает главный выход в прежнее состояние (раньше всегда включал).
+- Подписи шкал EQ поверх кривой, понятные сообщения об ошибках подключения.
+
+**Qtrl**
+- Таймлайн группы: жёлтый курсор воспроизведения, переход по щелчку на линейке, фейд в один момент с треком.
+- Настройки каждой кью — по двойному клику: «Время и петли» (волна с началом, концом, петлёй, нарастанием и
+  затуханием), «Фейд» (длительность и кривая с рисунком), «Уровни», «Запуск».
+- Огибающая громкости на волне трека (как integrated fade в QLab): точки на жёлтой линии, плавная или прямая.
+- Фейд-аут по умолчанию оставляет трек играть на −∞ (как в QLab); «Остановить цель» — галочкой.
+- Удаление играющей кью сразу её глушит; индикаторы выходов краснеют только при перегрузке.
+
+**Ptch** (бывший Input list): новое название; Delete при вводе текста больше не удаляет строку (вылет).
+
+Собрано и проверено автотестами; с живым пультом протокол не сверялся — начните с «Диагностики связи» и
+«Теста пульта».
+
+## English
+
+**SSMT 1.3.2.** FOH Assist on a real console: connection diagnostics (console answer, meter frames per second,
+parameters read, gain reachability), channel inputs local 1–32 by default (auto / AES50 A / B in settings), paced
+queries with re-asks and automatic reconnect, dynamics mode read, the show guard 4 times a second, Orchestra tunes every
+instrument, a fader wave in the console test, the console test restores the main output as it was. Qtrl: playback
+cursor and ruler seek on group timelines, per-cue settings on double click, integrated fade envelope, fade-outs keep
+the target playing at −inf, deleting a playing cue stops it, output meters red only on clipping. Ptch (formerly Input
+list): new name; Delete while typing no longer removes the row (crash). Built and tested automatically; the console
+protocol is not yet verified on a live console.
+
+---
+
+# SSMT 1.3.1 — Qtrl: таймлайн группы как в QLab 5
+
+## Русский
+
+**Qtrl — таймлайн группы**
+- **Курсор воспроизведения**, как в DAW: жёлтая линия точно по шкале и волне, движется плавно, показывает время;
+  таймлайн прокручивается за ним.
+- **Линейка:** щелчок или протяжка — воспроизведение переходит туда. Играющая группа продолжает с этого места,
+  неиграющая начнёт оттуда при следующем запуске (также ⌘T). Треки стартуют с нужного места, идущий фейд
+  продолжается с того уровня, где был бы.
+- **Фейд в тот же момент, что и трек, теперь работает** (раньше мог пропасть); фейд для трека, файл которого ещё
+  готовится, применяется при его старте.
+- Перетаскивание с ⌥ сдвигает звук внутри клипа; клипы прилипают к линии воспроизведения; цвет кью на клипах;
+  ⌥← / ⌥→ — пауза до ±0,1 с; ⌘= / ⌘− — масштаб.
+
+**Qtrl — как в QLab**
+- Режим группы **«Первая и войти»** (Start First And Enter): GO идёт по кью внутри группы и выходит после последней.
+- **Повторный запуск играющей кью:** ничего, плавно остановить, остановить, остановить сразу, начать заново, выйти
+  из петли; для плейлиста — следующий трек.
+- Рамка GO красная, пока действует защита от двойного GO.
+
+**Qtrl — исправления**
+- Пауза посреди фейда больше не перескакивает в его конец: фейд замирает и продолжается после паузы.
+- «Пауза всего», Esc и «Стоп» без цели действуют и на кью группы, запущенную отдельно.
+- Остановка группы, пока её кью ждут паузу до, больше не запускает следующую кью.
+- Группа, остановленная с затуханием, полностью завершается.
+- Фейд-ин группы больше не оставляет незапущенные кью «тихими» на потом.
+
+## English
+
+**SSMT 1.3.1.** Qtrl group timeline as in QLab 5: a yellow playback line exactly on the ruler and waveforms, moving
+smoothly and followed by the view; click or drag the ruler to play from there (a stopped group is loaded there, also
+with ⌘T), tracks start part-way and fades under way continue from their current point; a fade at the same moment as
+its track now fades it; ⌥-drag slips the sound inside a clip; snapping to the playback line; cue colours; ⌥← / ⌥→ and
+⌘= / ⌘−. Start First And Enter groups; second trigger options (incl. playlist "plays next"); red GO border during
+double-GO protection. Fixes: pause freezes fades, Pause/Stop all reach cues of a group started on their own,
+stopping a waiting group no longer follows on, faded group stops end cleanly, fade-ins no longer leave cues silent.
+
+---
+
+# SSMT 1.3.0 — Qtrl ближе к QLab
+
+## Русский
+
+**Qtrl**
+- **Фейд-ин и фейд-аут.** Две кнопки на панели инструментов. Фейд-ин запускает цель из тишины и поднимает до её
+  уровня (или до указанного); фейд-аут уводит в тишину и останавливает. В инспекторе — переключатель направления.
+- **Относительный фейд, как в QLab:** «изменить на ±N дБ» от текущего уровня или «до уровня».
+- **Кроссфейд в плейлисте:** следующий трек начинается раньше конца текущего с плавным переходом.
+- **⌘T «Загрузить до времени»:** следующий старт выделенной аудио-кью — с указанного места.
+- **Мультитрек группы:** у каждой кью своя дорожка (аудио, фейд, пауза, OSC, управляющие, заметки), раскладка по
+  паузе до, как у таймлайн-группы QLab 5; таймлайн прокручивается (перетаскивание пустого места, колесо / трекпад,
+  полоса прокрутки); новые группы — таймлайн.
+- **Курсор GO:** после запуска кью любым способом (GO, «Воспроизвести сейчас», V) встаёт на следующую; щелчок по
+  играющей кью его не сбивает.
+- **Исправления после проверки 1.2.1:** кью с непригодным файлом не «зависает» и не останавливает цепочку; при
+  сохранении шоу файлы с одинаковым именем и размером не подменяют друг друга, а не скопированные сохраняют полный
+  путь; трек, запущенный во время подготовки файла, играет без провалов.
+- **Проверка всего приложения:** колонки списка кью выровнены во всех строках; зажатый пробел — один GO; клавиши,
+  нажатые в окнах выбора файла, настроек и предупреждений, не запускают кью; порты OSC без разделителя тысяч; новый
+  световой пульт в OSC-устройствах начинается с пустого адреса (не 127.0.0.1).
+
+**Настройка системы:** отчёт и графики полностью на русском (раздел, точки и итерации EQ, симуляция, сглаживание).
+**Список каналов и план сцены:** колонка «Стойка» и подписи палитры больше не обрезаются.
+**FOH Assist:** подписи шкал на графике EQ поверх кривой.
+
+## English
+
+**SSMT 1.3.0.** Qtrl: fade-in (starts the target from silence) and fade-out with
+toolbar buttons; relative fades; playlist crossfades; ⌘T Load to time; the group multitrack shows every cue on its
+own track and scrolls, new groups are timeline groups; every start moves the playhead to the next cue. Fixes from
+the 1.2.1 audit: a cue with an unplayable file no longer hangs, show media with the same name and size are no longer
+mixed up on save, playback while a file is prepared no longer drops out. Full audit: cue list columns aligned in
+every row, a held Space fires one GO, keys typed in panels and alerts never start cues, OSC ports without digit
+grouping, new console OSC devices start with an empty address; the setup report and graphs are fully localized;
+input list and stage plan labels no longer clip; FOH Assist EQ scale labels drawn above the curve.
+
+---
+
 # SSMT 1.2.1 — FOH Assist: новый интерфейс
 
 ## Русский
@@ -32,8 +157,7 @@
 а в списке пишется «Файл ещё готовится». Отсутствующий файл по-прежнему сообщается сразу.
 Кнопка GO и пробел больше не «засыпают» после добавления кью: курсор GO переходит на первую добавленную кью
 (и с конца списка), при удалении кью под курсором — на следующую; щелчок по кью ставит на неё курсор GO, как в QLab.
-В режиме «Правка» появилась панель воспроизведения — GO, пауза и «Стоп всё»: треки можно слушать, не переходя
-в режим «Шоу». Пробел больше не теряется в полях (заметки, имя, номер): щелчок в любом месте вне поля или Esc заканчивает
+GO, пауза и «Стоп всё» есть и в режиме «Правка»: треки можно слушать, не переходя в режим «Шоу». Пробел больше не теряется в полях (заметки, имя, номер): щелчок в любом месте вне поля или Esc заканчивает
 ввод, и пробел снова запускает GO.
 
 **Qtrl: экран переделан по образцу QLab, без дублей.** Сверху — GO, «Далее» с заметками, «Пауза» и «Стоп всё»
@@ -138,7 +262,7 @@ Stop all, double-GO guard, pre-show check, automatic output recovery, no sleep w
 
 
 **New (beta): function #4 — FOH Assist.** Connects to Behringer X32 / Midas M32 and X Air / MR over the network
-over the network (levels and RTA over Wi-Fi; USB/Dante optional), measures with any microphone of the setup
+(levels and RTA over Wi-Fi; USB/Dante optional), measures with any microphone of the setup
 library, tunes channels by itself (gain, high-pass, EQ, compressor) and groups with one button (orchestra,
 choir, a channel range) with a feedback-checked ring-out, checks mic polarity automatically, and in Show mode
 guards the engineer's mix (feedback notches, monitor loops, lead intelligibility in mass scenes) without moving

@@ -194,6 +194,7 @@ final class ShowTests: XCTestCase {
         f.target = a.id
         f.fade?.duration = 0.5
         f.fade?.curve = .linearGain
+        f.fade?.stopWhenDone = true
         doc.lists[0].cues = [a, f]
         let rig = ShowRig(doc)
         rig.clips["a"] = constClip(1, frames: 4800)
@@ -205,6 +206,74 @@ final class ShowTests: XCTestCase {
         XCTAssertEqual(rig.out[0][fadeStart + 12000], 0.5, accuracy: 0.01)
         XCTAssertEqual(rig.out[0][fadeStart + 24100], 0)
         XCTAssertFalse(rig.engine.isActive, "stop when done ends the looping cue")
+    }
+
+    /// QLab: a fade-out does not stop its target unless "stop target when done" is ticked — the track plays on at −∞.
+    func testFadeOutKeepsTheTrackRunningAtSilenceByDefault() {
+        var doc = ShowDocument()
+        let a = audioCue("a", "1", plays: 0)
+        var f = Cue(kind: .fade, number: "2")
+        f.target = a.id
+        f.fade = .preset(fadeIn: false)
+        f.fade?.duration = 0.3
+        doc.lists[0].cues = [a, f]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(1, frames: 4800)
+        rig.engine.start(a.id, now: 0)
+        rig.runSeconds(0.1)
+        rig.engine.start(f.id, now: rig.now)
+        rig.runSeconds(1)
+        XCTAssertTrue(rig.engine.isRunning(a.id), "still playing")
+        XCTAssertEqual(rig.out[0].last ?? 1, 0, accuracy: 0.001, "at −∞")
+        XCTAssertEqual((try? JSONDecoder().decode(FadeCueParams.self, from: Data("{}".utf8)))?.stopWhenDone, false, "a saved fade without the setting does not stop either")
+    }
+
+    /// QLab's integrated fade: the audio follows the volume line drawn over the waveform.
+    func testIntegratedFadeEnvelopeShapesTheTrack() {
+        var doc = ShowDocument()
+        var a = audioCue("a", "1")
+        a.audio?.envelope = VolumeEnvelope(points: [.init(u: 0, db: 0), .init(u: 0.5, db: -6.0206), .init(u: 1, db: -6.0206)], smooth: false)
+        doc.lists[0].cues = [a]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(1, frames: 48000)
+        rig.engine.start(a.id, now: 0)
+        rig.runSeconds(1.2)
+        let s0 = 256
+        XCTAssertEqual(rig.out[0][s0 + 100], 1, accuracy: 0.01, "starts at the cue's level")
+        XCTAssertEqual(rig.out[0][s0 + 36000], 0.5, accuracy: 0.01, "−6 dB on the flat part")
+        XCTAssertEqual(rig.out[0][s0 + 12000], Float(pow(10, -3.0103 / 20)), accuracy: 0.01, "half way down the slope")
+        // Smooth curves pass through every point and stay between neighbours.
+        let env = VolumeEnvelope(points: [.init(u: 0, db: 0), .init(u: 0.4, db: -20), .init(u: 1, db: -10)])
+        XCTAssertEqual(env.db(at: 0.4), -20, accuracy: 1e-9)
+        for u in stride(from: 0.0, through: 0.4, by: 0.05) { XCTAssertLessThanOrEqual(env.db(at: u), 0.0001); XCTAssertGreaterThanOrEqual(env.db(at: u), -20.0001) }
+        // Locked to the region: the line stretches with start and end.
+        var p = AudioCueParams(file: "a")
+        p.start = 2; p.end = 4
+        p.envelope = VolumeEnvelope(points: [.init(u: 0, db: 0), .init(u: 1, db: -20)], smooth: false)
+        XCTAssertEqual(p.envelopeDB(atFile: 3, fileLength: 10), -10, accuracy: 1e-9)
+        p.envelope?.lockToRegion = false
+        XCTAssertEqual(p.envelopeDB(atFile: 5, fileLength: 10), -10, accuracy: 1e-9)
+    }
+
+    /// Deleting a cue while it plays stops its sound at once (a group: everything in it).
+    func testDeletingAPlayingCueStopsIt() {
+        var doc = ShowDocument()
+        let a = audioCue("a", "1", plays: 0)
+        var g = Cue(kind: .group, number: "2")
+        g.groupMode = .simultaneous
+        g.children = [audioCue("a", "2.1", plays: 0)]
+        doc.lists[0].cues = [a, g]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 4800)
+        rig.engine.start(a.id, now: 0)
+        rig.engine.start(g.id, now: 0)
+        rig.runSeconds(0.2)
+        var edited = doc
+        edited.lists[0].cues = []
+        rig.engine.document = edited
+        rig.runSeconds(0.2)
+        XCTAssertFalse(rig.engine.isActive, "nothing left playing")
+        XCTAssertEqual(rig.out[0].last ?? 1, 0, accuracy: 1e-6, "silent")
     }
 
     func testDevampPredictionMatchesAudio() {
@@ -347,6 +416,109 @@ final class ShowTests: XCTestCase {
         XCTAssertTrue(rig.out[0].contains { abs($0 - 0.1) < 1e-6 }, "auto-follow continued after it")
     }
 
+    func testFileReadyButUnplayableEndsTheCueAndTheChainGoesOn() {
+        var doc = ShowDocument()
+        var a = audioCue("a", "1"); a.continueMode = .autoFollow
+        let b = audioCue("b", "2")
+        doc.lists[0].cues = [a, b]
+        let rig = ShowRig(doc)
+        rig.engine.clipPending = { _ in true }
+        rig.clips["b"] = constClip(0.1, frames: 480)
+        rig.engine.go(now: 0)
+        rig.run(2400)
+        rig.clips["a"] = AudioClip(sampleRate: 48000, channels: [[]])   // decoded, but empty
+        rig.run(4800 * 2)
+        XCTAssertEqual(rig.engine.problems[a.id], "error.show.missingFile")
+        XCTAssertTrue(rig.out[0].contains { abs($0 - 0.1) < 1e-6 }, "the chain went on to the next cue")
+    }
+
+    func testPlaylistCrossfadeStartsTheNextEntryEarly() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .playlist
+        g.crossfade = 0.5
+        g.children = [audioCue("a", "1.1"), audioCue("b", "1.2")]
+        doc.lists[0].cues = [g]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 48000)
+        rig.clips["b"] = constClip(0.5, frames: 48000)
+        rig.engine.go(now: 0)
+        rig.runSeconds(2)
+        let starts: [(UUID, Int64)] = rig.ops.compactMap { if case let .start(id, _, _, at) = $0 { return (id, at) } else { return nil } }
+        XCTAssertEqual(starts.count, 2)
+        XCTAssertEqual(starts[1].1 - starts[0].1, 24000, "b starts 0.5 s before a ends")
+        let setups: [VoiceSetup] = rig.ops.compactMap { if case let .start(_, _, s, _) = $0 { return s } else { return nil } }
+        XCTAssertEqual(setups[0].fadeOutFrames, 24000, "a fades out over the crossfade")
+        XCTAssertEqual(setups[1].fadeInFrames, 24000, "b fades in over the crossfade")
+        XCTAssertEqual(setups[0].fadeInFrames, 0, "the first entry does not fade in")
+        XCTAssertFalse(rig.engine.isActive, "the playlist ends after b, once")
+    }
+
+    func testLoadToTimeStartsTheCueThatFarIn() {
+        var doc = ShowDocument()
+        let a = audioCue("a", "1")
+        doc.lists[0].cues = [a]
+        let rig = ShowRig(doc)
+        // 2 s of audio: first second 0.25, second second 0.75.
+        rig.clips["a"] = AudioClip(sampleRate: 48000, channels: [(0..<96000).map { $0 < 48000 ? 0.25 : 0.75 }])
+        rig.engine.loadToTime(a.id, seconds: 1.5)
+        rig.engine.go(now: 0)
+        rig.runSeconds(1)
+        let heard = rig.out[0].filter { $0 != 0 }
+        XCTAssertFalse(heard.contains { abs($0 - 0.25) < 1e-6 }, "the first second is skipped")
+        XCTAssertTrue(heard.contains { abs($0 - 0.75) < 1e-6 })
+        XCTAssertEqual(heard.count, 24000, accuracy: 256, "only the last half second plays")
+        XCTAssertFalse(rig.engine.isActive)
+        XCTAssertNil(rig.engine.loadedTime[a.id], "loading applies to one start")
+    }
+
+    func testFadeInStartsTheTargetFromSilenceAndBringsItUp() {
+        var doc = ShowDocument()
+        var a = audioCue("a", "1", plays: 0)
+        a.audio?.level = -4
+        var fin = Cue(kind: .fade, number: "2")
+        fin.target = a.id
+        fin.fade = .preset(fadeIn: true)
+        fin.fade?.duration = 1
+        doc.lists[0].cues = [fin, a]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 48000)
+        rig.engine.go(now: 0)                                // GO on the fade-in only
+        rig.runSeconds(0.5)
+        let setups: [VoiceSetup] = rig.ops.compactMap { if case let .start(_, _, s, _) = $0 { return s } else { return nil } }
+        XCTAssertEqual(setups.first?.levelDB, showSilenceDB, "the target starts silent")
+        let fades: [Double?] = rig.ops.compactMap { if case let .fade(_, _, _, _, l, _) = $0 { return l } else { return nil } }
+        XCTAssertEqual(fades, [-4], "and comes up to its own level")
+        let early = rig.out[0][1000], later = rig.out[0][20000]
+        XCTAssertLessThan(abs(early), abs(later), "the level rises")
+        XCTAssertTrue(rig.engine.isRunning(a.id))
+    }
+
+    func testRelativeFadeChangesTheCurrentLevel() {
+        var doc = ShowDocument()
+        var a = audioCue("a", "1", plays: 0)
+        a.audio?.level = -6
+        var f = Cue(kind: .fade, number: "2")
+        f.target = a.id
+        f.fade?.relative = true
+        f.fade?.level = -6
+        f.fade?.stopWhenDone = false
+        var f2 = f
+        f2.id = UUID()
+        f2.number = "3"
+        doc.lists[0].cues = [a, f, f2]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 48000)
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.4)                       // past the double-GO guard
+        rig.engine.go(now: rig.now)
+        rig.runSeconds(3.5)                       // the first fade (3 s) is over
+        rig.engine.go(now: rig.now)
+        rig.runSeconds(0.4)
+        let levels: [Double?] = rig.ops.compactMap { if case let .fade(_, _, _, _, l, _) = $0 { return l } else { return nil } }
+        XCTAssertEqual(levels, [-12, -18], "each relative fade takes 6 dB off where the cue is")
+    }
+
     func testFileThatNeverBecomesReadyIsReportedAfterTimeout() {
         var doc = ShowDocument()
         let a = audioCue("a", "1")
@@ -361,6 +533,351 @@ final class ShowTests: XCTestCase {
     }
 
     // MARK: Editing
+
+    // MARK: Audit 1.3.0: Qtrl behaviour
+
+    /// A cue inside a group started on its own (V / play button) has no running parent: Pause all, Stop all and a
+    /// Stop cue without a target must still reach it.
+    func testCueStartedInsideAGroupIsReachedByPauseAllAndPanic() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        let k = audioCue("a", "1.1", plays: 0)
+        g.children = [k]
+        doc.lists[0].cues = [g]
+        doc.panicFade = 0.2
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 4800)
+        rig.engine.start(k.id, now: 0)
+        rig.runSeconds(0.1)
+        XCTAssertTrue(rig.engine.isRunning(k.id))
+        rig.engine.pauseAll(now: rig.now)
+        rig.runSeconds(0.05)
+        XCTAssertTrue(rig.engine.snapshot(now: rig.now).running.first { $0.id == k.id }?.paused ?? false, "Pause all pauses it")
+        rig.engine.resumeAll(now: rig.now)
+        rig.runSeconds(0.05)
+        rig.engine.panic(now: rig.now)
+        rig.runSeconds(0.5)
+        XCTAssertFalse(rig.engine.isActive, "Stop all ends it, the engine is idle")
+
+        var stop = Cue(kind: .stop, number: "2")
+        stop.target = nil
+        var doc2 = doc
+        doc2.lists[0].cues = [g, stop]
+        let rig2 = ShowRig(doc2)
+        rig2.clips["a"] = constClip(0.5, frames: 4800)
+        rig2.engine.start(k.id, now: 0)
+        rig2.runSeconds(0.1)
+        rig2.engine.start(stop.id, now: rig2.now)
+        rig2.runSeconds(0.2)
+        XCTAssertFalse(rig2.engine.isRunning(k.id), "a Stop cue without a target stops it too")
+    }
+
+    /// Stopping a group with a fade: once its children have faded out, the group is gone too.
+    func testGroupStoppedWithAFadeIsRemovedAfterItsChildren() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .simultaneous
+        g.children = [audioCue("a", "1.1", plays: 0), audioCue("a", "1.2", plays: 0)]
+        doc.lists[0].cues = [g]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 4800)
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.2)
+        rig.engine.stop(g.id, now: rig.now, fade: 0.3)
+        rig.runSeconds(0.6)
+        XCTAssertFalse(rig.engine.isActive, "no group left behind after a faded stop")
+    }
+
+    /// A fade-in on a random group starts one child; the others must not keep a pending fade-in and start silent
+    /// the next time they play.
+    func testFadeInDoesNotLingerOnCuesItDidNotStart() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .random
+        let k1 = audioCue("a", "1.1"), k2 = audioCue("a", "1.2")
+        g.children = [k1, k2]
+        var fin = Cue(kind: .fade, number: "2")
+        fin.target = g.id
+        fin.fade = .preset(fadeIn: true)
+        fin.fade?.duration = 0.2
+        doc.lists[0].cues = [fin, g]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 4800)
+        rig.engine.random = { 0 }                       // the first child
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.5)
+        rig.ops.removeAll()
+        rig.engine.start(k2.id, now: rig.now)
+        rig.runSeconds(0.05)
+        let setups: [VoiceSetup] = rig.ops.compactMap { if case let .start(_, _, s, _) = $0 { return s } else { return nil } }
+        XCTAssertEqual(setups.first?.levelDB, 0, "the other child plays at its own level")
+    }
+
+    /// Pause in the middle of a fade (QLab): the fade stops where it is and continues after resume, it does not
+    /// jump to the end.
+    func testPausedVoiceFreezesItsFade() {
+        var doc = ShowDocument()
+        let a = audioCue("a", "1", plays: 0)
+        var f = Cue(kind: .fade, number: "2")
+        f.target = a.id
+        f.fade?.duration = 1
+        f.fade?.curve = .linearGain
+        f.fade?.stopWhenDone = false
+        doc.lists[0].cues = [a, f]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(1, frames: 4800)
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.1)
+        rig.engine.start(f.id, now: rig.now)             // fade over 1 s
+        rig.runSeconds(0.5)                              // about half way
+        rig.engine.pauseAll(now: rig.now)
+        rig.runSeconds(2)                                // longer than the rest of the fade
+        rig.engine.resumeAll(now: rig.now)
+        let resumed = rig.out[0].count + 256 + 64
+        rig.runSeconds(0.1)
+        XCTAssertGreaterThan(rig.out[0][resumed], 0.3, "the level continues from about half, not silence")
+        rig.runSeconds(1)
+        XCTAssertEqual(rig.out[0].last ?? 1, 0, accuracy: 0.01, "and the fade then finishes")
+    }
+
+    /// Pausing the Fade cue itself freezes the fade on its targets; resuming continues it.
+    func testPausingAFadeCueFreezesTheFade() {
+        var doc = ShowDocument()
+        let a = audioCue("a", "1", plays: 0)
+        var f = Cue(kind: .fade, number: "2")
+        f.target = a.id
+        f.fade?.duration = 1
+        f.fade?.curve = .linearGain
+        f.fade?.stopWhenDone = false
+        doc.lists[0].cues = [a, f]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(1, frames: 4800)
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.1)
+        rig.engine.start(f.id, now: rig.now)
+        rig.runSeconds(0.5)
+        rig.engine.pause(f.id, now: rig.now)
+        rig.runSeconds(1.5)
+        XCTAssertGreaterThan(rig.out[0].last ?? 0, 0.3, "the target holds its level while the fade is paused")
+        rig.engine.resume(f.id, now: rig.now)
+        rig.runSeconds(1)
+        XCTAssertEqual(rig.out[0].last ?? 1, 0, accuracy: 0.01, "the fade finishes after resume")
+    }
+
+    /// Group timeline: a track and a fade-out placed at the same moment — the track starts and fades at once
+    /// (whatever order the two are processed in).
+    func testFadeAtTheSameMomentAsItsTargetInAGroupTimeline() {
+        for _ in 0..<12 {
+            var doc = ShowDocument()
+            var g = Cue(kind: .group, number: "1")
+            g.groupMode = .simultaneous
+            var a = audioCue("a", "1.1", plays: 0)
+            a.preWait = 0.2
+            var f = Cue(kind: .fade, number: "1.2")
+            f.target = a.id
+            f.preWait = 0.2
+            f.fade?.duration = 1
+            f.fade?.curve = .linearGain
+            f.fade?.stopWhenDone = true
+            g.children = [f, a]                           // the fade even comes first in the list
+            doc.lists[0].cues = [g]
+            let rig = ShowRig(doc)
+            rig.clips["a"] = constClip(1, frames: 4800)
+            rig.engine.go(now: 0)
+            rig.runSeconds(1.5)
+            let start = 256 + 9600
+            XCTAssertEqual(rig.out[0][start + 24000], 0.5, accuracy: 0.03, "half way through the fade")
+            XCTAssertFalse(rig.engine.isRunning(a.id), "faded out and stopped")
+        }
+    }
+
+    /// A fade reaching a track whose file is still being prepared applies when the track starts.
+    func testFadeWaitsForATrackStillBeingPrepared() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .simultaneous
+        let a = audioCue("a", "1.1", plays: 0)
+        var f = Cue(kind: .fade, number: "1.2")
+        f.target = a.id
+        f.fade?.duration = 1
+        f.fade?.curve = .linearGain
+        f.fade?.stopWhenDone = true
+        g.children = [a, f]
+        doc.lists[0].cues = [g]
+        let rig = ShowRig(doc)
+        var ready = false
+        rig.engine.clipPending = { _ in true }
+        rig.engine.clipProvider = { _ in ready ? constClip(1, frames: 4800) : nil }
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.3)
+        ready = true
+        rig.runSeconds(1.5)
+        XCTAssertFalse(rig.engine.isRunning(a.id), "the fade still fades it out and stops it")
+        XCTAssertEqual(rig.out[0].last ?? 1, 0, accuracy: 0.01)
+    }
+
+    /// Stopping a group while its cues are still in their pre-waits must not count as the group finishing.
+    func testStoppingAGroupWhoseCuesAreWaitingDoesNotGoOn() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .simultaneous
+        g.continueMode = .autoFollow
+        var a = audioCue("a", "1.1")
+        a.preWait = 2
+        g.children = [a]
+        let b = audioCue("a", "2")
+        doc.lists[0].cues = [g, b]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 4800)
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.5)
+        rig.engine.stop(g.id, now: rig.now)
+        rig.runSeconds(0.5)
+        XCTAssertFalse(rig.engine.isRunning(b.id), "a stopped group does not follow on")
+        XCTAssertFalse(rig.engine.isActive)
+    }
+
+    /// Timeline group loaded to a time (a click in its ruler): tracks start that far in, a fade under way
+    /// continues from where it would be, cues still ahead keep their place.
+    func testTimelineGroupLoadedToATimeStartsPartWay() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .simultaneous
+        let a = audioCue("a", "1.1", plays: 0)
+        var f = Cue(kind: .fade, number: "1.2")
+        f.target = a.id
+        f.preWait = 1
+        f.fade?.duration = 2
+        f.fade?.curve = .linearGain
+        f.fade?.stopWhenDone = false
+        var b = audioCue("b", "1.3")
+        b.preWait = 3
+        g.children = [a, f, b]
+        doc.lists[0].cues = [g]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(1, frames: 4800)
+        rig.clips["b"] = constClip(0.25, frames: 4800, channels: 2)
+        rig.engine.loadToTime(g.id, seconds: 2)
+        XCTAssertEqual(rig.engine.snapshot(now: 0).loaded[g.id], 2)
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.05)
+        let group = rig.engine.snapshot(now: rig.now).running.first { $0.id == g.id }
+        XCTAssertEqual(group?.elapsed ?? 0, 2.05, accuracy: 0.02, "the group clock starts 2 s in")
+        XCTAssertEqual(rig.out[0][256 + 200], 0.5, accuracy: 0.03, "the fade is half way already")
+        rig.runSeconds(0.6)
+        XCTAssertEqual(rig.out[0][256 + 24000], 0.25, accuracy: 0.03, "and goes on along its curve")
+        let bStart: Int64? = rig.ops.compactMap { if case let .start(id, _, _, at) = $0, id == b.id { return at } else { return nil } }.first
+        XCTAssertNil(bStart, "the cue at 3 s has not started 0.65 s in")
+        rig.runSeconds(0.5)
+        let bStart2: Int64? = rig.ops.compactMap { if case let .start(id, _, _, at) = $0, id == b.id { return at } else { return nil } }.first
+        XCTAssertEqual(bStart2 ?? 0, 256 + 48000, "it starts 1 s after the load point")
+    }
+
+    /// Seeking a running timeline group jumps its clock; the cue list's playhead stays where it is.
+    func testSeekingARunningTimelineGroup() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .simultaneous
+        g.children = [audioCue("a", "1.1", plays: 0)]
+        let next = audioCue("a", "2")
+        doc.lists[0].cues = [g, next]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(1, frames: 4800)
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.5)
+        rig.engine.seek(g.id, to: 5, now: rig.now)
+        rig.runSeconds(0.1)
+        let snap = rig.engine.snapshot(now: rig.now)
+        XCTAssertEqual(snap.running.first { $0.id == g.id }?.elapsed ?? 0, 5.1, accuracy: 0.03)
+        XCTAssertEqual(snap.playhead, next.id)
+        XCTAssertTrue(rig.engine.isRunning(g.children[0].id))
+    }
+
+    /// Start First And Enter (QLab): GO on the group starts its first child and the playhead steps through the
+    /// children; after the last one it leaves the group.
+    func testStartFirstAndEnterGroupWalksThePlayheadThroughItsChildren() {
+        var doc = ShowDocument()
+        doc.doubleGoGuard = 0
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .enter
+        let k1 = audioCue("a", "1.1"), k2 = audioCue("a", "1.2"), k3 = audioCue("a", "1.3")
+        g.children = [k1, k2, k3]
+        let after = audioCue("a", "2")
+        doc.lists[0].cues = [g, after]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 48000)
+        rig.engine.go(now: 0)
+        rig.runSeconds(0.05)
+        XCTAssertTrue(rig.engine.isRunning(k1.id))
+        XCTAssertEqual(rig.engine.snapshot(now: rig.now).playhead, k2.id, "into the group, on its second cue")
+        rig.engine.go(now: rig.now)
+        rig.runSeconds(0.05)
+        XCTAssertTrue(rig.engine.isRunning(k2.id))
+        XCTAssertEqual(rig.engine.snapshot(now: rig.now).playhead, k3.id)
+        rig.engine.go(now: rig.now)
+        rig.runSeconds(0.05)
+        XCTAssertEqual(rig.engine.snapshot(now: rig.now).playhead, after.id, "after the last child: out of the group")
+        rig.engine.setPlayhead(k2.id)
+        XCTAssertEqual(rig.engine.snapshot(now: rig.now).playhead, k2.id, "the playhead can be put inside it")
+
+        var plain = Cue(kind: .group, number: "3")
+        plain.groupMode = .sequence
+        plain.children = [audioCue("a", "3.1")]
+        var doc2 = doc
+        doc2.lists[0].cues.append(plain)
+        let rig2 = ShowRig(doc2)
+        rig2.engine.setPlayhead(plain.children[0].id)
+        XCTAssertNotEqual(rig2.engine.snapshot(now: 0).playhead, plain.children[0].id, "not inside a Start First group")
+    }
+
+    /// Second trigger (QLab): what a running cue does when told to start again.
+    func testSecondTriggerBehaviours() {
+        func run(_ mode: SecondTrigger) -> (ShowRig, Cue) {
+            var doc = ShowDocument()
+            var a = audioCue("a", "1", plays: 0)
+            a.secondTrigger = mode
+            doc.lists[0].cues = [a]
+            let rig = ShowRig(doc)
+            rig.clips["a"] = constClip(0.5, frames: 4800)
+            rig.engine.start(a.id, now: 0)
+            rig.runSeconds(0.3)
+            rig.ops.removeAll()
+            rig.engine.start(a.id, now: rig.now)
+            rig.runSeconds(0.1)
+            return (rig, a)
+        }
+        var (rig, a) = run(.nothing)
+        XCTAssertTrue(rig.engine.isRunning(a.id))
+        XCTAssertTrue(rig.ops.isEmpty, "does nothing")
+        (rig, a) = run(.stop)
+        XCTAssertFalse(rig.engine.isRunning(a.id), "stops")
+        (rig, a) = run(.restart)
+        XCTAssertTrue(rig.engine.isRunning(a.id), "plays again")
+        XCTAssertEqual(rig.ops.filter { if case .start = $0 { return true } else { return false } }.count, 1, "from the start")
+        XCTAssertEqual(rig.engine.snapshot(now: rig.now).running.first?.elapsed ?? 9, 0.1, accuracy: 0.03)
+        (rig, a) = run(.panic)
+        XCTAssertTrue(rig.ops.contains { if case let .stop(_, _, f) = $0 { return f > 0 } else { return false } }, "fades out")
+    }
+
+    /// A playlist group told to start again plays its next entry.
+    func testPlaylistSecondTriggerPlaysTheNextEntry() {
+        var doc = ShowDocument()
+        var p = Cue(kind: .group, number: "1")
+        p.groupMode = .playlist
+        p.secondTrigger = .playNext
+        let k1 = audioCue("a", "1.1"), k2 = audioCue("a", "1.2")
+        p.children = [k1, k2]
+        doc.lists[0].cues = [p]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 96000)
+        rig.engine.start(p.id, now: 0)
+        rig.runSeconds(0.3)
+        rig.engine.start(p.id, now: rig.now)
+        rig.runSeconds(0.2)
+        XCTAssertTrue(rig.engine.isRunning(k2.id), "the second entry plays")
+        XCTAssertFalse(rig.engine.isRunning(k1.id), "the first one stopped")
+        XCTAssertTrue(rig.engine.isRunning(p.id), "the playlist goes on")
+    }
 
     func testEditingOperations() {
         var doc = ShowDocument()
@@ -462,6 +979,64 @@ final class ShowTests: XCTestCase {
         let multitrack = ShowTimeline.planGroup(doc, group: g.id, fileLength: { lengths[$0.audio?.file ?? ""] }, lanePerCue: true)
         XCTAssertEqual(multitrack.first { $0.cueID == k1.id }?.lane, 0, "multitrack: one track per cue, in group order")
         XCTAssertEqual(multitrack.first { $0.cueID == k2.id }?.lane, 1)
+    }
+
+    func testGoOnAGroupMovesThePlayheadToTheNextCue() {
+        for mode in GroupMode.allCases where mode != .enter {   // Start First And Enter goes into the group (own test)
+            var doc = ShowDocument()
+            var g = Cue(kind: .group, number: "1")
+            g.groupMode = mode
+            g.children = [audioCue("a", "1.1"), audioCue("b", "1.2")]
+            let next = audioCue("c", "2")
+            doc.lists[0].cues = [g, next]
+            let rig = ShowRig(doc)
+            rig.clips["a"] = constClip(0.1, frames: 4800)
+            rig.clips["b"] = constClip(0.1, frames: 4800)
+            XCTAssertEqual(rig.engine.playhead, g.id)
+            rig.engine.go(now: 0)
+            rig.run(2048)
+            XCTAssertEqual(rig.engine.playhead, next.id, "\(mode): after GO on the group the next cue stands by")
+            // An edit while the group plays (as the app sends on every change) keeps it there.
+            rig.engine.document = doc
+            XCTAssertEqual(rig.engine.playhead, next.id, "\(mode): an edit does not move the playhead back")
+        }
+    }
+
+    func testStartingACueDirectlyAlsoMovesThePlayheadToTheNext() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .simultaneous
+        g.children = [audioCue("a", "1.1")]
+        let b = audioCue("b", "2"), c = audioCue("c", "3")
+        doc.lists[0].cues = [g, b, c]
+        doc.lists[1].cues = [audioCue("p", "")]
+        let rig = ShowRig(doc)
+        rig.clips = ["a": constClip(0.1, frames: 4800), "b": constClip(0.1, frames: 4800), "p": constClip(0.1, frames: 4800)]
+        rig.engine.start(b.id, now: 0)                     // "play this cue" on 2
+        XCTAssertEqual(rig.engine.playhead, c.id)
+        rig.engine.start(g.id, now: rig.now)               // play the group directly
+        XCTAssertEqual(rig.engine.playhead, b.id, "after the group the next cue stands by")
+        rig.engine.start(doc.lists[1].cues[0].id, now: rig.now)   // a one-shot pad
+        XCTAssertEqual(rig.engine.playhead, b.id, "pads do not move the playhead")
+        rig.engine.start(g.children[0].id, now: rig.now)   // a cue inside a group
+        XCTAssertEqual(rig.engine.playhead, b.id)
+    }
+
+    func testGroupMultitrackShowsEveryKindOnItsOwnTrack() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .sequence                      // a sequence group still shows every child in the multitrack
+        let a = audioCue("a", "1.1")
+        var f = Cue(kind: .fade, number: "1.2"); f.target = a.id; f.preWait = 2
+        var osc = Cue(kind: .network, number: "1.3"); osc.preWait = 1
+        var memo = Cue(kind: .memo, name: "Note"); memo.preWait = 4
+        g.children = [a, f, osc, memo]
+        doc.lists[0].cues = [g]
+        let clips = ShowTimeline.planGroup(doc, group: g.id, fileLength: { _ in 10 }, lanePerCue: true)
+        func lane(_ id: UUID) -> Int? { clips.first { $0.cueID == id }?.lane }
+        XCTAssertEqual([lane(a.id), lane(f.id), lane(osc.id), lane(memo.id)], [0, 1, 2, 3])
+        XCTAssertEqual(clips.first { $0.cueID == f.id }?.start, 2, "a child starts at its pre-wait")
+        XCTAssertEqual(clips.first { $0.cueID == f.id }?.style, .fade)
     }
 
     // MARK: Inner loop (intro → loop → outro)
@@ -761,5 +1336,26 @@ final class ShowTests: XCTestCase {
         let elapsed = Date().timeIntervalSince(t0)
         XCTAssertLessThan(elapsed, 2.5, "64 voices: \(elapsed) s to render 5 s of audio")
         m.collectGarbage()
+    }
+}
+
+final class ShowMediaTests: XCTestCase {
+    func testCopiesKeepDifferentFilesWithTheSameNameApart() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: root) }
+        let a = root.appendingPathComponent("a/Intro.wav"), b = root.appendingPathComponent("b/Intro.wav")
+        try fm.createDirectory(at: a.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try fm.createDirectory(at: b.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data([1, 2, 3, 4]).write(to: a)
+        try Data([9, 9, 9, 9]).write(to: b)                 // same name, same size, other contents
+        let media = root.appendingPathComponent("Show Audio")
+        let first = ShowMedia.copy([a, b], into: media)
+        XCTAssertEqual(first.copied.map(\.lastPathComponent), ["Intro.wav", "Intro 2.wav"])
+        XCTAssertEqual(try Data(contentsOf: first.copied[1]), Data([9, 9, 9, 9]))
+        let again = ShowMedia.copy([a, b, first.copied[0]], into: media)
+        XCTAssertEqual(again.copied.map(\.lastPathComponent), ["Intro.wav", "Intro 2.wav", "Intro.wav"], "saving again reuses the copies")
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: media.path).count, 2)
+        XCTAssertEqual(ShowMedia.copy([root.appendingPathComponent("none.wav")], into: media).errors.count, 1)
     }
 }

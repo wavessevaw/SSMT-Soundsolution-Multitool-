@@ -95,6 +95,7 @@ public enum QLabImport {
                 c.duration = max(0, q.duration ?? 0)
             case .group?:
                 switch q.groupMode {
+                case 1?: c.groupMode = .enter
                 case 3?: c.groupMode = .simultaneous
                 case 4?: c.groupMode = .random
                 case 6?: c.groupMode = .playlist

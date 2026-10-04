@@ -28,9 +28,13 @@ public enum ContinueMode: String, Codable, CaseIterable, Sendable {
     case autoFollow
 }
 
-/// How a group plays its children.
+/// How a group plays its children (QLab 5's group modes, in its order).
 public enum GroupMode: String, Codable, CaseIterable, Sendable {
-    /// The first child starts; the others follow through their own continue modes.
+    /// Start First And Enter: the first child starts and the GO playhead moves into the group, onto the next child;
+    /// after the last child it leaves the group.
+    case enter
+    /// Start First: the first child starts; the others follow through their own continue modes; the playhead
+    /// goes past the group.
     case sequence
     /// All children start together (each after its own pre-wait).
     case simultaneous
@@ -38,6 +42,13 @@ public enum GroupMode: String, Codable, CaseIterable, Sendable {
     case playlist
     /// One random child plays.
     case random
+}
+
+/// What a cue does when it is told to start while it is already running (QLab's second trigger).
+public enum SecondTrigger: String, Codable, CaseIterable, Sendable {
+    case nothing, panic, stop, hardStop, restart, devamp
+    /// Playlist groups: the next entry plays (crossfading if set).
+    case playNext
 }
 
 /// How a one-shot pad reacts to a press.
@@ -102,8 +113,19 @@ public struct AudioCueParams: Codable, Equatable, Sendable {
     /// Built-in fade-in at start and fade-out at the end of the region (seconds).
     public var fadeIn: Double = 0
     public var fadeOut: Double = 0
+    /// QLab's integrated fade: a volume line drawn over the waveform (nil = none).
+    public var envelope: VolumeEnvelope?
 
     public init(file: String = "") { self.file = file }
+
+    /// Envelope level (dB) at a time of the file (seconds); 0 dB without an envelope.
+    public func envelopeDB(atFile t: Double, fileLength: Double) -> Double {
+        guard let env = envelope, env.enabled, !env.points.isEmpty else { return 0 }
+        let s = env.lockToRegion ? start : 0
+        let e = env.lockToRegion ? (end ?? fileLength) : fileLength
+        guard e > s else { return env.db(at: 0) }
+        return env.db(at: (t - s) / (e - s))
+    }
 
     public func outputLevel(_ o: Int) -> Double { o < outputLevels.count ? outputLevels[o] : 0 }
 
@@ -120,6 +142,59 @@ public struct AudioCueParams: Codable, Equatable, Sendable {
     }
 }
 
+/// QLab's integrated fade envelope of an audio cue: control points on a volume line over the waveform.
+/// Points sit at a fraction of the span they are locked to (the cue's start…end, or the whole file); between them
+/// the level follows a smooth curve or straight lines; before the first and after the last it holds.
+public struct VolumeEnvelope: Codable, Equatable, Sendable {
+    public struct Point: Codable, Equatable, Sendable {
+        /// Position 0…1 along the span.
+        public var u: Double
+        /// Level (dB, 0 = the cue's own level; −60 and below = silence).
+        public var db: Double
+        public init(u: Double, db: Double) { self.u = u; self.db = db }
+    }
+
+    public var points: [Point] = []
+    /// Smooth curve through the points (QLab "Custom Curve"); false = straight lines with sharp bends ("Linear").
+    public var smooth = true
+    /// Stretch with the cue's start and end ("Lock fade to start/end"); false = fixed to the file's own times.
+    public var lockToRegion = true
+    public var enabled = true
+    public static let floorDB = -60.0
+
+    public init(points: [Point] = [], smooth: Bool = true, lockToRegion: Bool = true) {
+        self.points = points; self.smooth = smooth; self.lockToRegion = lockToRegion
+    }
+
+    /// Level (dB) at a position 0…1 of the span; −∞ shown as `showSilenceDB` at the floor.
+    public func db(at u: Double) -> Double {
+        let p = points.sorted { $0.u < $1.u }
+        guard let first = p.first, let last = p.last else { return 0 }
+        let v: Double
+        if u <= first.u { v = first.db } else if u >= last.u { v = last.db } else {
+            let i = (p.firstIndex { $0.u > u } ?? p.count) - 1
+            let a = p[i], b = p[i + 1]
+            let h = b.u - a.u
+            let t = h > 0 ? (u - a.u) / h : 0
+            if smooth {
+                // Monotone cubic (Fritsch–Carlson): smooth, never overshoots between points.
+                func slope(_ k: Int) -> Double {
+                    if k == 0 || k == p.count - 1 { return 0 }
+                    let d0 = (p[k].db - p[k - 1].db) / max(1e-9, p[k].u - p[k - 1].u)
+                    let d1 = (p[k + 1].db - p[k].db) / max(1e-9, p[k + 1].u - p[k].u)
+                    return d0 * d1 <= 0 ? 0 : 2 / (1 / d0 + 1 / d1)
+                }
+                let m0 = slope(i) * h, m1 = slope(i + 1) * h
+                let t2 = t * t, t3 = t2 * t
+                v = (2 * t3 - 3 * t2 + 1) * a.db + (t3 - 2 * t2 + t) * m0 + (-2 * t3 + 3 * t2) * b.db + (t3 - t2) * m1
+            } else {
+                v = a.db + (b.db - a.db) * t
+            }
+        }
+        return v <= Self.floorDB ? showSilenceDB : min(12, v)
+    }
+}
+
 public struct FadeCueParams: Codable, Equatable, Sendable {
     public var duration: Double = 3
     public var curve: FadeCurve = .sCurve
@@ -127,9 +202,35 @@ public struct FadeCueParams: Codable, Equatable, Sendable {
     public var level: Double? = showSilenceDB
     /// New output levels (index = output); nil entries are unchanged.
     public var outputLevels: [Double?] = []
-    /// Stop the target when the fade is done (typical for fade-outs).
-    public var stopWhenDone: Bool = true
+    /// Stop the target when the fade is done. Off by default, as in QLab: a fade-out leaves the target playing
+    /// at −∞ (it can be brought back up); tick it to stop the target at the end.
+    public var stopWhenDone: Bool = false
+    /// QLab's relative fade: `level` is added to the target's current level (e.g. −6 dB) instead of replacing it.
+    public var relative: Bool = false
+    /// Fade in: if the target is not playing, the fade starts it from silence and brings it up (to `level`, or to
+    /// the target's own level when `level` is nil).
+    public var fromSilence: Bool = false
     public init() {}
+
+    /// A fade-out (to silence, then stop) or a fade-in (from silence up to the target's level).
+    public static func preset(fadeIn: Bool) -> FadeCueParams {
+        var f = FadeCueParams()
+        f.fromSilence = fadeIn
+        f.stopWhenDone = false
+        f.level = fadeIn ? nil : showSilenceDB
+        return f
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        duration = try c.decodeIfPresent(Double.self, forKey: .duration) ?? 3
+        curve = try c.decodeIfPresent(FadeCurve.self, forKey: .curve) ?? .sCurve
+        level = try c.decodeIfPresent(Double.self, forKey: .level)
+        outputLevels = try c.decodeIfPresent([Double?].self, forKey: .outputLevels) ?? []
+        stopWhenDone = try c.decodeIfPresent(Bool.self, forKey: .stopWhenDone) ?? false
+        relative = try c.decodeIfPresent(Bool.self, forKey: .relative) ?? false
+        fromSilence = try c.decodeIfPresent(Bool.self, forKey: .fromSilence) ?? false
+    }
 }
 
 public struct Cue: Codable, Equatable, Identifiable, Sendable {
@@ -159,12 +260,16 @@ public struct Cue: Codable, Equatable, Identifiable, Sendable {
     /// Playlist: loop forever / shuffle order.
     public var loopPlaylist: Bool
     public var shuffle: Bool
+    /// Playlist: the next entry starts this many seconds before the current one ends, the two crossfading.
+    public var crossfade: Double
     /// Stop cue: fade the target out over this time instead of cutting it.
     public var stopFade: Double
     /// Devamp: also trigger the next cue in the list when the target leaves its loop.
     public var devampStartsNext: Bool
     /// One-shot pads only: reaction to a press.
     public var padMode: PadMode
+    /// Started again while running.
+    public var secondTrigger: SecondTrigger
     public var children: [Cue]
 
     public init(kind: CueKind, id: UUID = UUID(), number: String = "", name: String = "") {
@@ -188,9 +293,11 @@ public struct Cue: Codable, Equatable, Identifiable, Sendable {
         groupMode = .sequence
         loopPlaylist = false
         shuffle = false
+        crossfade = 0
         stopFade = 0
         devampStartsNext = false
         padMode = .toggle
+        secondTrigger = .nothing
         children = []
     }
 
@@ -216,9 +323,11 @@ public struct Cue: Codable, Equatable, Identifiable, Sendable {
         groupMode = try c.decodeIfPresent(GroupMode.self, forKey: .groupMode) ?? .sequence
         loopPlaylist = try c.decodeIfPresent(Bool.self, forKey: .loopPlaylist) ?? false
         shuffle = try c.decodeIfPresent(Bool.self, forKey: .shuffle) ?? false
+        crossfade = try c.decodeIfPresent(Double.self, forKey: .crossfade) ?? 0
         stopFade = try c.decodeIfPresent(Double.self, forKey: .stopFade) ?? 0
         devampStartsNext = try c.decodeIfPresent(Bool.self, forKey: .devampStartsNext) ?? false
         padMode = try c.decodeIfPresent(PadMode.self, forKey: .padMode) ?? .toggle
+        secondTrigger = try c.decodeIfPresent(SecondTrigger.self, forKey: .secondTrigger) ?? .nothing
         children = try c.decodeIfPresent([Cue].self, forKey: .children) ?? []
     }
 }

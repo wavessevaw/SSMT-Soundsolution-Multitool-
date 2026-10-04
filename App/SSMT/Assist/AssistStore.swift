@@ -23,11 +23,7 @@ final class X32Link: @unchecked Sendable {
     }
 
     func start() {
-        let c = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: family.defaultPort) ?? 10023, using: .udp)
-        connection = c
-        c.start(queue: queue)
-        receive(c)
-        send([X32Codec.info] + subscriptions())
+        open()
         // The console forgets a remote and stops meters after 10 s without renewal.
         let t = DispatchSource.makeTimerSource(queue: queue)
         t.schedule(deadline: .now() + 8, repeating: 8)
@@ -39,24 +35,59 @@ final class X32Link: @unchecked Sendable {
         keepAlive = t
     }
 
+    /// Opens the UDP flow and asks the console to talk to us. A flow that fails (the Wi-Fi dropped, the Mac changed
+    /// network) is opened again a second later, so the link comes back by itself when the network does.
+    private func open() {
+        let c = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: family.defaultPort) ?? 10023, using: .udp)
+        connection = c
+        c.stateUpdateHandler = { [weak self, weak c] state in
+            guard let self, let c, self.connection === c else { return }
+            if case .failed = state { self.reopenSoon(c) }
+        }
+        c.start(queue: queue)
+        receive(c)
+        sendNow([X32Codec.info] + subscriptions())
+    }
+
+    private func reopenSoon(_ c: NWConnection) {
+        c.cancel()
+        queue.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self, self.connection === c, self.keepAlive != nil else { return }
+            self.open()
+        }
+    }
+
     private func subscriptions() -> [OSCMessage] {
         [X32Codec.subscribe(family: family)] + meterBanks.map { ConsoleMeters.request($0, family: family) }
     }
 
-    /// Asks for every channel strip and every mix bus (spaced out so the console does not drop requests).
-    func queryAll(channels: Int) {
-        var delay = 0.0
-        for ch in 1...channels {
-            let msgs = X32Codec.queryAddresses(ch, family: family).map { OSCMessage($0) }
-            queue.asyncAfter(deadline: .now() + delay) { [weak self] in self?.sendNow(msgs) }
-            delay += 0.02
+    /// Asks for the input routing (X32), every channel strip and every mix bus. Spaced out — a few
+    /// messages per millisecond at most — because a console on Wi-Fi drops bursts; what is still missing is asked
+    /// again later (`ask`).
+    func queryAll(channels: Int, routing: X32InputRouting) {
+        if family != .xAir {
+            ask(X32InputRouting.blockAddresses + (1...channels).map { X32Codec.channelPath($0) + "/config/source" })
         }
-        for b in 1...X32Codec.busCount(family) {
-            let msgs = X32Codec.busQueryAddresses(b, family: family).map { OSCMessage($0) }
-            queue.asyncAfter(deadline: .now() + delay) { [weak self] in self?.sendNow(msgs) }
-            delay += 0.02
+        ask((1...channels).flatMap { X32Codec.queryAddresses($0, family: family, routing: routing) }
+            + (1...X32Codec.busCount(family)).flatMap { X32Codec.busQueryAddresses($0, family: family) })
+    }
+
+    /// Queries addresses in small paced batches (8 every 10 ms), after whatever is already queued.
+    func ask(_ addresses: [String]) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            var t = max(self.nextFree, DispatchTime.now())
+            for start in stride(from: 0, to: addresses.count, by: 8) {
+                let msgs = addresses[start..<min(start + 8, addresses.count)].map { OSCMessage($0) }
+                self.queue.asyncAfter(deadline: t) { [weak self] in self?.sendNow(msgs) }
+                t = t + 0.01
+            }
+            self.nextFree = t
         }
     }
+
+    /// When the paced queries already queued are all sent (touched on `queue` only).
+    private var nextFree = DispatchTime.now()
 
     func send(_ messages: [OSCMessage]) { queue.async { [weak self] in self?.sendNow(messages) } }
 
@@ -66,8 +97,9 @@ final class X32Link: @unchecked Sendable {
 
     private func receive(_ c: NWConnection) {
         c.receiveMessage { [weak self] data, _, _, error in
-            if let data, let msgs = OSCMessage.decode(data) { msgs.forEach { self?.onMessage?($0) } }
-            if error == nil { self?.receive(c) }
+            guard let self else { return }
+            if let data, let msgs = OSCMessage.decode(data) { msgs.forEach { self.onMessage?($0) } }
+            if error == nil { self.receive(c) } else if self.connection === c { self.reopenSoon(c) }
         }
     }
 
@@ -128,7 +160,7 @@ final class AssistStore: ObservableObject {
     @Published private(set) var connection: Connection = .disconnected
     @Published private(set) var strips: [ChannelStrip] = []
     @Published private(set) var buses: [BusStrip] = []
-    @Published var mode: Mode = .soundcheck
+    @Published var mode: Mode = .soundcheck { didSet { if mode != .test { stopWave() } } }
     @Published var character: MixCharacter = .musical {
         didSet { session?.character = character; guardian?.character = character }
     }
@@ -201,6 +233,31 @@ final class AssistStore: ObservableObject {
     private var timer: Timer?
     private var stripMap: [Int: ChannelStrip] = [:]
     private var busMap: [Int: BusStrip] = [:]
+    /// Which head amp feeds each channel (X32): gains are read and written only where this is known.
+    private var routing = X32InputRouting()
+    /// Routing set by hand (default: local inputs 1–32, the console as it comes) or read from the console (auto).
+    @Published var routingPreset: X32InputRouting.Preset =
+        X32InputRouting.Preset(rawValue: UserDefaults.standard.string(forKey: "ssmt.assist.routing") ?? "") ?? .local {
+        didSet {
+            UserDefaults.standard.set(routingPreset.rawValue, forKey: "ssmt.assist.routing")
+            if let fixed = X32InputRouting.preset(routingPreset) { routing = fixed } else if routingPreset != oldValue { routing = X32InputRouting(); link?.ask(X32InputRouting.blockAddresses + (1...family.channelCount).map { X32Codec.channelPath($0) + "/config/source" }) }
+            gainAsked = []
+            askGains()
+        }
+    }
+
+    /// What the link brings, per second (shown as connection diagnostics).
+    struct LinkStats: Equatable {
+        var channelFrames = 0, busFrames = 0, rtaFrames = 0
+        var paramsHeard = 0, paramsExpected = 0
+        var gainKnown = 0, channels = 0
+        var model = ""
+    }
+    @Published private(set) var linkStats = LinkStats()
+    private var frameCount = (ch: 0, bus: 0, rta: 0)
+    /// Addresses the console has answered (what is missing is asked again a few times).
+    private var heard: Set<String> = []
+    private var gainAsked: Set<Int> = []
     private var meters = ConsoleMeterAccumulator()
     /// Main L+R meter frames of the current window (the polarity check's "ear" without a hall mic).
     private var mainFrames: [Double] = []
@@ -255,10 +312,19 @@ final class AssistStore: ObservableObject {
             l.onMessage = { [weak self] m in Task { @MainActor in self?.received(m) } }
             link = l
             l.start()
-            l.queryAll(channels: family.channelCount)
+            routing = X32InputRouting.preset(routingPreset) ?? X32InputRouting()
+            heard = []
+            gainAsked = []
+            linkStats = LinkStats()
+            l.queryAll(channels: family.channelCount, routing: routing)
+            l.ask([X32Codec.mainOnAddress(family)])
+            // Ask again for whatever got lost on the way (Wi-Fi drops UDP).
+            for delay in [2.5, 5.0, 9.0] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.askMissing(from: l) }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                 guard let self, self.connection == .connecting else { return }
-                self.connection = .failed("no answer from \(self.host):\(self.family.defaultPort)")
+                self.connection = .failed("noAnswer")
             }
             startCapture()
         case .wing, .yamaha, .allenHeath:
@@ -298,11 +364,29 @@ final class AssistStore: ObservableObject {
                 guard let self else { return }
                 let alive = self.sim != nil || (self.isConnected && Date().timeIntervalSince(self.lastHeard) < 4)
                 if alive != self.linkAlive { self.linkAlive = alive }
+                self.updateLinkStats()
             }
         }
     }
 
+    /// Once a second: frames per second of each meter stream, parameters read, channels whose gain is reachable.
+    private func updateLinkStats() {
+        guard link != nil else { return }
+        var st = linkStats
+        st.channelFrames = frameCount.ch; st.busFrames = frameCount.bus; st.rtaFrames = frameCount.rta
+        frameCount = (0, 0, 0)
+        let n = family.channelCount
+        let expected = (1...n).flatMap { X32Codec.queryAddresses($0, family: family, routing: routing) }
+            + (1...X32Codec.busCount(family)).flatMap { X32Codec.busQueryAddresses($0, family: family) }
+        st.paramsExpected = expected.count
+        st.paramsHeard = expected.filter { heard.contains($0) }.count
+        st.gainKnown = routing.knownChannels(n, family: family)
+        st.channels = n
+        if st != linkStats { linkStats = st }
+    }
+
     func disconnect() {
+        stopWave()
         healthTimer?.invalidate()
         healthTimer = nil
         linkAlive = false
@@ -331,15 +415,54 @@ final class AssistStore: ObservableObject {
         startCapture()
     }
 
+    /// Channels and buses whose values have not all arrived: asked again.
+    private func askMissing(from l: X32Link) {
+        guard link === l else { return }
+        var missing: [String] = []
+        if family != .xAir {
+            missing += X32InputRouting.blockAddresses.filter { !heard.contains($0) }
+            missing += (1...family.channelCount).map { X32Codec.channelPath($0) + "/config/source" }.filter { !heard.contains($0) }
+        }
+        missing += (1...family.channelCount).flatMap { X32Codec.queryAddresses($0, family: family, routing: routing) }.filter { !heard.contains($0) }
+        missing += (1...X32Codec.busCount(family)).flatMap { X32Codec.busQueryAddresses($0, family: family) }.filter { !heard.contains($0) }
+        if !missing.isEmpty { l.ask(missing) }
+    }
+
+    /// Gains of channels whose routing has just become known.
+    private func askGains() {
+        guard let link else { return }
+        var asks: [String] = []
+        for ch in 1...family.channelCount where !gainAsked.contains(ch) {
+            if let a = X32Codec.gainAddress(ch, family: family, routing: routing) { asks.append(a); gainAsked.insert(ch) }
+        }
+        if !asks.isEmpty { link.ask(asks) }
+    }
+
     private func received(_ m: OSCMessage) {
         lastHeard = Date()
         if !linkAlive && isConnected { linkAlive = true }
+        if !m.arguments.isEmpty { heard.insert(m.address) }
+        if m.address == X32Codec.mainOnAddress(family), let a = m.arguments.first {
+            switch a { case let .int(i): mainOn = i != 0; case let .float(f): mainOn = f != 0; default: break }
+            return
+        }
+        if family != .xAir, X32InputRouting.blockAddresses.contains(m.address) || m.address.hasSuffix("/config/source") {
+            // Read from the console only in "auto"; a routing set by hand stays as set.
+            if routingPreset == .auto, routing.apply(m) { askGains() }
+            return
+        }
         if m.address == "/info" {
             let parts = m.arguments.compactMap { if case let .string(s) = $0 { return s } else { return nil } }
+            linkStats.model = parts.dropFirst().joined(separator: " · ")
             connection = .connected(parts.dropFirst().joined(separator: " · "))
             return
         }
         if let (bank, values) = ConsoleMeters.decode(m, family: family) {
+            switch bank {
+            case .channels: frameCount.ch += 1
+            case .buses: frameCount.bus += 1
+            case .rta: frameCount.rta += 1
+            }
             switch bank {
             case .channels:
                 liveMeters.feed(channels: values)
@@ -353,7 +476,7 @@ final class AssistStore: ObservableObject {
             return
         }
         let t = Date().timeIntervalSince(guardStart)
-        if let ch = X32Codec.apply(m, to: &stripMap, family: family) {
+        if let ch = X32Codec.apply(m, to: &stripMap, family: family, routing: routing) {
             if connection == .connecting { connection = .connected(host) }
             strips = stripMap.values.sorted { $0.id < $1.id }
             if let s = stripMap[ch] { session?.updateFromConsole(s); guardian?.consoleChanged(s, time: t) }
@@ -493,11 +616,17 @@ final class AssistStore: ObservableObject {
     }
 
     private func apply(_ changed: [ChannelStrip]) {
-        for s in changed {
+        for var s in changed {
             let old = stripMap[s.id]
+            // A gain the console cannot take yet (routing still unknown): it stays as it is, and the assistant
+            // learns so instead of believing it changed.
+            if link != nil, let o = old, o.gainDB != s.gainDB, X32Codec.gainAddress(s.id, family: family, routing: routing) == nil {
+                s.gainDB = o.gainDB
+                session?.updateFromConsole(s)
+            }
             stripMap[s.id] = s
             sim?.setStrip(s)
-            link?.send(X32Codec.messages(from: old, to: s, family: family))
+            link?.send(X32Codec.messages(from: old, to: s, family: family, routing: routing))
         }
         if !changed.isEmpty { strips = stripMap.values.sorted { $0.id < $1.id } }
     }
@@ -518,6 +647,7 @@ final class AssistStore: ObservableObject {
     /// (in the simulator: against the built-in X32 emulator). The console is restored at the end.
     func runConsoleTest() {
         guard !testing else { return }
+        stopWave()
         stopJob()
         stopGuard()
         let scenario = AssistScenario.all.first { $0.id == testScenario } ?? .musical
@@ -546,7 +676,7 @@ final class AssistStore: ObservableObject {
                 self?.testChecks = result
                 self?.testing = false
                 // Show the console as it is now (restored).
-                if let self, let link = self.link { link.queryAll(channels: self.family.channelCount) }
+                if let self, let link = self.link { link.queryAll(channels: self.family.channelCount, routing: self.routing) }
             }
         }
     }
@@ -575,12 +705,14 @@ final class AssistStore: ObservableObject {
         if family == .x32 || family == .xAir {
             let t = UDPConsoleTransport(host: host, port: family.defaultPort)
             Task { [weak self] in
-                let backup = await ConsoleBackup.read(t, channels: chans, buses: Array(1...4), family: fam)
+                let routing = await ConsoleBackup.readRouting(t, channels: chans, family: fam)
+                let backup = await ConsoleBackup.read(t, channels: chans, buses: Array(1...4), family: fam, routing: routing)
                 t.close()
                 guard let self, self.rehearsing else { return }
+                self.routing = routing
                 self.rehearsalBackup = backup
                 // Names, the starting faders and the monitor buses of the made-up show.
-                for s in r.strips.values { self.link?.send(X32Codec.messages(from: nil, to: s, family: fam)) }
+                for s in r.strips.values { self.link?.send(X32Codec.messages(from: nil, to: s, family: fam, routing: routing)) }
                 for b in r.buses.values { self.link?.send(X32Codec.busMessages(from: nil, to: b, family: fam) + [OSCMessage(X32Codec.busPath(b.id, family: fam) + "/config/name", [.string(b.name)])]) }
                 self.beginRehearsalClock()
             }
@@ -617,7 +749,7 @@ final class AssistStore: ObservableObject {
                 self.rehearsalBusy = false
                 let fam: MixerFamily = self.family == .xAir ? .xAir : .x32
                 for s in out.strips {
-                    self.link?.send(X32Codec.messages(from: self.stripMap[s.id], to: s, family: fam))
+                    self.link?.send(X32Codec.messages(from: self.stripMap[s.id], to: s, family: fam, routing: self.routing))
                     self.stripMap[s.id] = s
                 }
                 for b in out.buses {
@@ -655,12 +787,12 @@ final class AssistStore: ObservableObject {
         // Put the console back as it was before the simulation.
         if let backup = rehearsalBackup, let link {
             let fam: MixerFamily = family == .xAir ? .xAir : .x32
-            for s in backup.strips.values { link.send(X32Codec.messages(from: nil, to: s, family: fam)); stripMap[s.id] = s }
+            for s in backup.strips.values { link.send(X32Codec.messages(from: nil, to: s, family: fam, routing: routing)); stripMap[s.id] = s }
             for b in backup.buses.values {
                 link.send(X32Codec.busMessages(from: nil, to: b, family: fam) + [OSCMessage(X32Codec.busPath(b.id, family: fam) + "/config/name", [.string(b.name)])])
                 busMap[b.id] = b
             }
-            link.queryAll(channels: family.channelCount)
+            link.queryAll(channels: family.channelCount, routing: routing)
         }
         rehearsalBackup = nil
         strips = stripMap.values.sorted { $0.id < $1.id }
@@ -684,6 +816,72 @@ final class AssistStore: ObservableObject {
 
     var inputDevices: [AudioDeviceInfo] { DeviceCatalog.allDevices().filter { $0.inputChannels > 0 } }
 
+    // MARK: fader wave (console test)
+
+    /// Every channel fader runs a travelling sine wave top to bottom, to judge the motor faders' smoothness.
+    @Published private(set) var waving = false
+    /// Seconds for one fader to go top → bottom → top.
+    @Published var waveCycle: Double = 4
+    private(set) var waveStart = Date()
+    private var waveTimer: Timer?
+    private var waveBackup: [Int: Double] = [:]
+    private var waveMainWasOn: Bool?
+    /// The console's main output on / off, as last read or pushed.
+    private var mainOn: Bool?
+    /// Fader updates per second during the wave.
+    static let waveRate = 25.0
+
+    var waveChannels: Int { family == .simulator ? stripMap.count : family.channelCount }
+
+    func startWave() {
+        guard isConnected, !waving else { return }
+        stopJob()
+        stopGuard()
+        stopRehearsal()
+        waveBackup = stripMap.mapValues(\.faderDB)
+        // Faders at the top must not reach the PA: the main output is off for the wave.
+        waveMainWasOn = mainOn
+        link?.send([OSCMessage(X32Codec.mainOnAddress(family), [.int(0)])])
+        waveStart = Date()
+        waving = true
+        let t = Timer(timeInterval: 1 / Self.waveRate, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.waveTick() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        waveTimer = t
+    }
+
+    private func waveTick() {
+        guard waving else { return }
+        let w = FaderWave(cycleSeconds: waveCycle)
+        let t = Date().timeIntervalSince(waveStart)
+        if let link {
+            link.send(w.messages(at: t, channels: waveChannels))
+        } else if let sim {
+            for (i, p) in w.positions(at: t, channels: waveChannels).enumerated() {
+                guard var s = stripMap[i + 1] else { continue }
+                s.faderDB = X32Codec.faderDB(p)
+                sim.setStrip(s)
+            }
+        }
+    }
+
+    func stopWave() {
+        guard waving else { return }
+        waveTimer?.invalidate()
+        waveTimer = nil
+        waving = false
+        // Faders back where they were, then the main output as it was (left off if that is not known).
+        if let link {
+            link.send(waveBackup.keys.sorted().map { OSCMessage(X32Codec.faderAddress($0), [.float(Float(X32Codec.faderPosition(waveBackup[$0]!)))]) })
+            if waveMainWasOn == true { link.send([OSCMessage(X32Codec.mainOnAddress(family), [.int(1)])]) }
+            else if waveMainWasOn == nil { message = "assist.wave.mainLeftOff" }
+        } else if let sim {
+            for (ch, db) in waveBackup { if var s = stripMap[ch] { s.faderDB = db; sim.setStrip(s) } }
+        }
+        waveBackup = [:]
+    }
+
     // MARK: show guard
 
     func startGuard() {
@@ -699,7 +897,9 @@ final class AssistStore: ObservableObject {
         hallDetector.reset()
         stageDetector.reset()
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        // 4 steps a second: feedback and ringing monitors are caught within a quarter of a second.
+        guardSteps = 0
+        timer = Timer.scheduledTimer(withTimeInterval: Self.guardInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.guardStep() }
         }
     }
@@ -733,6 +933,8 @@ final class AssistStore: ObservableObject {
     }
 
     private var guardTime: Double = 0
+    private var guardSteps = 0
+    static let guardInterval = 0.25
 
     /// The engineer cancels one correction of the guard from the list.
     func cancelCorrection(_ id: String) {
@@ -751,16 +953,18 @@ final class AssistStore: ObservableObject {
     private func guardStep() {
         guard let g = guardian else { return }
         let t = sim != nil ? guardTime : Date().timeIntervalSince(guardStart)
-        guardTime += 1
-        // Spectra visit the channels that are playing, loudest first, one per second.
+        guardTime += Self.guardInterval
+        guardSteps += 1
+        // Spectra visit the channels that are playing, one per second (the console has one RTA, and needs a moment
+        // after each switch).
         let playing = stripMap.values.filter { !$0.muted && $0.faderDB > -60 }.map(\.id).sorted()
-        if !playing.isEmpty, let link {
+        if !playing.isEmpty, let link, guardSteps % Int((1 / Self.guardInterval).rounded()) == 1 {
             let ch = playing[rtaCursor % playing.count]
             rtaCursor += 1
             meters.rtaChannel = ch
             link.send(ConsoleMeters.rtaFollow(channel: ch, family: family))
         }
-        let (feats, mic, stage) = window(channels: sim != nil ? playing : Array(stripMap.keys), seconds: 1)
+        let (feats, mic, stage) = window(channels: sim != nil ? playing : Array(stripMap.keys), seconds: Self.guardInterval)
         if let sim {
             busLevels = sim.busLevels(channelRMS: feats.filter { $0.value.hasSignal }.mapValues(\.rmsDB))
         }

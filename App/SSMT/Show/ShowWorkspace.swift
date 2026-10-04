@@ -179,7 +179,10 @@ struct QtrlGoBar: View {
                     .fill(ready ? AnyShapeStyle(LinearGradient(colors: [Theme.accent, Theme.accentHot], startPoint: .top, endPoint: .bottom))
                                 : AnyShapeStyle(Color.white.opacity(0.08)))
             )
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.25)))
+            // QLab: green border = GO will start the standing-by cue; red = double-GO protection holds it.
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(show.goGuarded ? Theme.statusError : (ready ? Color.white.opacity(0.55) : Color.white.opacity(0.25)),
+                              lineWidth: show.goGuarded ? 3 : 1.5))
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -200,7 +203,9 @@ struct QtrlToolbar: View {
             Button { show.chooseAudioFiles() } label: { Label(loc.t("cue.kind.audio"), systemImage: "plus").fixedSize() }
                 .buttonStyle(SSMTButtonStyle(kind: .primary))
                 .help(loc.t("show.addAudio.help"))
-            ForEach(CueKind.mediaKinds.filter { $0 != .audio } + CueKind.controlKinds, id: \.self) { k in
+            tool("chart.line.uptrend.xyaxis", loc.t("show.fadeIn.help")) { show.addFade(fadeIn: true) }
+            tool("chart.line.downtrend.xyaxis", loc.t("show.fadeOut.help")) { show.addFade(fadeIn: false) }
+            ForEach(CueKind.mediaKinds.filter { $0 != .audio && $0 != .fade } + CueKind.controlKinds, id: \.self) { k in
                 tool(k.icon, k == .group ? loc.t("show.group.help") : loc.t("cue.kind.\(k.rawValue)")) { show.add(k) }
             }
             Spacer(minLength: 8)
@@ -467,14 +472,19 @@ struct OutputMeters: View {
                     let peak = i < show.meters.count ? Double(show.meters[i]) : 0
                     let db = peak > 0 ? 20 * log10(peak) : -100
                     let fill = max(0, min(1, (db + 60) / 60))
+                    let clip = i < show.clipping.count && show.clipping[i]
                     VStack(spacing: 3) {
+                        // Clip lamp: lit only when the output really overloads (≥ 0 dBFS).
+                        RoundedRectangle(cornerRadius: 1.5).fill(clip ? Theme.statusError : Color.white.opacity(0.07)).frame(height: 4)
                         ZStack(alignment: .bottom) {
                             RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.07))
+                            // Green up to −12 dBFS, yellow up to the top: a normal programme level is green / yellow.
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(db > -3 ? Theme.statusError : (db > -12 ? Theme.signalYellow : Theme.accent))
+                                .fill(clip ? Theme.statusError : (db > -12 ? Theme.signalYellow : Theme.accent))
                                 .frame(height: 54 * fill)
                         }
                         .frame(height: 54)
+                        .help(db > -99 ? String(format: "%.1f dBFS", db) : "−∞")
                         Text(o.name).font(.system(size: 8)).foregroundStyle(Theme.textMuted).lineLimit(1)
                     }
                     .frame(maxWidth: 22)
@@ -494,6 +504,7 @@ struct QtrlShortcutsView: View {
         ("Space", "show.keys.go"), ("Esc", "show.keys.panic"), ("[  /  ]", "show.keys.pauseResumeAll"),
         ("P", "show.keys.pauseSelected"), ("S", "show.keys.stopSelected"), ("L", "show.keys.load"), ("V", "show.keys.preview"),
         ("↑  /  ↓", "show.keys.cursor"), ("⇧⌘↑  /  ⇧⌘↓", "show.keys.playhead"), ("⌘J", "show.keys.jump"),
+        ("⌘T", "show.keys.loadToTime"), ("⌥←  /  ⌥→", "show.keys.nudge"), ("⌘=  /  ⌘−", "show.keys.zoom"),
         ("⌘]  /  ⌘[", "show.keys.mode"), ("⌘I  /  ⌘L", "show.keys.panels"),
         ("⌘1 · ⌘0 · ⌘7 · ⌘8", "show.keys.newCue"), ("N · Q · E · D · W", "show.keys.fields"), ("C", "show.keys.continue"),
         ("T", "show.keys.target"), ("⌘R", "show.keys.renumber"), ("⌘D", "show.keys.duplicate"),

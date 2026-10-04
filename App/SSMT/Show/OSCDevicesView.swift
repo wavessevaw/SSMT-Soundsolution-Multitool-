@@ -42,7 +42,7 @@ struct OSCDevicesView: View {
     init(startWith kind: OSCDeviceKind? = nil) {
         if let kind {
             _page = State(initialValue: .setup)
-            _draft = State(initialValue: OSCDevice(name: kind.brand, kind: kind))
+            _draft = State(initialValue: Self.newDevice(kind, name: kind.brand))
         }
     }
 
@@ -94,7 +94,7 @@ struct OSCDevicesView: View {
                             Image(systemName: d.kind.icon).frame(width: 22).foregroundStyle(Theme.accent)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(d.name).font(.system(size: 13, weight: .semibold))
-                                Text("\(loc.t("osc.kind.\(d.kind.rawValue)")) · \(d.host):\(d.port)")
+                                Text("\(loc.t("osc.kind.\(d.kind.rawValue)")) · \(d.host):\(String(d.port))")
                                     .font(Theme.mono(11)).foregroundStyle(Theme.textSecondary)
                             }
                             Spacer()
@@ -165,8 +165,16 @@ struct OSCDevicesView: View {
         }
     }
 
+    /// Media servers and QLab usually run on this Mac; consoles never do, so their address starts empty
+    /// (a forgotten 127.0.0.1 would silently send the show's commands back to this Mac).
+    private static func newDevice(_ kind: OSCDeviceKind, name: String) -> OSCDevice {
+        var d = OSCDevice(name: name, kind: kind)
+        if kind != .resolume && kind != .qlab { d.host = "" }
+        return d
+    }
+
     private func start(_ k: OSCDeviceKind) {
-        draft = OSCDevice(name: loc.t("osc.kind.\(k.rawValue)"), kind: k)
+        draft = Self.newDevice(k, name: loc.t("osc.kind.\(k.rawValue)"))
         isNew = true
         testState = nil
         page = .setup
@@ -192,7 +200,7 @@ struct OSCDevicesView: View {
                     HStack(spacing: 10) {
                         labeled(loc.t("osc.name")) { TextField("", text: $draft.name).textFieldStyle(.roundedBorder) }
                     }
-                    HStack(spacing: 10) {
+                    HStack(alignment: .bottom, spacing: 10) {
                         labeled(loc.t("osc.host")) {
                             HStack {
                                 TextField("192.168.1.30", text: $draft.host).textFieldStyle(.roundedBorder)
@@ -224,7 +232,7 @@ struct OSCDevicesView: View {
                                 Task { testState = await show.osc.test(d); testing = false }
                             } label: { Label(loc.t("osc.test"), systemImage: "bolt.horizontal") }
                                 .buttonStyle(SSMTButtonStyle())
-                                .disabled(testing)
+                                .disabled(testing || draft.host.isEmpty)
                             if testing { ProgressView().controlSize(.small) }
                             if let r = testState {
                                 Label(loc.t(r == .answered ? "osc.test.ok" : "osc.test.fail"),

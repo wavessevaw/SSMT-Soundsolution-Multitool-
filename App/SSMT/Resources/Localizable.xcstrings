@@ -841,13 +841,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No console found. Check that it is on and connected to the same router as this Mac, or enter its IP below."
+            "value": "No console found. Check that it is on and connected to the same router as this Mac, and that SSMT is allowed in System Settings → Privacy & Security → Local Network (macOS 15 and later). Or enter its IP below."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Пульт не найден. Проверьте, что он включён и подключён к тому же роутеру, что и Mac, или введите его IP ниже."
+            "value": "Пульт не найден. Проверьте, что он включён и подключён к тому же роутеру, что и Mac, и что SSMT разрешена в Системных настройках → Конфиденциальность и безопасность → Локальная сеть (macOS 15 и новее). Или введите его IP ниже."
           }
         }
       }
@@ -1324,6 +1324,193 @@
           "stringUnit": {
             "state": "translated",
             "value": "спектр канала, отн."
+          }
+        }
+      }
+    },
+    "assist.diag": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection diagnostics"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Диагностика связи"
+          }
+        }
+      }
+    },
+    "assist.diag.buses": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bus levels"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Уровни шин"
+          }
+        }
+      }
+    },
+    "assist.diag.console": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Console answers"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульт отвечает"
+          }
+        }
+      }
+    },
+    "assist.diag.gain": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preamp gain reachable"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Гейн доступен на каналах"
+          }
+        }
+      }
+    },
+    "assist.diag.gainHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The console's input routing was not read: the assistant does not touch the preamp gain. Choose where the channels' inputs come from."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Маршрутизация входов с пульта не прочитана: ассистент не трогает гейн предусилителей. Выберите, откуда приходят входы каналов."
+          }
+        }
+      }
+    },
+    "assist.diag.levels": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channel levels"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Уровни каналов"
+          }
+        }
+      }
+    },
+    "assist.diag.noInfo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no answer to /info"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "нет ответа на /info"
+          }
+        }
+      }
+    },
+    "assist.diag.params": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parameters read"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Параметров прочитано"
+          }
+        }
+      }
+    },
+    "assist.diag.perSecond": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld / s"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld / с"
+          }
+        }
+      }
+    },
+    "assist.diag.routing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channel inputs"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Входы каналов"
+          }
+        }
+      }
+    },
+    "assist.diag.rta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Console RTA"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Анализатор пульта (RTA)"
           }
         }
       }
@@ -2994,6 +3181,23 @@
         }
       }
     },
+    "assist.noAnswer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no answer from %@ — check the IP address, that the console is on the same network, and that SSMT is allowed under Local Network in System Settings"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "пульт %@ не отвечает — проверьте IP-адрес, что пульт в той же сети и что SSMT разрешена в разделе «Локальная сеть» Системных настроек"
+          }
+        }
+      }
+    },
     "assist.noMic": {
       "extractionState": "manual",
       "localizations": {
@@ -3534,6 +3738,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Настроить вместе"
+          }
+        }
+      }
+    },
+    "assist.routing.aes50A": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stage box on AES50 A"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стейджбокс на AES50 A"
+          }
+        }
+      }
+    },
+    "assist.routing.aes50B": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stage box on AES50 B"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стейджбокс на AES50 B"
+          }
+        }
+      }
+    },
+    "assist.routing.auto": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read from the console"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Определить по пульту"
+          }
+        }
+      }
+    },
+    "assist.routing.local": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local inputs 1–32"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Локальные входы 1–32"
           }
         }
       }
@@ -4707,6 +4979,125 @@
           "stringUnit": {
             "state": "translated",
             "value": "Откатить все изменения"
+          }
+        }
+      }
+    },
+    "assist.wave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fader wave"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Волна фейдеров"
+          }
+        }
+      }
+    },
+    "assist.wave.cycle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One wave"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Одна волна"
+          }
+        }
+      }
+    },
+    "assist.wave.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every channel fader runs top to bottom and back as a wave across the console, until stopped — to judge how smoothly the motor faders move. The same wave is drawn below."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все фейдеры каналов ходят сверху вниз и обратно волной через весь пульт, пока не остановите, — чтобы оценить плавность моторных фейдеров. Ниже нарисована та же волна."
+          }
+        }
+      }
+    },
+    "assist.wave.mainLeftOff": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The main output was left off: its earlier state was not known. Switch it on at the console when ready."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Главный выход оставлен выключенным: его прежнее состояние неизвестно. Включите его на пульте, когда будете готовы."
+          }
+        }
+      }
+    },
+    "assist.wave.safety": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meanwhile the main output is off and the guard is stopped; afterwards the faders and the main output return to how they were. No musicians on stage."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На это время главный выход выключен, страховка остановлена; потом фейдеры и главный выход возвращаются как были. Без музыкантов на сцене."
+          }
+        }
+      }
+    },
+    "assist.wave.start": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start the wave"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запустить волну"
+          }
+        }
+      }
+    },
+    "assist.wave.stop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop and put the faders back"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить и вернуть фейдеры"
           }
         }
       }
@@ -8094,6 +8485,40 @@
         }
       }
     },
+    "graphs.octave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1/%ld octave"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1/%ld октавы"
+          }
+        }
+      }
+    },
+    "graphs.raw": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unsmoothed"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "без сглаживания"
+          }
+        }
+      }
+    },
     "graphs.title": {
       "extractionState": "manual",
       "localizations": {
@@ -8145,6 +8570,23 @@
         }
       }
     },
+    "group.mode.enter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start first and enter (GO steps through the cues inside)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Первая и войти (GO идёт по кью внутри)"
+          }
+        }
+      }
+    },
     "group.mode.playlist": {
       "extractionState": "manual",
       "localizations": {
@@ -8168,7 +8610,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "One random cue"
+            "value": "Start random"
           }
         },
         "ru": {
@@ -8185,13 +8627,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "One after another (by their settings)"
+            "value": "Start first, then go to the next cue"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "По очереди (по их настройкам)"
+            "value": "Первая, затем следующая кью списка"
           }
         }
       }
@@ -8627,13 +9069,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Export PDF (input list + stage plan)"
+            "value": "Export PDF (channels + stage plan)"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Экспорт PDF (input list + сцена)"
+            "value": "Экспорт PDF (каналы + сцена)"
           }
         }
       }
@@ -8644,13 +9086,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Export PNG — input list"
+            "value": "Export PNG — channel list"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Экспорт PNG — input list"
+            "value": "Экспорт PNG — список каналов"
           }
         }
       }
@@ -8848,13 +9290,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "New input list"
+            "value": "New patch"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Новый input list"
+            "value": "Новый патч"
           }
         }
       }
@@ -8882,13 +9324,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Open input list…"
+            "value": "Open patch…"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Открыть input list…"
+            "value": "Открыть патч…"
           }
         }
       }
@@ -8906,6 +9348,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "%ld каналов · %ld × +48V · %ld миксов"
+          }
+        }
+      }
+    },
+    "il.print.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input list"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Список каналов"
           }
         }
       }
@@ -8933,13 +9392,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Save input list"
+            "value": "Save patch"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сохранить input list"
+            "value": "Сохранить патч"
           }
         }
       }
@@ -9205,13 +9664,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Input list"
+            "value": "Ptch"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Input list"
+            "value": "Ptch"
           }
         }
       }
@@ -13041,6 +13500,40 @@
         }
       }
     },
+    "report.crossover": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crossover %.0f Hz"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Раздел %.0f Hz"
+          }
+        }
+      }
+    },
+    "report.delayLocked": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Locked system delay"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зафиксированная задержка системы"
+          }
+        }
+      }
+    },
     "report.eq": {
       "extractionState": "manual",
       "localizations": {
@@ -13054,6 +13547,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "EQ по зоне прослушивания"
+          }
+        }
+      }
+    },
+    "report.eqMarking": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%ld points · %ld rounds"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "точек: %ld · итераций: %ld"
           }
         }
       }
@@ -13330,6 +13840,125 @@
         }
       }
     },
+    "secondTrigger.devamp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leaves its loop"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выйти из петли"
+          }
+        }
+      }
+    },
+    "secondTrigger.hardStop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stops at once"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить сразу"
+          }
+        }
+      }
+    },
+    "secondTrigger.nothing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ничего"
+          }
+        }
+      }
+    },
+    "secondTrigger.panic": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fades out and stops"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Плавно остановить"
+          }
+        }
+      }
+    },
+    "secondTrigger.playNext": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plays the next entry"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Играть следующий трек"
+          }
+        }
+      }
+    },
+    "secondTrigger.restart": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restarts from the beginning"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Начать заново"
+          }
+        }
+      }
+    },
+    "secondTrigger.stop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stops"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить"
+          }
+        }
+      }
+    },
     "section.assist": {
       "extractionState": "manual",
       "localizations": {
@@ -13347,19 +13976,53 @@
         }
       }
     },
+    "section.assist.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assistant at the console"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ассистент за пультом"
+          }
+        }
+      }
+    },
     "section.inputList": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Input list & stage plan"
+            "value": "Ptch"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Input list и сцена"
+            "value": "Ptch"
+          }
+        }
+      }
+    },
+    "section.inputList.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channels, monitors, stage plan"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Каналы, мониторы, сцена"
           }
         }
       }
@@ -14435,6 +15098,159 @@
         }
       }
     },
+    "show.env.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A volume line over the waveform (QLab's integrated fade): shape the level of the track over its length."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Линия громкости поверх волны (integrated fade в QLab): задаёт уровень трека по ходу его звучания."
+          }
+        }
+      }
+    },
+    "show.env.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click the yellow line to add a point and drag it (top = the cue's level, bottom = silence); ⌥-click a point to remove it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Щёлкните по жёлтой линии — появится точка, тяните её (вверху — уровень кью, внизу — тишина); ⌥-щелчок по точке удаляет её."
+          }
+        }
+      }
+    },
+    "show.env.linear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Straight lines"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прямые линии"
+          }
+        }
+      }
+    },
+    "show.env.lock": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stretch with start / end"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Растягивать по началу и концу"
+          }
+        }
+      }
+    },
+    "show.env.on": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Integrated fade"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Огибающая громкости"
+          }
+        }
+      }
+    },
+    "show.env.reset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сбросить"
+          }
+        }
+      }
+    },
+    "show.env.smooth": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smooth curve"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Плавная кривая"
+          }
+        }
+      }
+    },
+    "show.fade.absolute": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To a level"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "До уровня"
+          }
+        }
+      }
+    },
+    "show.fade.by": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Change by"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменить на"
+          }
+        }
+      }
+    },
     "show.fade.changeLevel": {
       "extractionState": "manual",
       "localizations": {
@@ -14448,6 +15264,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Менять уровень"
+          }
+        }
+      }
+    },
+    "show.fade.relative": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By (relative)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На величину (относительно)"
           }
         }
       }
@@ -14503,6 +15336,40 @@
         }
       }
     },
+    "show.fadeIn.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade in — select the cue to bring up first"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд-ин — сначала выделите кью, которую поднять"
+          }
+        }
+      }
+    },
+    "show.fadeIn.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If the target is not playing, this cue starts it from silence and brings it up to its own level (or to the level below)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Если цель не играет, эта кью запустит её из тишины и поднимет до её уровня (или до уровня ниже)."
+          }
+        }
+      }
+    },
     "show.fadeOut": {
       "extractionState": "manual",
       "localizations": {
@@ -14516,6 +15383,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "Затухание"
+          }
+        }
+      }
+    },
+    "show.fadeOut.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade out (⌘7) — select the cue to fade first"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд-аут (⌘7) — сначала выделите кью, которую увести"
+          }
+        }
+      }
+    },
+    "show.fadecue.in": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade in"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд-ин"
+          }
+        }
+      }
+    },
+    "show.fadecue.out": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade out"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд-аут"
           }
         }
       }
@@ -14673,19 +15591,53 @@
         }
       }
     },
+    "show.group.makeTimeline": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Make it a timeline"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сделать таймлайном"
+          }
+        }
+      }
+    },
     "show.group.multitrackHint": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "One track per cue. Drag a clip to move its start (pre-wait), its edges to trim; clips snap to each other, ⌘ while dragging turns snapping off."
+            "value": "One track per cue. Drag a clip to move its start (pre-wait), its edges to trim, ⌥-drag to slip the sound inside it; ⌥← / ⌥→ nudge by 0.1 s. Clips snap to each other and to the yellow playback line (⌘ while dragging: no snapping); click the ruler to play from there."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Каждая кью — своя дорожка. Перетащите клип, чтобы сдвинуть старт (паузу до), края — чтобы обрезать; клипы прилипают друг к другу, ⌘ при перетаскивании отключает прилипание."
+            "value": "Каждая кью — своя дорожка. Перетащите клип — сдвиг старта (паузы до), края — обрезка, с ⌥ — сдвиг звука внутри клипа; ⌥← / ⌥→ — на 0,1 с. Клипы прилипают друг к другу и к жёлтой линии воспроизведения (⌘ — без прилипания); щелчок по линейке — играть оттуда."
+          }
+        }
+      }
+    },
+    "show.group.notTimeline": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The group plays its cues by its mode; the multitrack shows them by pre-wait."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Группа играет кью по своему режиму; мультитрек показывает их по паузе до."
           }
         }
       }
@@ -14928,6 +15880,23 @@
         }
       }
     },
+    "show.key.loadToTime": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load to time: start at, s"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузить до времени: начать с, с"
+          }
+        }
+      }
+    },
     "show.key.name": {
       "extractionState": "manual",
       "localizations": {
@@ -15149,6 +16118,23 @@
         }
       }
     },
+    "show.keys.loadToTime": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load the selected audio cue or timeline group to a time: the next start begins there"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузить выделенную аудио-кью или группу-таймлайн до времени: следующий старт — с этого места"
+          }
+        }
+      }
+    },
     "show.keys.mode": {
       "extractionState": "manual",
       "localizations": {
@@ -15196,6 +16182,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Буквенные клавиши работают в любой раскладке. Горячие клавиши, назначенные кью, важнее. В режиме «Шоу» работают только клавиши воспроизведения."
+          }
+        }
+      }
+    },
+    "show.keys.nudge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pre-wait of the selected cues −/+ 0.1 s (moves them on a group timeline)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пауза до выделенных кью −/+ 0,1 с (сдвиг на таймлайне группы)"
           }
         }
       }
@@ -15383,6 +16386,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сочетания клавиш (как в QLab)"
+          }
+        }
+      }
+    },
+    "show.keys.zoom": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom the timeline in / out"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Масштаб таймлайна: крупнее / мельче"
           }
         }
       }
@@ -15710,6 +16730,23 @@
         }
       }
     },
+    "show.openSettings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings… (double click)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки… (двойной клик)"
+          }
+        }
+      }
+    },
     "show.output.error": {
       "extractionState": "manual",
       "localizations": {
@@ -15910,6 +16947,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Запустить эту кью"
+          }
+        }
+      }
+    },
+    "show.playlist.crossfade": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crossfade"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Кроссфейд"
           }
         }
       }
@@ -16186,6 +17240,40 @@
         }
       }
     },
+    "show.secondTrigger": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If started again while running"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Если запустить, пока играет"
+          }
+        }
+      }
+    },
+    "show.secondTrigger.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What the cue does when GO, a hotkey or another cue starts it while it is still running (QLab's second trigger)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Что делает кью, если GO, клавиша или другая кью запускает её, пока она ещё играет (second trigger в QLab)."
+          }
+        }
+      }
+    },
     "show.setPlayhead": {
       "extractionState": "manual",
       "localizations": {
@@ -16322,19 +17410,53 @@
         }
       }
     },
+    "show.tab.fade": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд"
+          }
+        }
+      }
+    },
     "show.tab.main": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "General"
+            "value": "Basics"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Общее"
+            "value": "Основное"
+          }
+        }
+      }
+    },
+    "show.tab.mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Режим"
           }
         }
       }
@@ -16362,13 +17484,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Outputs"
+            "value": "Levels"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Выходы"
+            "value": "Уровни"
           }
         }
       }
@@ -16390,19 +17512,36 @@
         }
       }
     },
-    "show.tab.time": {
+    "show.tab.triggers": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Time"
+            "value": "Triggers"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Время"
+            "value": "Запуск"
+          }
+        }
+      }
+    },
+    "show.tab.wave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time & loops"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Время и петли"
           }
         }
       }
@@ -16505,6 +17644,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "сейчас"
+          }
+        }
+      }
+    },
+    "show.timeline.scroll": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move along the timeline (or drag empty space, or scroll)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прокрутка таймлайна (или тяните пустое место, или колесо / трекпад)"
+          }
+        }
+      }
+    },
+    "show.timeline.seekHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click or drag in the ruler to move playback there (a group that is not running starts from there next time)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Щёлкните или протяните по линейке, чтобы перейти туда (группа, которая не играет, в следующий раз начнёт оттуда)"
           }
         }
       }
@@ -16692,6 +17865,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть большой редактор"
+          }
+        }
+      }
+    },
+    "show.wave.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The track's own timeline: drag the start and end markers, the fade-in / fade-out handles and the loop; Listen plays from any point (click the waveform)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Собственный таймлайн трека: перетаскивайте метки начала и конца, ручки нарастания и затухания и петлю; «Слушать» — с любого места (щелчок по волне)."
           }
         }
       }
@@ -17116,7 +18306,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Система, сабвуферы, сателлиты"
+            "value": "Система и группы"
           }
         }
       }
@@ -17150,7 +18340,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Задержка, полярность, уровень"
+            "value": "Задержка, полярность"
           }
         }
       }

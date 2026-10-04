@@ -53,14 +53,21 @@ public enum ShowTimeline {
     /// otherwise clips are packed into the fewest tracks.
     public static func planGroup(_ doc: ShowDocument, group: UUID, fileLength: @escaping (Cue) -> Double?,
                                  lanePerCue: Bool = false) -> [TimelineClip] {
-        guard let g = doc.cue(group), g.kind == .group else { return [] }
+        guard var g = doc.cue(group), g.kind == .group else { return [] }
         var sim = Simulator(doc: doc, fileLength: fileLength, limit: 400)
+        guard lanePerCue else {
+            _ = sim.groupChildren(g, at: 0)
+            return assignLanes(sim.clips)
+        }
+        // The multitrack edits the group as a timeline (QLab 5): every child at its pre-wait, each on its own track,
+        // whatever its kind (audio, fade, wait, OSC, control cues, memos).
+        g.groupMode = .simultaneous
+        sim.markMemos = true
         _ = sim.groupChildren(g, at: 0)
-        guard lanePerCue else { return assignLanes(sim.clips) }
-        let order = g.children.flattened().map(\.cue).filter { $0.kind == .audio }.map(\.id)
+        let order = g.children.flattened().map(\.cue).filter { $0.kind != .group }.map(\.id)
         return sim.clips.map { c in
             var c = c
-            c.lane = c.style == .audio ? (order.firstIndex(of: c.cueID) ?? order.count) : controlLane
+            c.lane = order.firstIndex(of: c.cueID) ?? order.count
             return c
         }
     }
@@ -92,6 +99,9 @@ public enum ShowTimeline {
         let fileLength: (Cue) -> Double?
         let limit: Int
         var clips: [TimelineClip] = []
+
+        /// Memo cues as markers too (group multitrack).
+        var markMemos = false
 
         init(doc: ShowDocument, fileLength: @escaping (Cue) -> Double?, limit: Int) {
             self.doc = doc
@@ -154,6 +164,7 @@ public enum ShowTimeline {
             case .group:
                 return groupChildren(cue, at: start)
             case .memo:
+                if markMemos { clips.append(TimelineClip(cueID: cue.id, style: .marker, start: start, duration: 0, tag: "@\(start)")) }
                 return 0
             default:
                 clips.append(TimelineClip(cueID: cue.id, style: .marker, start: start, duration: 0, tag: "@\(start)"))
@@ -169,7 +180,7 @@ public enum ShowTimeline {
             switch g.groupMode {
             case .simultaneous:
                 for k in kids { trigger(k, at: start + max(0, k.preWait)) }
-            case .sequence:
+            case .sequence, .enter:
                 chain(kids, from: 0, at: start)
             case .random:
                 trigger(kids[0], at: start + max(0, kids[0].preWait))

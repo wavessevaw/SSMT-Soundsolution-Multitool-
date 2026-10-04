@@ -46,14 +46,14 @@ At most two correction rounds in a row.
 
 **Done.** Settings, scores, filter export (text/CSV), **PDF/PNG report**, session save (⌘S).
 
-## Input list and stage plan (function #2)
+## Ptch — channels, monitors and stage plan (function #2)
 
-Sidebar → "Input list & stage plan".
+Sidebar → "Ptch".
 - **Show:** artist, event, venue, date, engineer, contact, notes — printed on every sheet.
 - **Channels:** "+ Channel" (after the selection), "Template" (drums, bass, guitars, keys, vocals, BVs, playback…), stereo pair L/R, duplicate, up/down (or drag a row), delete (⌫), renumber, "Stage box…" (SB1-01, SB1-02…). The Mic / DI column suggests models; picking a condenser or active DI turns on +48 V. Problems (number or input used twice, empty source) are listed under the table.
 - **Monitor mixes** and the **pull list** (mics, DIs, stands, +48 V).
 - **Stage plan:** click a symbol to add it, drag it (25 cm snap), arrows nudge, ⌫ deletes; the inspector sets caption, channels/mix, rotation, size, layer. Text is its own item.
-- **Export:** PDF (all sheets), PNG (input list or stage plan), CSV. File: "Save input list" (⌘S) — `.ssmtinput`; undo — ⌘Z.
+- **Export:** PDF (all sheets), PNG (channel list or stage plan), CSV. File: "Save patch" (⌘S) — `.ssmtinput`; undo — ⌘Z.
 
 ## Qtrl — Show Control Center (function #3)
 
@@ -61,7 +61,7 @@ Sidebar → "Qtrl". Drop audio files onto the list or use "+ Audio" (⌘I). **GO
 
 ## FOH Assist (function #4, beta)
 
-Sidebar → "FOH Assist". Consoles: Behringer X32 / Midas M32, Behringer X Air / Midas MR; "Simulator" works without one. Put the Mac and the console on the same router (Wi-Fi or cable). Until a console is connected the tab shows only the console choice: X32 / M32 and X Air / MR consoles are found on the network (model, IP, firmware) → Connect; if none is found, enter its IP. The assistant opens once connected; the lamp in the header is green while the console answers and red when the link is lost. Channel signal comes from the console over the network (levels and RTA) or as audio over USB / Dante; the measurement mic (any microphone of the calibration library) goes into the Mac's interface. **Soundcheck:** "Tune" a channel (gain, high-pass, EQ, compressor every 2 s until "Ready"), "Orchestra" / "Choir" by channel names or a channel range, "Check polarity" for mic pairs, characters Musical / Rock / Classical / Speech, "Undo all changes". **Show:** "Guard the show" — you mix, the assistant notches hall feedback, pulls a ringing monitor down and brings it back, keeps the lead clear in mass scenes and removes proximity boom, a few dB at most, and leaves alone whatever you touch; "Show simulation" demonstrates it. **Console test:** run it first on your console — it plays a made-up show, writes every parameter, reads it back and reports, muting the main output and restoring everything at the end (save a scene first, no musicians on stage). Beta: the X32 protocol comes from public documentation and is not yet verified on a live console.
+Sidebar → "FOH Assist". Consoles: Behringer X32 / Midas M32, Behringer X Air / Midas MR; "Simulator" works without one. Put the Mac and the console on the same router (Wi-Fi or cable). Until a console is connected the tab shows only the console choice: X32 / M32 and X Air / MR consoles are found on the network (model, IP, firmware) → Connect; if none is found, enter its IP. The assistant opens once connected; the lamp in the header is green while the console answers and red when the link is lost. Channel signal comes from the console over the network (levels and RTA) or as audio over USB / Dante; the measurement mic (any microphone of the calibration library) goes into the Mac's interface. **Soundcheck:** "Tune" a channel (gain, high-pass, EQ, compressor every 2 s until "Ready"), "Orchestra" (every musical instrument: drums, band, strings, winds, brass) / "Choir" by channel names or a channel range, "Check polarity" for mic pairs, characters Musical / Rock / Classical / Speech, "Undo all changes". **Show:** "Guard the show" — you mix, the assistant notches hall feedback, pulls a ringing monitor down and brings it back, keeps the lead clear in mass scenes and removes proximity boom, a few dB at most, and leaves alone whatever you touch; "Show simulation" demonstrates it. **Console test:** run it first on your console — it plays a made-up show, writes every parameter, reads it back and reports, muting the main output and restoring everything at the end (save a scene first, no musicians on stage). Beta: the X32 protocol comes from public documentation and is not yet verified on a live console.
 
 ## Microphone correction
 

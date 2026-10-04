@@ -5,7 +5,7 @@
 # SSMT — SoundSolution Multi Tool
 
 **Рабочий инструмент звукорежиссёра и инженера на macOS**<br>
-настройка системы · input list · плейбек шоу · ассистент за пультом
+настройка системы · Ptch · плейбек шоу · ассистент за пультом
 
 [![Release](https://img.shields.io/github/v/release/wavessevaw/SSMT-Soundsolution-Multitool-?label=release&color=2EE59D)](../../releases/latest)
 [![CI](https://github.com/wavessevaw/SSMT-Soundsolution-Multitool-/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
@@ -19,8 +19,8 @@
 
 > [!NOTE]
 > **FOH Assist — beta.** Работа с пультом Behringer X32 / Midas M32 и X Air / MR построена по открытому описанию
-> протокола и ещё не сверена с реальным пультом. Начните с режима «Тест пульта» — он проверит всё на вашем пульте
-> и вернёт настройки как были.
+> протокола и ещё не сверена с реальным пультом. Начните с режима «Тест пульта»: «Диагностика связи» покажет, что
+> приходит с пульта, а сам тест проверит всё на вашем пульте и вернёт настройки как были.
 
 ## 📥 Скачать
 
@@ -44,7 +44,7 @@ input list и план сцены, подготовить фонограммы, 
 - 📐 **Настройка системы** — пошаговый мастер: двухканальный FFT, задержка и полярность, согласование сабвуферов с
   основными акустическими системами, EQ на стандартных частотах процессора, проверка после ввода и отчёт в PDF. Калибровочные файлы
   измерительных микрофонов и типовые профили.
-- 📋 **Input list и план сцены** — каналы из шаблонов, мониторные миксы, сводка «что выдать на сцену»
+- 📋 **Ptch — каналы и план сцены** — каналы из шаблонов, мониторные миксы, сводка «что выдать на сцену»
   (микрофоны, DI, стойки, +48 V), план сцены. PDF, PNG, CSV — готовый райдер для площадки.
 - ▶️ **Qtrl — Show Control Center** — воспроизведение фонограмм по списку команд: старт с точностью до сэмпла, плавные изменения уровня, группы, паузы,
   OSC для света, видео и пультов (Resolume, ETC Eos, grandMA3, MagicQ, X32/M32, QLab), кнопки one-shot,
@@ -57,14 +57,18 @@ input list и план сцены, подготовить фонограммы, 
     проблемного монитора, сохраняет разборчивость солиста в массовых сценах; фейдеры каналов не трогает;
   - 🧪 **тест пульта и симуляция шоу** — вся работа с вашим пультом на учебном сценарии шоу, с восстановлением исходных настроек.
 
-<details>
+<details open>
 <summary>📸 Скриншоты</summary>
 
-| Настройка системы | Input list и сцена |
+| 🤖 FOH Assist — саундчек | 🤖 FOH Assist — страховка шоу |
 |---|---|
-| ![](App/Tests/Snapshots/References/step7-eq.png) | ![](App/Tests/Snapshots/References/input-list.png) |
-| **Qtrl** | **Отчёт** |
-| ![](App/Tests/Snapshots/References/show-show.png) | ![](App/Tests/Snapshots/References/report.png) |
+| ![](App/Tests/Snapshots/References/assist.png) | ![](App/Tests/Snapshots/References/assist-show.png) |
+| **🤖 FOH Assist — тест пульта и волна фейдеров** | **📐 Настройка системы — EQ** |
+| ![](App/Tests/Snapshots/References/assist-test.png) | ![](App/Tests/Snapshots/References/step7-eq.png) |
+| **📄 Отчёт о настройке** | **▶️ Qtrl — шоу и таймлайн** |
+| ![](App/Tests/Snapshots/References/report.png) | ![](App/Tests/Snapshots/References/show-show.png) |
+| **▶️ Qtrl — трек: петля, огибающая громкости** | **📋 Ptch — каналы и план сцены** |
+| ![](App/Tests/Snapshots/References/show-waveform.png) | ![](App/Tests/Snapshots/References/input-list.png) |
 
 </details>
 
@@ -84,7 +88,7 @@ input list и план сцены, подготовить фонограммы, 
 2. macOS предупредит о неподтверждённом разработчике (бесплатная программа без подписи Apple Developer ID):
    **Системные настройки → Конфиденциальность и безопасность → «Всё равно открыть»**.
 3. При первом запуске разрешите доступ к микрофону.
-4. Выберите функцию в боковой панели: **Настройка системы**, **Input list**, **Qtrl** или **FOH Assist**.
+4. Выберите функцию в боковой панели: **Настройка системы**, **Ptch**, **Qtrl** или **FOH Assist**.
 
 > [!TIP]
 > Нет оборудования под рукой? В настройке системы выберите **«Симуляция (виртуальный зал)»**, а в FOH Assist —
@@ -110,7 +114,7 @@ show playback and a console assistant in one app.**
 
 - 📐 **System setup** — guided sub ↔ mains alignment from dual-channel FFT measurements, delay and polarity,
   EQ suggestions on standard processor frequencies, verification and a PDF report; measurement-mic calibration.
-- 📋 **Input list & stage plan** — channels from templates, monitor mixes, a pull list, a stage plot; PDF / PNG / CSV.
+- 📋 **Ptch — channels, monitors, stage plan** — channels from templates, monitor mixes, a pull list, a stage plot; PDF / PNG / CSV.
 - ▶️ **Qtrl — Show Control Center** — cue-based playback with sample-accurate starts, fades, groups, OSC to
   lighting, video and consoles, one-shot pads, a timeline, two-stage Stop all.
 - 🤖 **FOH Assist** *(beta)* — connects to Behringer X32 / Midas M32 and X Air over Wi-Fi;

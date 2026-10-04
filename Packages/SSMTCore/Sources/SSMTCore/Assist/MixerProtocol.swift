@@ -79,24 +79,37 @@ public enum X32Codec {
 
     public static func channelPath(_ ch: Int) -> String { String(format: "/ch/%02d", ch) }
 
-    /// Preamp gain address. On X32 it lives on the head amp feeding the channel; this assumes local
-    /// inputs patched 1:1 (channel n ← head amp n-1). X Air: /headamp/NN/gain.
-    public static func gainAddress(_ ch: Int, family: MixerFamily) -> String {
-        family == .xAir ? String(format: "/headamp/%02d/gain", ch) : String(format: "/headamp/%03d/gain", ch - 1)
+    /// Input gain address of a channel: the head amp that feeds it (X32: found through the routing — local inputs,
+    /// an AES50 stage box…), or the channel's digital trim when no head amp feeds it (card, aux, USB). nil while the
+    /// routing is not known: the gain is then neither read nor written, never guessed.
+    public static func gainAddress(_ ch: Int, family: MixerFamily, routing: X32InputRouting) -> String? {
+        switch routing.gainControl(ch, family: family) {
+        case let .headamp(n)?: return family == .xAir ? String(format: "/headamp/%02d/gain", n) : String(format: "/headamp/%03d/gain", n)
+        case .trim?: return channelPath(ch) + "/preamp/trim"
+        case nil: return nil
+        }
     }
 
-    public static func gainValue(_ db: Double, family: MixerFamily) -> Double {
-        family == .xAir ? linUnmap(db, -12, 60) : linUnmap(db, -12, 60)
+    /// Normalized value of a gain in dB for the channel's gain control (head amp −12…+60 dB, trim −18…+18 dB).
+    public static func gainValue(_ db: Double, control: X32InputRouting.GainControl) -> Double {
+        if case .trim = control { return linUnmap(db, -18, 18) }
+        return linUnmap(db, -12, 60)
     }
 
-    public static func gainDB(_ v: Double, family: MixerFamily) -> Double { linMap(v, -12, 60) }
+    public static func gainDB(_ v: Double, control: X32InputRouting.GainControl) -> Double {
+        if case .trim = control { return linMap(v, -18, 18) }
+        return linMap(v, -12, 60)
+    }
 
-    /// Every address of a strip the assistant reads (send each without arguments to query it).
-    public static func queryAddresses(_ ch: Int, family: MixerFamily) -> [String] {
+    /// Every address of a strip the assistant reads (send each without arguments to query it). The gain is asked
+    /// only once the routing says where it is; on X32 the channel's input source is asked too.
+    public static func queryAddresses(_ ch: Int, family: MixerFamily, routing: X32InputRouting = X32InputRouting()) -> [String] {
         let p = channelPath(ch)
-        var a = ["\(p)/config/name", gainAddress(ch, family: family), "\(p)/preamp/hpon", "\(p)/preamp/hpf", "\(p)/eq/on",
-                 "\(p)/dyn/on", "\(p)/dyn/thr", "\(p)/dyn/ratio", "\(p)/dyn/attack", "\(p)/dyn/release", "\(p)/dyn/knee",
-                 "\(p)/dyn/mgain", "\(p)/mix/fader", "\(p)/mix/on", "\(p)/preamp/invert"]
+        var a = ["\(p)/config/name", "\(p)/preamp/hpon", "\(p)/preamp/hpf", "\(p)/eq/on",
+                 "\(p)/dyn/on", "\(p)/dyn/mode", "\(p)/dyn/thr", "\(p)/dyn/ratio", "\(p)/dyn/attack", "\(p)/dyn/release",
+                 "\(p)/dyn/knee", "\(p)/dyn/mgain", "\(p)/mix/fader", "\(p)/mix/on", "\(p)/preamp/invert"]
+        if family != .xAir { a.append("\(p)/config/source") }
+        if let g = gainAddress(ch, family: family, routing: routing) { a.insert(g, at: 1) }
         for b in 1...4 { a += ["\(p)/eq/\(b)/type", "\(p)/eq/\(b)/f", "\(p)/eq/\(b)/g", "\(p)/eq/\(b)/q"] }
         return a
     }
@@ -105,7 +118,8 @@ public enum X32Codec {
     static func eqType(_ i: Int32) -> EQBandType { i == 1 ? .lowShelf : i == 4 ? .highShelf : .peaking }
 
     /// Messages that set the console to `new`. Only parameters that differ from `old` are sent.
-    public static func messages(from old: ChannelStrip?, to new: ChannelStrip, family: MixerFamily) -> [OSCMessage] {
+    public static func messages(from old: ChannelStrip?, to new: ChannelStrip, family: MixerFamily,
+                                routing: X32InputRouting = X32InputRouting()) -> [OSCMessage] {
         let p = channelPath(new.id)
         var out: [OSCMessage] = []
         func f(_ addr: String, _ v: Double) { out.append(OSCMessage(addr, [.float(Float(v))])) }
@@ -114,7 +128,10 @@ public enum X32Codec {
 
         // The console keeps up to 12 characters (ASCII on the X32 screen).
         if changed(\.name) { out.append(OSCMessage("\(p)/config/name", [.string(String(new.name.prefix(12)))])) }
-        if changed(\.gainDB) { f(gainAddress(new.id, family: family), gainValue(new.gainDB, family: family)) }
+        if changed(\.gainDB), let control = routing.gainControl(new.id, family: family),
+           let a = gainAddress(new.id, family: family, routing: routing) {
+            f(a, gainValue(new.gainDB, control: control))
+        }
         if changed(\.highPassOn) { i("\(p)/preamp/hpon", new.highPassOn ? 1 : 0) }
         if changed(\.highPassHz) { f("\(p)/preamp/hpf", logUnmap(new.highPassHz, 20, 400)) }
         if changed(\.eqOn) { i("\(p)/eq/on", new.eqOn ? 1 : 0) }
@@ -127,6 +144,8 @@ public enum X32Codec {
             if ob?.q != b.q { f("\(e)/q", 1 - logUnmap(b.q, 0.3, 10)) }
         }
         let c = new.compressor, oc = old?.compressor
+        // The dynamics block is a compressor or an expander (X32 / X Air): the assistant's settings are a compressor's.
+        if oc?.expander != c.expander { i("\(p)/dyn/mode", c.expander ? 1 : 0) }
         if oc?.enabled != c.enabled { i("\(p)/dyn/on", c.enabled ? 1 : 0) }
         if oc?.thresholdDB != c.thresholdDB { f("\(p)/dyn/thr", linUnmap(c.thresholdDB, -60, 0)) }
         if oc?.ratio != c.ratio { i("\(p)/dyn/ratio", Int32(ratioIndex(c.ratio))) }
@@ -142,22 +161,27 @@ public enum X32Codec {
 
     /// Applies a reply (or a pushed update) to the strips it concerns. Returns the channel touched.
     @discardableResult
-    public static func apply(_ m: OSCMessage, to strips: inout [Int: ChannelStrip], family: MixerFamily) -> Int? {
+    public static func apply(_ m: OSCMessage, to strips: inout [Int: ChannelStrip], family: MixerFamily,
+                             routing: X32InputRouting = X32InputRouting()) -> Int? {
         let parts = m.address.split(separator: "/").map(String.init)
         guard let arg = m.arguments.first else { return nil }
         var num: Double? {
             switch arg { case let .float(v): return Double(v); case let .int(v): return Double(v); default: return nil }
         }
         if parts.count == 3, parts[0] == "headamp", let n = Int(parts[1]), parts[2] == "gain", let v = num {
-            let ch = family == .xAir ? n : n + 1
-            guard strips[ch] != nil else { return nil }
-            strips[ch]!.gainDB = (gainDB(v, family: family) * 2).rounded() / 2
-            return ch
+            // Every channel this head amp feeds (usually one).
+            let fed = strips.keys.sorted().filter { routing.gainControl($0, family: family) == .headamp(n) }
+            for ch in fed { strips[ch]!.gainDB = (linMap(v, -12, 60) * 2).rounded() / 2 }
+            return fed.first
         }
         guard parts.count >= 3, parts[0] == "ch", let ch = Int(parts[1]), strips[ch] != nil else { return nil }
         var s = strips[ch]!
         switch Array(parts[2...]) {
         case ["config", "name"]: if case let .string(t) = arg { s.name = t }
+        case ["preamp", "trim"]:
+            guard routing.gainControl(ch, family: family) == .trim else { return nil }
+            s.gainDB = (linMap(num ?? 0.5, -18, 18) * 2).rounded() / 2
+        case ["dyn", "mode"]: s.compressor.expander = (num ?? 0) > 0
         case ["preamp", "hpon"]: s.highPassOn = (num ?? 0) > 0
         case ["preamp", "hpf"]: s.highPassHz = logMap(num ?? 0, 20, 400)
         case ["eq", "on"]: s.eqOn = (num ?? 0) > 0
@@ -227,4 +251,120 @@ public enum X32Codec {
 
     /// Console identification request ("/info" → version, name, model, firmware).
     public static let info = OSCMessage("/info")
+
+    /// On / off of the main stereo output (1 = on).
+    public static func mainOnAddress(_ family: MixerFamily) -> String { family == .xAir ? "/lr/mix/on" : "/main/st/mix/on" }
+
+    public static func faderAddress(_ ch: Int) -> String { channelPath(ch) + "/mix/fader" }
+}
+
+/// Console test "fader wave": every channel fader travels its whole range, top to bottom, as a sine wave that runs
+/// across the console (each channel a little behind its left neighbour), so the smoothness of the motor faders
+/// can be judged by eye.
+public struct FaderWave: Sendable {
+    /// Seconds for one fader to go top → bottom → top.
+    public var cycleSeconds: Double
+    /// How many waves are spread across the channels at once.
+    public var wavesAcross: Double = 1
+
+    public init(cycleSeconds: Double = 4) { self.cycleSeconds = cycleSeconds }
+
+    /// Fader positions (0 = bottom, 1 = top) of channels 1…n at time `t` (seconds).
+    public func positions(at t: Double, channels n: Int) -> [Double] {
+        guard n > 0 else { return [] }
+        let c = max(0.2, cycleSeconds)
+        return (0..<n).map { i in 0.5 + 0.5 * sin(2 * .pi * (t / c - wavesAcross * Double(i) / Double(n))) }
+    }
+
+    /// The OSC messages that put the console's faders where the wave is at `t`.
+    public func messages(at t: Double, channels n: Int) -> [OSCMessage] {
+        positions(at: t, channels: n).enumerated().map { OSCMessage(X32Codec.faderAddress($0.offset + 1), [.float(Float($0.element))]) }
+    }
+}
+
+/// Which head amp feeds each channel of an X32 / M32 (local inputs, AES50 A / B stage boxes, card…), so the
+/// assistant changes the gain of the right preamp. Read from the console:
+///  - `/config/routing/IN/1-8` … `/25-32`: the source block of the console's 32 inputs, in groups of eight
+///    (0…3 local AN1-8…AN25-32, 4…9 AES50 A1-8…A41-48, 10…15 AES50 B1-8…B41-48, 16…19 card 1-8…25-32);
+///  - `/ch/NN/config/source`: the input a channel takes (0 off, 1…32 inputs 1…32, then aux, USB, FX, buses).
+/// Head amps: 0…31 local, 32…79 AES50 A, 80…127 AES50 B. X Air: channel n is head amp n.
+/// After the public unofficial protocol description; not yet verified on a live console (ASSUMPTIONS A99).
+public struct X32InputRouting: Equatable, Sendable {
+    public enum GainControl: Equatable, Sendable {
+        /// An analogue preamp (head amp index).
+        case headamp(Int)
+        /// No preamp feeds the channel: its digital trim (−18…+18 dB).
+        case trim
+    }
+
+    /// `/config/routing/IN` block (0…3 for inputs 1-8 … 25-32) → its source.
+    public var blocks: [Int: Int] = [:]
+    /// Channel → `/ch/NN/config/source`.
+    public var sources: [Int: Int] = [:]
+
+    public init() {}
+
+    /// A console with its 32 local inputs on channels 1…32 (the factory routing).
+    public static var localInputs: X32InputRouting {
+        var r = X32InputRouting()
+        for b in 0..<4 { r.blocks[b] = b }
+        for c in 1...32 { r.sources[c] = c }
+        return r
+    }
+
+    public static let blockAddresses = ["/config/routing/IN/1-8", "/config/routing/IN/9-16", "/config/routing/IN/17-24",
+                                        "/config/routing/IN/25-32"]
+
+    /// How the routing is found: read from the console, or set by hand when the console's answer is not understood.
+    public enum Preset: String, CaseIterable, Codable, Sendable {
+        case auto, local, aes50A, aes50B
+    }
+
+    /// A fixed routing: channels 1…32 on inputs 1…32 taken from the local preamps or an AES50 A / B stage box.
+    public static func preset(_ p: Preset) -> X32InputRouting? {
+        let first: Int
+        switch p {
+        case .auto: return nil
+        case .local: first = 0
+        case .aes50A: first = 4
+        case .aes50B: first = 10
+        }
+        var r = X32InputRouting()
+        for b in 0..<4 { r.blocks[b] = first + b }
+        for c in 1...32 { r.sources[c] = c }
+        return r
+    }
+
+    /// Channels whose gain control is known.
+    public func knownChannels(_ n: Int, family: MixerFamily) -> Int { (1...max(1, n)).filter { gainControl($0, family: family) != nil }.count }
+
+    /// Where the gain of channel `ch` is set; nil while not known yet.
+    public func gainControl(_ ch: Int, family: MixerFamily) -> GainControl? {
+        if family == .xAir { return .headamp(ch) }
+        guard let src = sources[ch] else { return nil }
+        guard (1...32).contains(src) else { return .trim }   // off, aux, USB, FX returns, buses
+        guard let block = blocks[(src - 1) / 8] else { return nil }
+        let k = (src - 1) % 8
+        switch block {
+        case 0...3: return .headamp(block * 8 + k)
+        case 4...9: return .headamp(32 + (block - 4) * 8 + k)
+        case 10...15: return .headamp(80 + (block - 10) * 8 + k)
+        default: return .trim                                  // card inputs: no preamp
+        }
+    }
+
+    /// Takes a routing reply; true when it was one.
+    @discardableResult
+    public mutating func apply(_ m: OSCMessage) -> Bool {
+        guard let arg = m.arguments.first else { return false }
+        let v: Int
+        switch arg { case let .int(i): v = Int(i); case let .float(f): v = Int(f); default: return false }
+        if let i = Self.blockAddresses.firstIndex(of: m.address) { blocks[i] = v; return true }
+        let parts = m.address.split(separator: "/").map(String.init)
+        if parts.count == 4, parts[0] == "ch", let ch = Int(parts[1]), parts[2] == "config", parts[3] == "source" {
+            sources[ch] = v
+            return true
+        }
+        return false
+    }
 }

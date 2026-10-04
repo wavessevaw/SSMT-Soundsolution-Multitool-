@@ -26,11 +26,13 @@ public enum SourceKind: String, Codable, Sendable, CaseIterable {
         }
     }
 
-    /// True for sources that belong to an orchestra (one-button orchestra tuning picks these).
+    /// True for every musical instrument — drums, band, strings, woodwinds, brass. Owner's rule: all musical
+    /// instruments are part of the orchestra, so the one-button "Orchestra" tuning picks all of them (only voices,
+    /// choir, speech, playback and unknown sources are left out).
     public var isOrchestral: Bool {
         switch family {
-        case .strings, .woodwinds, .brass: return true
-        default: return self == .percussion
+        case .drums, .band, .strings, .woodwinds, .brass: return true
+        case .vocals, .choir, .other: return false
         }
     }
 }
@@ -99,15 +101,20 @@ public struct StripCompressor: Equatable, Codable, Sendable {
     public var releaseMS: Double
     public var kneeDB: Double
     public var makeupDB: Double
+    /// The console's dynamics block is set to expander (X32 / X Air "EXP"), not compressor.
+    public var expander = false
     public init(enabled: Bool = false, thresholdDB: Double = 0, ratio: Double = 3, attackMS: Double = 10,
                 releaseMS: Double = 150, kneeDB: Double = 2, makeupDB: Double = 0) {
         self.enabled = enabled; self.thresholdDB = thresholdDB; self.ratio = ratio; self.attackMS = attackMS
         self.releaseMS = releaseMS; self.kneeDB = kneeDB; self.makeupDB = makeupDB
     }
 
+    /// Compressing (enabled and in compressor mode).
+    public var compressing: Bool { enabled && !expander }
+
     /// Static gain change (dB, ≤ 0 before make-up) for an input level, with a soft knee.
     public func gainReduction(atInputDB x: Double) -> Double {
-        guard enabled, ratio > 1 else { return 0 }
+        guard compressing, ratio > 1 else { return 0 }
         let over = x - thresholdDB
         let k = max(kneeDB, 0.01)
         if over <= -k / 2 { return 0 }

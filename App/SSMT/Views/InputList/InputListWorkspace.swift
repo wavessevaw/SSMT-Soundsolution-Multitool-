@@ -157,8 +157,10 @@ struct ChannelToolbar: View {
             tool("arrow.up", "il.moveUp", enabled: !sel.isEmpty) { store.edit(loc.t("il.moveUp")) { $0.move(sel, by: -1) } }
             tool("arrow.down", "il.moveDown", enabled: !sel.isEmpty) { store.edit(loc.t("il.moveDown")) { $0.move(sel, by: 1) } }
             tool("trash", "action.delete", enabled: !sel.isEmpty) {
-                store.edit(loc.t("action.delete")) { $0.delete(sel) }
-                store.selectedChannels = []
+                afterEndingEdit {
+                    store.edit(loc.t("action.delete")) { $0.delete(sel) }
+                    store.selectedChannels = []
+                }
             }
             Divider().frame(height: 20)
             tool("list.number", "il.renumber", enabled: !store.doc.channels.isEmpty) {
@@ -238,7 +240,7 @@ struct ChannelTable: View {
                 }
                 .labelsHidden()
             }
-            .width(min: 100, ideal: 130)
+            .width(min: 140, ideal: 160)
             TableColumn("+48V") { ch in
                 Toggle("", isOn: binding(ch.id, \.phantom)).labelsHidden()
             }
@@ -266,9 +268,13 @@ struct ChannelTable: View {
         }
         .frame(height: CGFloat(min(max(store.doc.channels.count, 4), 24)) * 28 + 32)
         .onDeleteCommand {
+            // While a name (or any field) is being typed, Delete edits the text — it never removes the row under it.
+            guard !isTypingText() else { return }
             let sel = store.selectedChannels
-            store.edit(loc.t("action.delete")) { $0.delete(sel) }
-            store.selectedChannels = []
+            afterEndingEdit {
+                store.edit(loc.t("action.delete")) { $0.delete(sel) }
+                store.selectedChannels = []
+            }
         }
         .overlay {
             if store.doc.channels.isEmpty {
@@ -361,8 +367,10 @@ struct MixTable: View {
                     .buttonStyle(SSMTButtonStyle())
                 Button {
                     let sel = store.selectedMixes
-                    store.edit(loc.t("action.delete")) { $0.deleteMixes(sel) }
-                    store.selectedMixes = []
+                    afterEndingEdit {
+                        store.edit(loc.t("action.delete")) { $0.deleteMixes(sel) }
+                        store.selectedMixes = []
+                    }
                 } label: { Image(systemName: "trash") }
                     .buttonStyle(SSMTButtonStyle())
                     .disabled(store.selectedMixes.isEmpty)
@@ -474,4 +482,14 @@ struct FlowLayout: Layout {
             row = max(row, s.height)
         }
     }
+}
+
+/// Text is being typed in a field: the Delete key belongs to the text, not to the rows.
+@MainActor func isTypingText() -> Bool { NSApp.keyWindow?.firstResponder is NSText }
+
+/// Removing rows: the field being edited is closed first and the change runs a moment later, so no text field is
+/// left editing a row that no longer exists (that crashed the table).
+@MainActor func afterEndingEdit(_ action: @escaping @MainActor () -> Void) {
+    NSApp.keyWindow?.makeFirstResponder(nil)
+    DispatchQueue.main.async { action() }
 }

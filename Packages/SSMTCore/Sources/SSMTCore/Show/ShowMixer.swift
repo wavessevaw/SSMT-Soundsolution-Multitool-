@@ -142,6 +142,12 @@ public struct VoiceSetup: Sendable {
     public var crosspointsDB: [[Double]]
     public var fadeInFrames: Int
     public var fadeOutFrames: Int
+    /// Load to time: the voice starts as if it had already played this far (file frames along the play map).
+    public var startPlayed: Double = 0
+    /// Integrated fade envelope as linear gains sampled every `envelopeStep` file frames from the file's start
+    /// (nil = none). Built on the control thread; the mixer only reads it.
+    public var envelope: [Float]?
+    public var envelopeStep: Double = 256
 
     public init(map: PlayMap, rate: Double, levelDB: Double,
                 outputLevelsDB: [Double], crosspointsDB: [[Double]], fadeInFrames: Int = 0, fadeOutFrames: Int = 0) {
@@ -249,6 +255,10 @@ struct LevelRamp {
         curve = c
     }
 
+    /// Pause from `pausedAt`: a ramp that had begun continues `frames` later (it was frozen meanwhile). A ramp set
+    /// during the pause (a fade resumed at the same moment) is already timed from the resume.
+    mutating func shift(by frames: Int64, pausedAt: Int64) { if start <= pausedAt { start += frames } }
+
     mutating func hold(at f: Int64) {
         let d = dB(at: f)
         fromDB = d; toDB = d; length = 0
@@ -266,6 +276,8 @@ final class Voice {
     var played: Double = 0
     var map = PlayMap(regionStart: 0, length: 1, plays: 1)
     var paused = false
+    /// Frame at which the voice was paused (its level ramps are frozen from there until resume).
+    var pausedFrame: Int64 = 0
     var pauseAt: Int64 = .max
     var resumeAt: Int64 = .max
     var devampAt: Int64 = .max
@@ -396,7 +408,7 @@ public final class ShowMixer: @unchecked Sendable {
             v.clip = clip
             v.setup = setup
             v.startFrame = at
-            v.played = 0
+            v.played = setup.startPlayed
             v.map = setup.map
             v.paused = false
             v.pauseAt = .max; v.resumeAt = .max; v.devampAt = .max; v.stopAt = .max
@@ -489,8 +501,16 @@ public final class ShowMixer: @unchecked Sendable {
                 v.map = v.map.devamped(at: v.played)
                 v.devampAt = .max
             }
-            if v.pauseAt <= f { v.paused = true; v.pauseAt = .max }
-            if v.resumeAt <= f { v.paused = false; v.resumeAt = .max }
+            if v.pauseAt <= f { v.paused = true; v.pausedFrame = v.pauseAt; v.pauseAt = .max }
+            if v.resumeAt <= f {
+                if v.paused {
+                    // A fade in progress picks up where it was paused instead of jumping to its end (as in QLab).
+                    let d = max(0, v.resumeAt - v.pausedFrame)
+                    v.main.shift(by: d, pausedAt: v.pausedFrame)
+                    for o in 0..<maxOutputs { v.outputs[o].shift(by: d, pausedAt: v.pausedFrame) }
+                }
+                v.paused = false; v.resumeAt = .max
+            }
             if v.stopAt <= f && v.stopEnv.length == 0 && v.stopEnv.toDB == 0 {
                 if v.paused { free(v); return }
                 v.stopEnv.set(to: showSilenceDB, at: v.stopAt, frames: v.stopFade, curve: .sCurve)
@@ -523,6 +543,9 @@ public final class ShowMixer: @unchecked Sendable {
         let main1 = v.main.gain(at: f1) * v.stopEnv.gain(at: f1)
         let last = clip.frames - 1
         guard last >= 0 else { return false }
+        let envTable = setup.envelope
+        let envLast = (envTable?.count ?? 1) - 1
+        let envStep = setup.envelopeStep
 
         // Positions, interpolation and envelope (fades × main level ramp) for the segment.
         var pos = v.played
@@ -536,6 +559,13 @@ public final class ShowMixer: @unchecked Sendable {
             var env = 1.0
             if fadeIn > 0 && pos < fadeIn { env = pos / fadeIn }
             if fadeOut > 0 && total.isFinite && pos > total - fadeOut { env = min(env, max(0, (total - pos) / fadeOut)) }
+            if let tbl = envTable, envLast >= 0 {
+                // Integrated fade: the drawn volume line at this point of the file.
+                let k = idx / envStep
+                let e0 = min(Int(k), envLast), e1 = min(e0 + 1, envLast)
+                let g0 = Double(tbl[e0])
+                env *= g0 + (Double(tbl[e1]) - g0) * (k - Double(e0))
+            }
             scratchEnv[count] = Float(env * (main0 + (main1 - main0) * Double(count) * invN))
             pos += rate
             count += 1

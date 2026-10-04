@@ -114,7 +114,7 @@ final class InputListStore: ObservableObject {
     /// File name from the artist / event ("Band - Club").
     var suggestedName: String {
         let parts = [doc.artist, doc.event].map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        let name = parts.isEmpty ? "Input list" : parts.joined(separator: " - ")
+        let name = parts.isEmpty ? "Ptch" : parts.joined(separator: " - ")
         return name.replacingOccurrences(of: "/", with: "-")
     }
 
