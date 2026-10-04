@@ -26,5 +26,6 @@ extension View {
             .environmentObject(model.live)
             .environmentObject(model.tuning)
             .environmentObject(loc)
+            .environmentObject(ProfileCenter.shared)
     }
 }

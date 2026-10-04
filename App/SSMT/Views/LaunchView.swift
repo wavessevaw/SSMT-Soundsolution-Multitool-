@@ -52,6 +52,7 @@ final class LaunchState: ObservableObject {
 struct RootView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var loc: Localizer
+    @EnvironmentObject var center: ProfileCenter
     @StateObject private var launch = LaunchState()
     @Namespace private var brand
     @AppStorage("ssmt.showSplash") private var showSplash = true
@@ -61,9 +62,14 @@ struct RootView: View {
         let done = launch.phase == .done
         ZStack {
             Color.black.ignoresSafeArea()
-            MainView(brandNamespace: reduceMotion ? nil : brand, showBrand: done)
-                .opacity(done ? 1 : 0)
-                .offset(y: done || reduceMotion ? 0 : 8)
+            if center.current == nil {
+                // Every session starts with a profile: progress is tied to it.
+                AccountGate().opacity(done ? 1 : 0)
+            } else {
+                MainView(brandNamespace: reduceMotion ? nil : brand, showBrand: done)
+                    .opacity(done ? 1 : 0)
+                    .offset(y: done || reduceMotion ? 0 : 8)
+            }
             if !done && showSplash {
                 SplashView(namespace: reduceMotion ? nil : brand, slow: launch.slow, progress: launch.progress)
                     .transition(.opacity)

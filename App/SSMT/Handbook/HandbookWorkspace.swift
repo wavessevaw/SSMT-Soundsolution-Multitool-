@@ -143,6 +143,7 @@ struct HandbookWorkspace: View {
     @AppStorage(HandbookPrefs.item) private var itemID = ""
     @AppStorage(HandbookPrefs.favorites) private var favoritesRaw = ""
     @State private var query = ""
+    @State private var lastQueryEmpty = true
     @FocusState private var searchFocused: Bool
 
     private var favorites: [String] { HandbookPrefs.favoriteIDs(favoritesRaw) }
@@ -162,6 +163,7 @@ struct HandbookWorkspace: View {
                     if let selected {
                         HandbookPage(entry: selected, russian: ru, favorite: favorites.contains(selected.id)) { toggleFavorite(selected.id) }
                             .id(selected.id)
+                            .onAppear { trackOpened(selected) }
                     } else {
                         emptyState
                     }
@@ -188,6 +190,12 @@ struct HandbookWorkspace: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(Theme.textMuted)
                 TextField(loc.t("hb.search"), text: $query)
+                    .onChange(of: query) { q in
+                        // One search per new query typed from scratch.
+                        if !q.isEmpty && lastQueryEmpty { ProfileCenter.shared.record("hb.search") }
+                        lastQueryEmpty = q.isEmpty
+                        if q.lowercased().contains("спикон") { ProfileCenter.shared.record("hb.speakon") }
+                    }
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
                     .focused($searchFocused)
@@ -227,6 +235,19 @@ struct HandbookWorkspace: View {
         var f = favorites
         if let i = f.firstIndex(of: id) { f.remove(at: i) } else { f.append(id) }
         favoritesRaw = f.joined(separator: ",")
+        ProfileCenter.shared.recordMax("hb.maxFavorites", f.count)
+    }
+
+    /// Achievements of the handbook: pages read, terms, consoles.
+    private func trackOpened(_ e: HandbookEntry) {
+        let c = ProfileCenter.shared
+        c.record("hb.pages")
+        if e.id == "xlr3" { c.record("hb.xlr") }
+        switch e.category {
+        case .glossary: c.insert(e.id, into: "hb.terms")
+        case .consoles where e.id != "consoleCommon": c.insert(e.id, into: "hb.consoles")
+        default: break
+        }
     }
 }
 

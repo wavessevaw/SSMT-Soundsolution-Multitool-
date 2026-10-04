@@ -14,6 +14,12 @@ struct SSMTApp: App {
                 .onAppear {
                     appDelegate.model = model
                     MiniPanelController.shared.attach(model: model, localizer: localizer)
+                    // Time-based achievements read the live state of the functions every 5 s.
+                    ProfileCenter.shared.sample = { [weak model] in
+                        model?.sampleProgress()
+                        model?.show.sampleProgress()
+                        model?.assist.sampleProgress()
+                    }
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -103,6 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        MainActor.assumeIsolated { ProfileCenter.shared.appWillQuit() }
         model?.stopEngine()
     }
 

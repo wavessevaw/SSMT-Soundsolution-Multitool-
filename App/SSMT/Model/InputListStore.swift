@@ -55,11 +55,26 @@ final class InputListStore: ObservableObject {
     func edit(_ name: String = "", _ change: (inout InputListDocument) -> Void) {
         let before = doc
         change(&doc)
+        if doc != before { trackProgress(before: before) }
         guard doc != before, let undo else { return }
         undo.registerUndo(withTarget: self) { store in
             MainActor.assumeIsolated { store.restore(before) }
         }
         undo.setActionName(name)
+    }
+
+    /// Patch-size achievements: the largest patch ever built counts.
+    private func trackProgress(before: InputListDocument) {
+        let c = ProfileCenter.shared
+        if doc.channels.count > before.channels.count { c.record("ptch.channelAdded") }
+        c.recordMax("ptch.maxChannels", doc.channels.count)
+        c.recordMax("ptch.maxDrums", doc.channels.filter { $0.group == .drums }.count)
+        c.recordMax("ptch.maxSM58", doc.channels.filter { $0.mic.uppercased().contains("SM58") }.count)
+        c.recordMax("ptch.maxPhantom", doc.channels.filter(\.phantom).count)
+        c.recordMax("ptch.maxMixes", doc.mixes.count)
+        c.recordMax("ptch.maxStageItems", doc.stage.items.count)
+        let now = Calendar.current.dateComponents([.weekday, .hour], from: Date())
+        if now.weekday == 6, let h = now.hour, h >= 18 { c.record("ptch.fridayEvening") }
     }
 
     /// Undo / redo step: swaps the document and registers the opposite step.

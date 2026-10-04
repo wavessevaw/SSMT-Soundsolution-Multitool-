@@ -85,11 +85,28 @@ struct CalculatorView: View {
 
     private func textBinding(_ f: AudioCalculator.Field) -> Binding<String> {
         Binding(get: { texts[f.id] ?? AudioCalculatorFormat.text(f.initial) },
-                set: { texts[f.id] = $0; save() })
+                set: { texts[f.id] = $0; save(); track(f.id) })
+    }
+
+    @State private var lastField: String?
+    @State private var sameFieldEdits = 0
+    @State private var lastCount = Date.distantPast
+
+    /// Achievements: calculations (one per pause in typing), the same field again and again.
+    private func track(_ field: String) {
+        let c = ProfileCenter.shared
+        sameFieldEdits = field == lastField ? sameFieldEdits + 1 : 1
+        lastField = field
+        if sameFieldEdits >= 30 { c.record("secret.perfectionist") }
+        guard Date().timeIntervalSince(lastCount) > 1.5 else { return }
+        lastCount = Date()
+        c.record("hb.calc")
+        if calculator.id == "delay" { c.record("hb.delayCalc") }
+        if calculator.id == "rt60" { c.record("hb.rt60") }
     }
 
     private func choiceBinding(_ f: AudioCalculator.Field) -> Binding<Int> {
-        Binding(get: { choices[f.id] ?? Int(f.initial) }, set: { choices[f.id] = $0; save() })
+        Binding(get: { choices[f.id] ?? Int(f.initial) }, set: { choices[f.id] = $0; save(); track(f.id) })
     }
 
     // Answers

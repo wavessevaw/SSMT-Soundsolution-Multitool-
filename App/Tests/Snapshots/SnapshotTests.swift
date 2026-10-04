@@ -155,6 +155,41 @@ final class SnapshotTests: XCTestCase {
                      name: "input-list", loc: Self.ru)
     }
 
+    static var sampleProfile: LocalProfile {
+        var p = LocalProfile(name: "Никита Г.", email: "", role: "foh", color: 0x2A4B3E, salt: "s", passwordHash: "")
+        var pr = PlayerProgress()
+        pr.activeSeconds = 162.4 * 3600
+        pr.clicks = 2410
+        pr.clickXP = 2410
+        pr.bonusXP = 3200
+        pr.counters = ["qtrl.go": 640, "setup.finished": 12, "time.night": 1, "app.launch": 30, "foh.wave": 1,
+                       "qtrl.doubleGo": 1, "ptch.maxPhantom": 24, "setup.noiseSeconds": 2000]
+        let d = Date(timeIntervalSince1970: 1_790_000_000)
+        for (i, id) in ["firstSound", "nightOwl", "doubleGo", "phantomPain", "stadiumWave", "go", "secretRoom"].enumerated() {
+            pr.unlocked[id] = d.addingTimeInterval(Double(i) * 3600)
+        }
+        pr.level = pr.computedLevel
+        p.progress = pr
+        return p
+    }
+
+    func testAccountAndProfile() throws {
+        let center = ProfileCenter.shared
+        center.preview(nil)
+        try snapshot(AccountGate(), size: CGSize(width: 1200, height: 760), name: "account-register", loc: Self.ru)
+        center.preview(Self.sampleProfile)
+        try snapshot(ScrollView { ProfileOverview().padding(28) }.background(Backdrop()), size: CGSize(width: 1100, height: 760),
+                     name: "profile-overview", loc: Self.ru)
+        try snapshot(ScrollView { AchievementWall().padding(28) }.background(Backdrop()), size: CGSize(width: 1100, height: 900),
+                     name: "profile-achievements", loc: Self.ru)
+        try snapshot(VStack { ProfileBadge() }.frame(width: 272).padding(16).background(Backdrop()), size: CGSize(width: 304, height: 140),
+                     name: "profile-badge", loc: Self.ru)
+        center.toasts = ["nightOwl"]
+        try snapshot(AchievementToast().padding(20).background(Backdrop()), size: CGSize(width: 520, height: 140),
+                     name: "achievement-toast", loc: Self.ru)
+        center.preview(nil)
+    }
+
     func testHandbook() throws {
         let d = UserDefaults.standard
         d.removeObject(forKey: "ssmt.handbook.calc.cable")

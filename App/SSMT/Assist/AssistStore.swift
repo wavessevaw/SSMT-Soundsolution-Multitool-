@@ -303,6 +303,7 @@ final class AssistStore: ObservableObject {
             buses = busMap.values.sorted { $0.id < $1.id }
             connection = .connected("SSMT simulator · \(c.strips.count) ch")
             linkAlive = true
+            ProfileCenter.shared.record("foh.simulator")
         case .x32, .xAir:
             connection = .connecting
             setStrips(Dictionary(uniqueKeysWithValues: (1...family.channelCount).map { ($0, ChannelStrip(id: $0)) }))
@@ -363,6 +364,7 @@ final class AssistStore: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 let alive = self.sim != nil || (self.isConnected && Date().timeIntervalSince(self.lastHeard) < 4)
+                if alive && !self.linkAlive && self.isConnected { ProfileCenter.shared.record("foh.reconnect") }
                 if alive != self.linkAlive { self.linkAlive = alive }
                 self.updateLinkStats()
             }
@@ -454,6 +456,7 @@ final class AssistStore: ObservableObject {
         if m.address == "/info" {
             let parts = m.arguments.compactMap { if case let .string(s) = $0 { return s } else { return nil } }
             linkStats.model = parts.dropFirst().joined(separator: " · ")
+            if connection == .connecting { ProfileCenter.shared.record("foh.connect") }
             connection = .connected(parts.dropFirst().joined(separator: " · "))
             return
         }
@@ -477,7 +480,7 @@ final class AssistStore: ObservableObject {
         }
         let t = Date().timeIntervalSince(guardStart)
         if let ch = X32Codec.apply(m, to: &stripMap, family: family, routing: routing) {
-            if connection == .connecting { connection = .connected(host) }
+            if connection == .connecting { connection = .connected(host); ProfileCenter.shared.record("foh.connect") }
             strips = stripMap.values.sorted { $0.id < $1.id }
             if let s = stripMap[ch] { session?.updateFromConsole(s); guardian?.consoleChanged(s, time: t) }
         } else if let id = X32Codec.apply(m, toBuses: &busMap) {
@@ -507,6 +510,8 @@ final class AssistStore: ObservableObject {
             message = "nothing found"
             return
         }
+        if selection == .orchestra { ProfileCenter.shared.record("foh.orchestra") }
+        if selection == .choir { ProfileCenter.shared.record("foh.choir") }
         begin()
     }
 
@@ -543,6 +548,7 @@ final class AssistStore: ObservableObject {
 
     func undoAll() {
         guard let session else { return }
+        ProfileCenter.shared.record("foh.revert")
         apply(session.undo())
         stopJob()
     }
@@ -612,12 +618,26 @@ final class AssistStore: ObservableObject {
             let done = session.single?.channel == ch ? session.single?.state == .done : session.group?.tunings[ch]?.state == .done
             if done, let f = session.features[ch], f.bandsDB.contains(where: { $0 > -119 }) { references[ch] = f.bandsDB }
         }
-        if !session.isRunning { running = false; timer?.invalidate(); timer = nil } else { followRTA() }
+        if !session.isRunning {
+            running = false
+            timer?.invalidate()
+            timer = nil
+            // A finished soundcheck job.
+            ProfileCenter.shared.record("foh.soundcheck")
+            if character == .rock { ProfileCenter.shared.record("foh.rock") }
+            if character == .classical { ProfileCenter.shared.record("foh.classic") }
+        } else {
+            followRTA()
+        }
     }
 
     private func apply(_ changed: [ChannelStrip]) {
         for var s in changed {
             let old = stripMap[s.id]
+            if let o = old {
+                if o.gainDB != s.gainDB { ProfileCenter.shared.record("foh.gainChanges") }
+                if !o.polarityInverted && s.polarityInverted { ProfileCenter.shared.record("foh.polarity") }
+            }
             // A gain the console cannot take yet (routing still unknown): it stays as it is, and the assistant
             // learns so instead of believing it changed.
             if link != nil, let o = old, o.gainDB != s.gainDB, X32Codec.gainAddress(s.id, family: family, routing: routing) == nil {
@@ -675,6 +695,7 @@ final class AssistStore: ObservableObject {
             await MainActor.run {
                 self?.testChecks = result
                 self?.testing = false
+                if !result.isEmpty, !result.contains(where: { $0.status == .failed }) { ProfileCenter.shared.record("foh.testPassed") }
                 // Show the console as it is now (restored).
                 if let self, let link = self.link { link.queryAll(channels: self.family.channelCount, routing: self.routing) }
             }
@@ -844,6 +865,7 @@ final class AssistStore: ObservableObject {
         link?.send([OSCMessage(X32Codec.mainOnAddress(family), [.int(0)])])
         waveStart = Date()
         waving = true
+        ProfileCenter.shared.record("foh.wave")
         let t = Timer(timeInterval: 1 / Self.waveRate, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.waveTick() }
         }
@@ -915,6 +937,11 @@ final class AssistStore: ObservableObject {
         timer = nil
     }
 
+    /// Every 5 s: show-guard time for the achievements.
+    func sampleProgress() {
+        if guarding && rehearsal == nil { ProfileCenter.shared.record("foh.guardSeconds", count: 5) }
+    }
+
     func setMonitor(_ bus: Int, _ on: Bool) {
         if on { guardian?.monitorBuses.insert(bus) } else { guardian?.monitorBuses.remove(bus) }
         objectWillChange.send()
@@ -971,6 +998,11 @@ final class AssistStore: ObservableObject {
         let hall = mic.map { hallDetector.process($0) } ?? []
         let onStage = stage.map { stageDetector.process($0) } ?? []
         let r = g.step(time: t, channels: feats, busLevels: busLevels, hallFeedback: hall, stageFeedback: onStage)
+        let before = Set(corrections.map(\.id))
+        for c in g.corrections(at: t) where !before.contains(c.id) {
+            if c.kind == .notch { ProfileCenter.shared.record("foh.feedbackCut") }
+            if c.kind == .monitorDip { ProfileCenter.shared.record("foh.monitorDip") }
+        }
         apply(r.strips)
         apply(buses: r.buses)
         features.merge(feats) { $1 }

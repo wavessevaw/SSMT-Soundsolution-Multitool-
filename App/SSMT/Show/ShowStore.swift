@@ -184,6 +184,7 @@ final class ShowStore: ObservableObject {
         guard !showMode else { return }
         let before = doc
         change(&doc)
+        if doc != before { trackShape() }
         guard doc != before, let undo else { return }
         undo.registerUndo(withTarget: self) { store in
             MainActor.assumeIsolated { store.restore(before) }
@@ -438,7 +439,10 @@ final class ShowStore: ObservableObject {
         bankID = b.id
     }
 
-    func pad(_ id: UUID, pressed: Bool) { run { e, now in e.pad(id, pressed: pressed, now: now) } }
+    func pad(_ id: UUID, pressed: Bool) {
+        if pressed { ProfileCenter.shared.record("qtrl.oneShot") }
+        run { e, now in e.pad(id, pressed: pressed, now: now) }
+    }
 
     /// File length of an audio cue in seconds, when loaded.
     func fileLength(_ cue: Cue) -> Double? {
@@ -472,6 +476,7 @@ final class ShowStore: ObservableObject {
 
     func deleteSelection() {
         let ids = selection
+        if snapshot.running.contains(where: { ids.contains($0.id) }) { ProfileCenter.shared.record("qtrl.deletePlaying") }
         // A deleted cue stops sounding at once (the engine stops it when the edit reaches it); so does its preview.
         if let a = audition, ids.contains(a.cue) || ids.contains(where: { doc.cue($0)?.children.findCue(a.cue) != nil }) { stopAudition() }
         edit(loc("action.delete")) { $0.delete(ids) }
@@ -523,6 +528,7 @@ final class ShowStore: ObservableObject {
     // MARK: Transport
 
     func go() {
+        trackGo()
         // A red border on GO while double-GO protection holds it.
         if doc.doubleGoGuard > 0, goGuarded == false {
             goGuarded = true
@@ -535,10 +541,71 @@ final class ShowStore: ObservableObject {
     @Published private(set) var goGuarded = false
     /// Seconds across the width of the timelines (⌘= / ⌘− zoom them).
     @Published var timelineSpan: Double = 40
-    func panic() { run { e, now in e.panic(now: now) } }
+    func panic() {
+        let c = ProfileCenter.shared
+        if !snapshot.running.isEmpty {
+            c.record("qtrl.panic")
+            if let t = lastPanicTap, Date().timeIntervalSince(t) < 1.5 { c.record("qtrl.panicHard") }
+            lastPanicTap = Date()
+        }
+        run { e, now in e.panic(now: now) }
+    }
+
+    // MARK: Progress (achievements)
+
+    private var lastPanicTap: Date?
+    private var sessionGos = 0
+    private var pausedSince: Date?
+    private var loopSince: [UUID: Date] = [:]
+
+    /// GO and starts: what kind of cue fired, a clean run of 30 GOs earns the show XP.
+    private func trackGo() {
+        let c = ProfileCenter.shared
+        if goGuarded { c.record("qtrl.doubleGo"); return }
+        c.record("qtrl.go")
+        if let cue = doc.cue(snapshot.playhead) { trackFired(cue) }
+        sessionGos += 1
+        if sessionGos == 30, snapshot.problems.isEmpty {
+            c.record("qtrl.cleanShow")
+            c.record("qtrl.show")
+        }
+    }
+
+    private func trackFired(_ cue: Cue) {
+        switch cue.kind {
+        case .fade: ProfileCenter.shared.record("qtrl.fade")
+        case .network: ProfileCenter.shared.record("qtrl.osc")
+        default: break
+        }
+    }
+
+    /// Every 5 s: long pauses and long loops.
+    func sampleProgress() {
+        let c = ProfileCenter.shared
+        if !snapshot.running.isEmpty, snapshot.running.allSatisfy(\.paused) {
+            if pausedSince == nil { pausedSince = Date() }
+            if let p = pausedSince, Date().timeIntervalSince(p) > 15 * 60 { c.record("qtrl.longPause") }
+        } else {
+            pausedSince = nil
+        }
+        let looping = snapshot.running.filter { ($0.iteration ?? 0) > 0 && !$0.paused }.map(\.id)
+        loopSince = loopSince.filter { looping.contains($0.key) }
+        for id in looping where loopSince[id] == nil { loopSince[id] = Date() }
+        if let oldest = loopSince.values.min() { c.recordMax("qtrl.loopMinutes", Int(Date().timeIntervalSince(oldest) / 60)) }
+    }
+
+    /// Biggest playlist and timeline group in the show.
+    private func trackShape() {
+        let groups = doc.allCues.filter { $0.kind == .group }
+        ProfileCenter.shared.recordMax("qtrl.maxPlaylist", groups.filter { $0.groupMode == .playlist }.map(\.children.count).max() ?? 0)
+        ProfileCenter.shared.recordMax("qtrl.maxTimelineTracks", groups.filter { $0.groupMode == .simultaneous }.map(\.children.count).max() ?? 0)
+    }
     func pauseAll() { run { e, now in e.pauseAll(now: now) } }
     func resumeAll() { run { e, now in e.resumeAll(now: now) } }
-    func start(_ id: UUID) { run { e, now in e.start(id, now: now) } }
+    func start(_ id: UUID) {
+        if let cue = doc.cue(id) { trackFired(cue) }
+        run { e, now in e.start(id, now: now) }
+    }
     func stop(_ id: UUID) { run { e, now in e.stop(id, now: now) } }
     func togglePause(_ id: UUID) {
         let paused = snapshot.running.first { $0.id == id }?.paused ?? false
@@ -859,6 +926,7 @@ final class ShowStore: ObservableObject {
         collectMedia(oldShowURL: oldURL)
         do {
             try doc.encoded().write(to: url, options: .atomic)
+            if doc.allCues.count >= 100 { ProfileCenter.shared.record("qtrl.bigShow") }
         } catch {
             fileURL = oldURL
             lastError = "\(url.lastPathComponent): \(error)"

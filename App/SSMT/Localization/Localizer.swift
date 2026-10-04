@@ -18,6 +18,7 @@ final class Localizer: ObservableObject {
             stored = newValue.rawValue
             bundle = Self.bundle(for: newValue)
             objectWillChange.send()
+            ProfileCenter.shared.record("ui.language")
         }
     }
 

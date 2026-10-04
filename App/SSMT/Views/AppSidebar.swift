@@ -42,6 +42,9 @@ struct AppSidebar: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 20)
                 .padding(.bottom, 14)
+            ProfileBadge()
+                .padding(.horizontal, 10)
+                .padding(.bottom, 10)
             sectionSwitch
                 .padding(.horizontal, 10)
                 .padding(.bottom, 16)
