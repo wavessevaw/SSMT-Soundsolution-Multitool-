@@ -8899,13 +8899,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Search everything: speakon, delay, X32, feedback… (⌘F)"
+            "value": "Search everything (⌘F)"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Поиск по всему: спикон, задержка, X32, заводка… (⌘F)"
+            "value": "Поиск по всему (⌘F)"
           }
         }
       }

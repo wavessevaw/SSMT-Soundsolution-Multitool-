@@ -68,9 +68,8 @@ struct CalculatorView: View {
                     .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .strokeBorder(invalid ? Theme.statusError.opacity(0.8) : Color.white.opacity(0.1)))
                     .help(invalid ? loc.t("hb.invalid") : "")
-                if !unit.isEmpty {
-                    Text(unit).font(.system(size: 12)).foregroundStyle(Theme.textMuted).frame(minWidth: 44, alignment: .leading)
-                }
+                // Same width with or without a unit, so the fields line up.
+                Text(unit).font(.system(size: 12)).foregroundStyle(Theme.textMuted).frame(width: 52, alignment: .leading)
             }
         case .choice(let options):
             Picker("", selection: choiceBinding(f)) {

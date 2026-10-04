@@ -32,7 +32,7 @@ STRINGS = {
     "section.handbook": ("Handbook", "Справочник"),
     "section.handbook.subtitle": ("Consoles, pinouts, calculators", "Пульты, распайки, калькуляторы"),
     "hb.title": ("Handbook", "Справочник"),
-    "hb.search": ("Search everything: speakon, delay, X32, feedback… (⌘F)", "Поиск по всему: спикон, задержка, X32, заводка… (⌘F)"),
+    "hb.search": ("Search everything (⌘F)", "Поиск по всему (⌘F)"),
     "hb.clear": ("Clear search", "Очистить поиск"),
     "hb.favorites": ("Favourites", "Избранное"),
     "hb.favorites.empty": ("Star a page to keep it here.", "Отметьте страницу звёздочкой — она появится здесь."),

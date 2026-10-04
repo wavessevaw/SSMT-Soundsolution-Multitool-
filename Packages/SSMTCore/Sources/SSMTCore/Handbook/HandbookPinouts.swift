@@ -95,7 +95,7 @@ extension HandbookContent {
                                           [LText("2−"), LText("—"), LText("ВЧ −", "HF −")]]),
                             .bullets([LText("Стандарт де-факто: пассивные колонки и сабы — на 1+/1−. Многие колонки пробрасывают 2± на второй разъём.",
                                             "De facto: passive tops and subs on 1+/1−. Many boxes link 2± through to the second socket."),
-                                      LText("NL8 — четыре пары (2+ … 4−) для многополосных систем.", "NL8 — four pairs for multi-way systems."),
+                                      LText("NL8 — четыре пары (1± … 4±) для многополосных систем.", "NL8 — four pairs (1± … 4±) for multi-way systems."),
                                       LText("NL2 подходит к гнезду NL4 и занимает только 1±.", "NL2 fits an NL4 socket and uses 1± only.")]),
                             .warning(LText("Не подключайте Speakon к выходу усилителя «на горячую» с громким сигналом — дуга портит контакты; сначала мьют.",
                                            "Do not plug Speakon into a live amp output with loud signal — arcing damages contacts; mute first.")),
