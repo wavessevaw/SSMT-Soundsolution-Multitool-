@@ -315,6 +315,29 @@ public struct X32InputRouting: Equatable, Sendable {
     public static let blockAddresses = ["/config/routing/IN/1-8", "/config/routing/IN/9-16", "/config/routing/IN/17-24",
                                         "/config/routing/IN/25-32"]
 
+    /// How the routing is found: read from the console, or set by hand when the console's answer is not understood.
+    public enum Preset: String, CaseIterable, Codable, Sendable {
+        case auto, local, aes50A, aes50B
+    }
+
+    /// A fixed routing: channels 1…32 on inputs 1…32 taken from the local preamps or an AES50 A / B stage box.
+    public static func preset(_ p: Preset) -> X32InputRouting? {
+        let first: Int
+        switch p {
+        case .auto: return nil
+        case .local: first = 0
+        case .aes50A: first = 4
+        case .aes50B: first = 10
+        }
+        var r = X32InputRouting()
+        for b in 0..<4 { r.blocks[b] = first + b }
+        for c in 1...32 { r.sources[c] = c }
+        return r
+    }
+
+    /// Channels whose gain control is known.
+    public func knownChannels(_ n: Int, family: MixerFamily) -> Int { (1...max(1, n)).filter { gainControl($0, family: family) != nil }.count }
+
     /// Where the gain of channel `ch` is set; nil while not known yet.
     public func gainControl(_ ch: Int, family: MixerFamily) -> GainControl? {
         if family == .xAir { return .headamp(ch) }

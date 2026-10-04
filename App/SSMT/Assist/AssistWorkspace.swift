@@ -151,7 +151,13 @@ private struct AssistSettingsSheet: View {
             }
             .padding(16)
             Divider().overlay(Theme.hairline)
-            ScrollView { ConnectionPanel().padding(18) }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    if store.isConnected && store.family != .simulator { LinkDiagnostics() }
+                    ConnectionPanel()
+                }
+                .padding(18)
+            }
         }
         .frame(width: 860, height: 520)
         .background(Backdrop())
@@ -1176,6 +1182,9 @@ private struct ConsoleTestScreen: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(spacing: 12) {
+                if store.family != .simulator {
+                    Panel(title: loc.t("assist.diag"), tint: Theme.dataBlue) { LinkDiagnostics() }
+                }
                 Panel(title: loc.t("assist.test"), tint: Theme.signalYellow) { ConsoleTestPanel() }
                 Panel(title: loc.t("assist.wave"), tint: Theme.accent) { FaderWavePanel() }
             }
@@ -1186,6 +1195,56 @@ private struct ConsoleTestScreen: View {
             .frame(maxHeight: .infinity)
         }
         .frame(maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// What the link to a real console brings right now: the console's answer, meter frames per second, parameters
+/// read, and whether the preamp gains are reachable (with the routing set by hand if the console's is not read).
+struct LinkDiagnostics: View {
+    @EnvironmentObject var store: AssistStore
+    @EnvironmentObject var loc: Localizer
+
+    var body: some View {
+        let st = store.linkStats
+        VStack(alignment: .leading, spacing: 6) {
+            row(loc.t("assist.diag.console"), st.model.isEmpty ? loc.t("assist.diag.noInfo") : st.model, ok: st.model.isEmpty ? .bad : .good)
+            row(loc.t("assist.diag.levels"), perSecond(st.channelFrames), ok: rate(st.channelFrames))
+            row(loc.t("assist.diag.buses"), perSecond(st.busFrames), ok: rate(st.busFrames))
+            row(loc.t("assist.diag.rta"), perSecond(st.rtaFrames), ok: rate(st.rtaFrames))
+            row(loc.t("assist.diag.params"), "\(st.paramsHeard) / \(st.paramsExpected)",
+                ok: st.paramsExpected == 0 ? .bad : st.paramsHeard >= st.paramsExpected * 95 / 100 ? .good : st.paramsHeard > 0 ? .warn : .bad)
+            row(loc.t("assist.diag.gain"), "\(st.gainKnown) / \(st.channels)",
+                ok: st.gainKnown == st.channels ? .good : st.gainKnown > 0 ? .warn : .bad)
+            if store.family == .x32 {
+                HStack {
+                    Text(loc.t("assist.diag.routing")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                    Picker("", selection: $store.routingPreset) {
+                        ForEach(X32InputRouting.Preset.allCases, id: \.self) { Text(loc.t("assist.routing.\($0.rawValue)")).tag($0) }
+                    }
+                    .labelsHidden().frame(width: 230)
+                }
+                if st.gainKnown < st.channels && store.routingPreset == .auto {
+                    Text(loc.t("assist.diag.gainHint")).font(.system(size: 11)).foregroundStyle(Theme.signalYellow)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .font(.system(size: 12))
+    }
+
+    enum Level { case good, warn, bad }
+
+    private func rate(_ n: Int) -> Level { n >= 10 ? .good : n > 0 ? .warn : .bad }
+    private func perSecond(_ n: Int) -> String { String(format: loc.t("assist.diag.perSecond"), n) }
+
+    private func row(_ title: String, _ value: String, ok: Level) -> some View {
+        HStack(spacing: 8) {
+            Circle().fill(ok == .good ? Theme.statusGood : ok == .warn ? Theme.signalYellow : Theme.statusError).frame(width: 7, height: 7)
+            Text(title).foregroundStyle(Theme.textSecondary)
+            Spacer()
+            Text(value).font(Theme.mono(12)).foregroundStyle(Theme.textPrimary)
+        }
     }
 }
 

@@ -129,6 +129,15 @@ final class AssistTests: XCTestCase {
         XCTAssertEqual(w.messages(at: 0, channels: 2).map(\.address), ["/ch/01/mix/fader", "/ch/02/mix/fader"])
     }
 
+    /// Routing set by hand when the console's answer is not understood.
+    func testRoutingPresets() {
+        XCTAssertNil(X32InputRouting.preset(.auto))
+        XCTAssertEqual(X32InputRouting.preset(.local)?.gainControl(5, family: .x32), .headamp(4))
+        XCTAssertEqual(X32InputRouting.preset(.aes50A)?.gainControl(1, family: .x32), .headamp(32))
+        XCTAssertEqual(X32InputRouting.preset(.aes50B)?.gainControl(32, family: .x32), .headamp(111))
+        XCTAssertEqual(X32InputRouting.preset(.local)?.knownChannels(32, family: .x32), 32)
+    }
+
     func testOSCBlobRoundTrip() {
         let m = OSCMessage("/meters/1", [.blob(Data([1, 2, 3, 4, 5]))])
         XCTAssertEqual(OSCMessage.decode(m.encoded()), [m])

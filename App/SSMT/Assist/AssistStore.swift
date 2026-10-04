@@ -235,6 +235,26 @@ final class AssistStore: ObservableObject {
     private var busMap: [Int: BusStrip] = [:]
     /// Which head amp feeds each channel (X32): gains are read and written only where this is known.
     private var routing = X32InputRouting()
+    /// Routing set by hand (default: local inputs 1–32, the console as it comes) or read from the console (auto).
+    @Published var routingPreset: X32InputRouting.Preset =
+        X32InputRouting.Preset(rawValue: UserDefaults.standard.string(forKey: "ssmt.assist.routing") ?? "") ?? .local {
+        didSet {
+            UserDefaults.standard.set(routingPreset.rawValue, forKey: "ssmt.assist.routing")
+            if let fixed = X32InputRouting.preset(routingPreset) { routing = fixed } else if routingPreset != oldValue { routing = X32InputRouting(); link?.ask(X32InputRouting.blockAddresses + (1...family.channelCount).map { X32Codec.channelPath($0) + "/config/source" }) }
+            gainAsked = []
+            askGains()
+        }
+    }
+
+    /// What the link brings, per second (shown as connection diagnostics).
+    struct LinkStats: Equatable {
+        var channelFrames = 0, busFrames = 0, rtaFrames = 0
+        var paramsHeard = 0, paramsExpected = 0
+        var gainKnown = 0, channels = 0
+        var model = ""
+    }
+    @Published private(set) var linkStats = LinkStats()
+    private var frameCount = (ch: 0, bus: 0, rta: 0)
     /// Addresses the console has answered (what is missing is asked again a few times).
     private var heard: Set<String> = []
     private var gainAsked: Set<Int> = []
@@ -292,9 +312,10 @@ final class AssistStore: ObservableObject {
             l.onMessage = { [weak self] m in Task { @MainActor in self?.received(m) } }
             link = l
             l.start()
-            routing = X32InputRouting()
+            routing = X32InputRouting.preset(routingPreset) ?? X32InputRouting()
             heard = []
             gainAsked = []
+            linkStats = LinkStats()
             l.queryAll(channels: family.channelCount, routing: routing)
             l.ask([X32Codec.mainOnAddress(family)])
             // Ask again for whatever got lost on the way (Wi-Fi drops UDP).
@@ -343,8 +364,25 @@ final class AssistStore: ObservableObject {
                 guard let self else { return }
                 let alive = self.sim != nil || (self.isConnected && Date().timeIntervalSince(self.lastHeard) < 4)
                 if alive != self.linkAlive { self.linkAlive = alive }
+                self.updateLinkStats()
             }
         }
+    }
+
+    /// Once a second: frames per second of each meter stream, parameters read, channels whose gain is reachable.
+    private func updateLinkStats() {
+        guard link != nil else { return }
+        var st = linkStats
+        st.channelFrames = frameCount.ch; st.busFrames = frameCount.bus; st.rtaFrames = frameCount.rta
+        frameCount = (0, 0, 0)
+        let n = family.channelCount
+        let expected = (1...n).flatMap { X32Codec.queryAddresses($0, family: family, routing: routing) }
+            + (1...X32Codec.busCount(family)).flatMap { X32Codec.busQueryAddresses($0, family: family) }
+        st.paramsExpected = expected.count
+        st.paramsHeard = expected.filter { heard.contains($0) }.count
+        st.gainKnown = routing.knownChannels(n, family: family)
+        st.channels = n
+        if st != linkStats { linkStats = st }
     }
 
     func disconnect() {
@@ -408,16 +446,23 @@ final class AssistStore: ObservableObject {
             switch a { case let .int(i): mainOn = i != 0; case let .float(f): mainOn = f != 0; default: break }
             return
         }
-        if family != .xAir, routing.apply(m) {
-            askGains()
+        if family != .xAir, X32InputRouting.blockAddresses.contains(m.address) || m.address.hasSuffix("/config/source") {
+            // Read from the console only in "auto"; a routing set by hand stays as set.
+            if routingPreset == .auto, routing.apply(m) { askGains() }
             return
         }
         if m.address == "/info" {
             let parts = m.arguments.compactMap { if case let .string(s) = $0 { return s } else { return nil } }
+            linkStats.model = parts.dropFirst().joined(separator: " · ")
             connection = .connected(parts.dropFirst().joined(separator: " · "))
             return
         }
         if let (bank, values) = ConsoleMeters.decode(m, family: family) {
+            switch bank {
+            case .channels: frameCount.ch += 1
+            case .buses: frameCount.bus += 1
+            case .rta: frameCount.rta += 1
+            }
             switch bank {
             case .channels:
                 liveMeters.feed(channels: values)
