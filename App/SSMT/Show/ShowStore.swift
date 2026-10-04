@@ -51,7 +51,7 @@ final class ShowStore: ObservableObject {
     @Published var showTimeline = UserDefaults.standard.bool(forKey: "ssmt.show.timeline") {
         didSet { UserDefaults.standard.set(showTimeline, forKey: "ssmt.show.timeline") }
     }
-    /// Inspector tab (kept when the selection changes, as in QLab).
+    /// Inspector tab (kept when the selection changes).
     @Published var inspectorTab: InspectorTab = .main
     @Published var sidebarTab = QtrlSidebarTab(rawValue: UserDefaults.standard.string(forKey: "ssmt.show.sidebarTab") ?? "") ?? .active {
         didSet { UserDefaults.standard.set(sidebarTab.rawValue, forKey: "ssmt.show.sidebarTab") }
@@ -215,7 +215,7 @@ final class ShowStore: ObservableObject {
     func add(_ kind: CueKind) {
         guard let lid = listID else { return }
         var c = Cue(kind: kind, number: kind == .memo || kind == .group ? "" : doc.nextCueNumber)
-        if kind == .group { c.groupMode = .simultaneous }   // QLab 5: new groups are timeline groups
+        if kind == .group { c.groupMode = .simultaneous }   // New groups are timeline groups
         let anchor = lastSelected
         if kind.needsTarget, let a = anchor, let target = doc.cue(a) {
             if doc.targetCandidates(for: kind, excluding: c.id).contains(where: { $0.id == target.id }) {
@@ -275,37 +275,6 @@ final class ShowStore: ObservableObject {
             if let g = intoGroup { $0.append(cues, toGroup: g) } else { $0.insert(cues, after: after ?? lastSelected, list: lid) }
         }
         selection = Set(cues.map(\.id))
-    }
-
-    // MARK: QLab import
-
-    @Published var showQLabImport = false
-    /// A QLab file chosen with Open: the import window reads it when it appears.
-    var pendingQLabFile: URL?
-    /// QLab import is hidden until it is checked on real QLab files (the code and tests stay).
-    static let qlabImportEnabled = false
-    static let qlabTypes: [UTType] = ["qlab5", "qlab4", "qlab3"].compactMap { UTType(filenameExtension: $0) }
-
-    /// Replaces the show with an imported QLab workspace (one undo step). Keeps this Mac's audio
-    /// interface, outputs and OSC devices. Relative file paths are resolved against `baseFolder`.
-    func adoptImported(_ lists: [QLabImport.Item], name: String, baseFolder: URL?) -> QLabImport.Report {
-        var (imported, report) = QLabImport.makeShow(name: name, lists: lists)
-        imported.outputs = doc.outputs
-        imported.deviceUID = doc.deviceUID
-        imported.devices = doc.devices
-        if let base = baseFolder {
-            for c in imported.allCues where c.kind == .audio {
-                guard let f = c.audio?.file, !f.isEmpty, !f.hasPrefix("/") else { continue }
-                imported.updateCue(c.id) { $0.audio?.file = base.appendingPathComponent(f).path }
-            }
-        }
-        run { e, now in e.panic(now: now, hard: true) }
-        edit(loc("qlab.title")) { $0 = imported }
-        fileURL = nil
-        selection = []
-        listID = imported.cueLists.first?.id
-        bankID = imported.banks.first?.id
-        return report
     }
 
     // MARK: OSC
@@ -554,7 +523,7 @@ final class ShowStore: ObservableObject {
     // MARK: Transport
 
     func go() {
-        // QLab: a red border on GO while double-GO protection holds it.
+        // A red border on GO while double-GO protection holds it.
         if doc.doubleGoGuard > 0, goGuarded == false {
             goGuarded = true
             DispatchQueue.main.asyncAfter(deadline: .now() + doc.doubleGoGuard) { [weak self] in self?.goGuarded = false }
@@ -564,7 +533,7 @@ final class ShowStore: ObservableObject {
 
     /// Double-GO protection is holding GO right now.
     @Published private(set) var goGuarded = false
-    /// Seconds across the width of the timelines (⌘= / ⌘− zoom them, as in QLab).
+    /// Seconds across the width of the timelines (⌘= / ⌘− zoom them).
     @Published var timelineSpan: Double = 40
     func panic() { run { e, now in e.panic(now: now) } }
     func pauseAll() { run { e, now in e.pauseAll(now: now) } }
@@ -711,9 +680,9 @@ final class ShowStore: ObservableObject {
         return Self.resolve(f, showURL: fileURL)
     }
 
-    // MARK: Show media (QLab-style copies)
+    // MARK: Show media
 
-    /// Where the show's audio is gathered on save (as QLab does): "<show> Audio" next to the show file.
+    /// Where the show's audio is gathered on save: "<show> Audio" next to the show file.
     var mediaFolder: URL? {
         fileURL.map { $0.deletingLastPathComponent().appendingPathComponent($0.deletingPathExtension().lastPathComponent + " Audio", isDirectory: true) }
     }
@@ -860,13 +829,8 @@ final class ShowStore: ObservableObject {
 
     func open() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [Self.fileType, .json] + (Self.qlabImportEnabled ? Self.qlabTypes : [])
+        panel.allowedContentTypes = [Self.fileType, .json]
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        if url.pathExtension.lowercased().hasPrefix("qlab") {
-            pendingQLabFile = url
-            showQLabImport = true
-            return
-        }
         do {
             let d = try ShowDocument.decode(Data(contentsOf: url))
             run { e, now in e.panic(now: now, hard: true) }
@@ -960,7 +924,7 @@ final class ShowStore: ObservableObject {
         }
         let mods = event.modifierFlags.intersection([.command, .control, .option])
         if mods == [.command], event.type == .keyDown { return commandKey(event) }
-        // ⌥← / ⌥→ (QLab): pre-wait of the selected cues −/+ 0.1 s, which moves them on a group timeline.
+        // ⌥← / ⌥→: pre-wait of the selected cues −/+ 0.1 s, which moves them on a group timeline.
         if mods == [.option], event.type == .keyDown, !showMode, event.keyCode == 123 || event.keyCode == 124 {
             nudgePreWait(event.keyCode == 124 ? 0.1 : -0.1)
             return true
@@ -988,7 +952,7 @@ final class ShowStore: ObservableObject {
         return plainKey(event)
     }
 
-    // MARK: QLab keyboard shortcuts (by physical key, so they work on any layout, Russian included)
+    // MARK: Keyboard shortcuts (by physical key, so they work on any layout, Russian included)
 
     private enum Key {
         static let a: UInt16 = 0, s: UInt16 = 1, d: UInt16 = 2, c: UInt16 = 8, v: UInt16 = 9, q: UInt16 = 12, w: UInt16 = 13

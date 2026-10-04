@@ -107,9 +107,6 @@ struct AppSidebar: View {
             UtilityRow(icon: "folder", title: loc.t("show.open")) { model.show.open() }
             UtilityRow(icon: "square.and.arrow.down", title: loc.t("show.save")) { model.show.save() }
             UtilityRow(icon: "square.and.arrow.down.on.square", title: loc.t("il.saveAs")) { model.show.save(as: true) }
-            if ShowStore.qlabImportEnabled {
-                UtilityRow(icon: "square.and.arrow.down.on.square.fill", title: loc.t("qlab.menu")) { model.show.showQLabImport = true }
-            }
             Rectangle().fill(Theme.hairline).frame(height: 1).padding(.vertical, 8).padding(.horizontal, 8)
             UtilityRow(icon: "waveform.badge.plus", title: loc.t("show.addAudio")) { model.show.chooseAudioFiles() }
             UtilityRow(icon: "questionmark.folder", title: loc.t("show.relink")) { model.show.relinkMissing() }

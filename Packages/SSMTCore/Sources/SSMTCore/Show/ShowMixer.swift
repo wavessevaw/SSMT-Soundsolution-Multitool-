@@ -504,7 +504,7 @@ public final class ShowMixer: @unchecked Sendable {
             if v.pauseAt <= f { v.paused = true; v.pausedFrame = v.pauseAt; v.pauseAt = .max }
             if v.resumeAt <= f {
                 if v.paused {
-                    // A fade in progress picks up where it was paused instead of jumping to its end (as in QLab).
+                    // A fade in progress picks up where it was paused instead of jumping to its end.
                     let d = max(0, v.resumeAt - v.pausedFrame)
                     v.main.shift(by: d, pausedAt: v.pausedFrame)
                     for o in 0..<maxOutputs { v.outputs[o].shift(by: d, pausedAt: v.pausedFrame) }

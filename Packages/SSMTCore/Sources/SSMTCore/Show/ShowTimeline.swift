@@ -59,7 +59,7 @@ public enum ShowTimeline {
             _ = sim.groupChildren(g, at: 0)
             return assignLanes(sim.clips)
         }
-        // The multitrack edits the group as a timeline (QLab 5): every child at its pre-wait, each on its own track,
+        // The multitrack edits the group as a timeline: every child at its pre-wait, each on its own track,
         // whatever its kind (audio, fade, wait, OSC, control cues, memos).
         g.groupMode = .simultaneous
         sim.markMemos = true

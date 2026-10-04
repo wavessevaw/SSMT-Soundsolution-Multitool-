@@ -10678,23 +10678,6 @@
         }
       }
     },
-    "osc.find.qlab": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "“Start a cue” takes the cue number as shown in QLab."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "«Запустить кью» — номер кью так, как он показан в QLab."
-          }
-        }
-      }
-    },
     "osc.find.resolume": {
       "extractionState": "manual",
       "localizations": {
@@ -10810,23 +10793,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "1. На пульте: Setup → View Settings → Network.\n2. OSC Mode = OSC Rx (или Tx and Rx), OSC Rx Port = 8000.\n3. Впишите здесь IP пульта (он показан там же, в Network)."
-          }
-        }
-      }
-    },
-    "osc.howto.qlab": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1. In QLab: Workspace Settings → Network (OSC Controls).\n2. Allow OSC control without a passcode, or set access for “no passcode”.\n3. Port 53000. Same Mac: “This Mac”; otherwise its IP."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "1. В QLab: Workspace Settings → Network (OSC Controls).\n2. Разрешите управление по OSC без пароля (доступ для «no passcode»).\n3. Порт 53000. QLab на этом же Mac — «Этот Mac», иначе — его IP."
           }
         }
       }
@@ -11014,40 +10980,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Плейбеки: go, release"
-          }
-        }
-      }
-    },
-    "osc.kind.qlab": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QLab"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QLab"
-          }
-        }
-      }
-    },
-    "osc.kind.qlab.hint": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Another QLab: GO, start a cue"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Другой QLab: GO, запуск кью"
           }
         }
       }
@@ -11507,40 +11439,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Снять плейбек"
-          }
-        }
-      }
-    },
-    "osc.preset.qlab.go": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GO"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GO"
-          }
-        }
-      }
-    },
-    "osc.preset.qlab.start": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Start a cue"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Запустить кью"
           }
         }
       }
@@ -12884,363 +12782,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Подтверждено:"
-          }
-        }
-      }
-    },
-    "qlab.checkAfter": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Check before the show: levels and routing are not taken from QLab (cues play at 0 dB on outputs 1–2), and fade target levels may need a look."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Проверьте перед шоу: уровни и маршрутизация из QLab не переносятся (кью играют на 0 дБ в выходы 1–2), целевые уровни фейдов стоит просмотреть."
-          }
-        }
-      }
-    },
-    "qlab.connect": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Connect"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Подключиться"
-          }
-        }
-      }
-    },
-    "qlab.connectFailed": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Could not reach QLab: check that it is running, the IP address, and that OSC access is allowed."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Не удалось связаться с QLab: проверьте, что он запущен, IP-адрес и что доступ по OSC разрешён."
-          }
-        }
-      }
-    },
-    "qlab.done": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Imported"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Импортировано"
-          }
-        }
-      }
-    },
-    "qlab.done.counts": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cues: %d (audio: %d) · lists: %d · one-shot banks: %d"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Кью: %d (аудио: %d) · списков: %d · банков one-shot: %d"
-          }
-        }
-      }
-    },
-    "qlab.file": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "From a .qlab4 / .qlab5 file"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Из файла .qlab4 / .qlab5"
-          }
-        }
-      }
-    },
-    "qlab.file.hint": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Without QLab. The file format is not published, so Qtrl takes what it recognises and lists what it could not. If something is missing, use the import from an open QLab."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Без QLab. Формат файла закрыт, поэтому Qtrl берёт то, что распознаёт, и показывает, что не получилось. Если чего-то не хватает — используйте импорт из открытого QLab."
-          }
-        }
-      }
-    },
-    "qlab.file.open": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose a file…"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Выбрать файл…"
-          }
-        }
-      }
-    },
-    "qlab.file.unknown": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Could not recognise this file. Open it in QLab and use the import from an open QLab — it is exact."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Не удалось распознать файл. Откройте его в QLab и используйте импорт из открытого QLab — он точный."
-          }
-        }
-      }
-    },
-    "qlab.import": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Импортировать"
-          }
-        }
-      }
-    },
-    "qlab.intro": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Brings a QLab 4 / 5 show into Qtrl: cue lists, carts (as one-shot banks), cues with numbers, names, notes, colours, waits, continue modes, files, start / end, loops, fades and targets. The current show is replaced (⌘Z undoes); your audio interface, outputs and OSC devices stay."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Переносит шоу QLab 4 / 5 в Qtrl: списки, карты (как банки one-shot), кью с номерами, именами, заметками, цветами, паузами, режимами «затем», файлами, началом и концом, повторами, фейдами и целями. Текущее шоу заменяется (⌘Z отменит); звуковая карта, выходы и OSC-устройства остаются."
-          }
-        }
-      }
-    },
-    "qlab.live": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "From an open QLab — exact"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Из открытого QLab — точно"
-          }
-        }
-      }
-    },
-    "qlab.live.howto": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Open the workspace in QLab (on this or another Mac in the network). In QLab: Workspace Settings → Network → allow OSC access (without a passcode, or type it here). Then press Connect."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Откройте проект в QLab (на этом или другом Mac в сети). В QLab: Workspace Settings → Network — разрешите доступ по OSC (без пароля или впишите пароль здесь). Затем нажмите «Подключиться»."
-          }
-        }
-      }
-    },
-    "qlab.lostTargets": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cues whose target was not found: %d"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Кью, у которых не нашлась цель: %d"
-          }
-        }
-      }
-    },
-    "qlab.menu": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import from QLab…"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Импорт из QLab…"
-          }
-        }
-      }
-    },
-    "qlab.noWorkspaces": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QLab answered, but no workspace is open."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QLab ответил, но открытых проектов нет."
-          }
-        }
-      }
-    },
-    "qlab.passcode": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Passcode (if set)"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Пароль (если есть)"
-          }
-        }
-      }
-    },
-    "qlab.readFailed": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QLab refused to give the cue lists: check the OSC access settings and the passcode."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "QLab не отдал списки кью: проверьте настройки доступа по OSC и пароль."
-          }
-        }
-      }
-    },
-    "qlab.title": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Import from QLab"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Импорт из QLab"
-          }
-        }
-      }
-    },
-    "qlab.unsupported": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Not played by Qtrl yet — kept as memos with the QLab type in the notes:"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Qtrl пока не воспроизводит — оставлены заметками с типом QLab в примечании:"
-          }
-        }
-      }
-    },
-    "qlab.workspace": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Workspace"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Проект"
           }
         }
       }
@@ -15104,13 +14645,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A volume line over the waveform (QLab's integrated fade): shape the level of the track over its length."
+            "value": "A volume line over the waveform: shape the level of the track over its length."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Линия громкости поверх волны (integrated fade в QLab): задаёт уровень трека по ходу его звучания."
+            "value": "Линия громкости поверх волны: задаёт уровень трека по ходу его звучания."
           }
         }
       }
@@ -16379,13 +15920,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Keyboard shortcuts (as in QLab)"
+            "value": "Keyboard shortcuts"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Сочетания клавиш (как в QLab)"
+            "value": "Сочетания клавиш"
           }
         }
       }
@@ -17263,13 +16804,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "What the cue does when GO, a hotkey or another cue starts it while it is still running (QLab's second trigger)."
+            "value": "What the cue does when GO, a hotkey or another cue starts it while it is still running."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Что делает кью, если GO, клавиша или другая кью запускает её, пока она ещё играет (second trigger в QLab)."
+            "value": "Что делает кью, если GO, клавиша или другая кью запускает её, пока она ещё играет."
           }
         }
       }

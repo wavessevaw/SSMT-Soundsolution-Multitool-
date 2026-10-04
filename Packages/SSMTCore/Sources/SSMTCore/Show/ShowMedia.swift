@@ -1,6 +1,6 @@
 import Foundation
 
-/// The show's media folder (QLab's "bundle"): copies of the show's audio next to the show file.
+/// The show's media folder ("bundle"): copies of the show's audio next to the show file.
 public enum ShowMedia {
     /// Copies files into `folder`. A file already in the folder is used as is; an identical file already there (same
     /// name, same contents) is reused; a different file with the same name gets a number ("Intro 2.wav"). A file that

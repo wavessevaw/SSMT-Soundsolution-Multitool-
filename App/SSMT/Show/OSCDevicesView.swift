@@ -10,7 +10,6 @@ extension OSCDeviceKind {
         case .grandMA3: return "grandMA3"
         case .magicQ: return "MagicQ"
         case .x32: return "X32"
-        case .qlab: return "QLab"
         case .generic: return "OSC"
         }
     }
@@ -20,7 +19,6 @@ extension OSCDeviceKind {
         case .resolume: return "play.rectangle.on.rectangle"
         case .eos, .grandMA3, .magicQ: return "lightbulb.2"
         case .x32: return "slider.vertical.3"
-        case .qlab: return "list.bullet.rectangle"
         case .generic: return "antenna.radiowaves.left.and.right"
         }
     }
@@ -165,11 +163,11 @@ struct OSCDevicesView: View {
         }
     }
 
-    /// Media servers and QLab usually run on this Mac; consoles never do, so their address starts empty
+    /// Media servers usually run on this Mac; consoles never do, so their address starts empty
     /// (a forgotten 127.0.0.1 would silently send the show's commands back to this Mac).
     private static func newDevice(_ kind: OSCDeviceKind, name: String) -> OSCDevice {
         var d = OSCDevice(name: name, kind: kind)
-        if kind != .resolume && kind != .qlab { d.host = "" }
+        if kind != .resolume { d.host = "" }
         return d
     }
 

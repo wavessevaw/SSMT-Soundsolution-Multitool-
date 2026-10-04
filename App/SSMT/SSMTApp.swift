@@ -40,9 +40,6 @@ struct SSMTApp: App {
                     Button(localizer.t("il.saveAs")) { model.show.save(as: true) }
                         .keyboardShortcut("s", modifiers: [.command, .shift])
                     Button(localizer.t("show.new")) { model.show.newDocument() }
-                    if ShowStore.qlabImportEnabled {
-                        Button(localizer.t("qlab.menu")) { model.show.showQLabImport = true }
-                    }
                     Button(localizer.t("show.addAudio")) { model.show.chooseAudioFiles() }
                         .keyboardShortcut("1", modifiers: [.command])
                 }
@@ -62,7 +59,7 @@ struct SSMTApp: App {
             CommandMenu("SSMT") {
                 Button(localizer.t("action.stop")) { model.emergencyStop() }
                     .keyboardShortcut(.escape, modifiers: [])
-                // System setup only: in Qtrl these keys are QLab's (⌘1 audio, ⌘L sidebar, ⌘D duplicate…).
+                // System setup only: in Qtrl these keys belong to the cue list (⌘1 audio, ⌘L sidebar, ⌘D duplicate…).
                 if model.section == .setup {
                     Button(localizer.t("noise.toggle")) { model.toggleNoise() }
                         .keyboardShortcut("n", modifiers: [.command])
