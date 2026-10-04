@@ -14724,6 +14724,23 @@
         }
       }
     },
+    "show.group.makeTimeline": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Make it a timeline"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сделать таймлайном"
+          }
+        }
+      }
+    },
     "show.group.multitrackHint": {
       "extractionState": "manual",
       "localizations": {
@@ -14737,6 +14754,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Каждая кью — своя дорожка. Перетащите клип, чтобы сдвинуть старт (паузу до), края — чтобы обрезать; клипы прилипают друг к другу, ⌘ при перетаскивании отключает прилипание."
+          }
+        }
+      }
+    },
+    "show.group.notTimeline": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The group plays its cues by its mode; the multitrack shows them by pre-wait."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Группа играет кью по своему режиму; мультитрек показывает их по паузе до."
           }
         }
       }
@@ -14979,6 +15013,23 @@
         }
       }
     },
+    "show.key.loadToTime": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load to time: start at, s"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузить до времени: начать с, с"
+          }
+        }
+      }
+    },
     "show.key.name": {
       "extractionState": "manual",
       "localizations": {
@@ -15196,6 +15247,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Загрузить выделенные кью (заранее прочитать файлы)"
+          }
+        }
+      }
+    },
+    "show.keys.loadToTime": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load the selected audio cue to a time: the next start begins there"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузить выделенную аудио-кью до времени: следующий старт — с этого места"
           }
         }
       }
@@ -16573,6 +16641,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "сейчас"
+          }
+        }
+      }
+    },
+    "show.timeline.scroll": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move along the timeline (or drag empty space, or scroll)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прокрутка таймлайна (или тяните пустое место, или колесо / трекпад)"
           }
         }
       }

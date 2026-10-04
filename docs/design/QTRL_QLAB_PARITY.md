@@ -46,7 +46,7 @@
 | MIDI-триггер кью, MIDI-управление GO/Stop | ❌ | CoreMIDI |
 | OSC-управление QLab (/go, /stop, /cue/N/start …) | ❌ | OSC-сервер Qtrl с командами QLab |
 | Wall clock (время суток), таймкод-триггер | ❌ | — |
-| Load to time (⌘T), Preview (V), Audition-выход | 🟡 | Load to time; отдельный выход прослушивания |
+| Load to time (⌘T), Preview (V), Audition-выход | 🟡 | ✅ ⌘T для аудио-кью; осталось: группы, отдельный выход прослушивания |
 | Autoload, «Load» перед GO | 🟡 | autoload |
 | Double-GO protection, Panic duration | ✅ | — |
 

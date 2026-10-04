@@ -385,6 +385,24 @@ final class ShowTests: XCTestCase {
         XCTAssertFalse(rig.engine.isActive, "the playlist ends after b, once")
     }
 
+    func testLoadToTimeStartsTheCueThatFarIn() {
+        var doc = ShowDocument()
+        let a = audioCue("a", "1")
+        doc.lists[0].cues = [a]
+        let rig = ShowRig(doc)
+        // 2 s of audio: first second 0.25, second second 0.75.
+        rig.clips["a"] = AudioClip(sampleRate: 48000, channels: [(0..<96000).map { $0 < 48000 ? 0.25 : 0.75 }])
+        rig.engine.loadToTime(a.id, seconds: 1.5)
+        rig.engine.go(now: 0)
+        rig.runSeconds(1)
+        let heard = rig.out[0].filter { $0 != 0 }
+        XCTAssertFalse(heard.contains { abs($0 - 0.25) < 1e-6 }, "the first second is skipped")
+        XCTAssertTrue(heard.contains { abs($0 - 0.75) < 1e-6 })
+        XCTAssertEqual(heard.count, 24000, accuracy: 256, "only the last half second plays")
+        XCTAssertFalse(rig.engine.isActive)
+        XCTAssertNil(rig.engine.loadedTime[a.id], "loading applies to one start")
+    }
+
     func testRelativeFadeChangesTheCurrentLevel() {
         var doc = ShowDocument()
         var a = audioCue("a", "1", plays: 0)
@@ -525,6 +543,44 @@ final class ShowTests: XCTestCase {
         let multitrack = ShowTimeline.planGroup(doc, group: g.id, fileLength: { lengths[$0.audio?.file ?? ""] }, lanePerCue: true)
         XCTAssertEqual(multitrack.first { $0.cueID == k1.id }?.lane, 0, "multitrack: one track per cue, in group order")
         XCTAssertEqual(multitrack.first { $0.cueID == k2.id }?.lane, 1)
+    }
+
+    func testGoOnAGroupMovesThePlayheadToTheNextCue() {
+        for mode in GroupMode.allCases {
+            var doc = ShowDocument()
+            var g = Cue(kind: .group, number: "1")
+            g.groupMode = mode
+            g.children = [audioCue("a", "1.1"), audioCue("b", "1.2")]
+            let next = audioCue("c", "2")
+            doc.lists[0].cues = [g, next]
+            let rig = ShowRig(doc)
+            rig.clips["a"] = constClip(0.1, frames: 4800)
+            rig.clips["b"] = constClip(0.1, frames: 4800)
+            XCTAssertEqual(rig.engine.playhead, g.id)
+            rig.engine.go(now: 0)
+            rig.run(2048)
+            XCTAssertEqual(rig.engine.playhead, next.id, "\(mode): after GO on the group the next cue stands by")
+            // An edit while the group plays (as the app sends on every change) keeps it there.
+            rig.engine.document = doc
+            XCTAssertEqual(rig.engine.playhead, next.id, "\(mode): an edit does not move the playhead back")
+        }
+    }
+
+    func testGroupMultitrackShowsEveryKindOnItsOwnTrack() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .sequence                      // a sequence group still shows every child in the multitrack
+        let a = audioCue("a", "1.1")
+        var f = Cue(kind: .fade, number: "1.2"); f.target = a.id; f.preWait = 2
+        var osc = Cue(kind: .network, number: "1.3"); osc.preWait = 1
+        var memo = Cue(kind: .memo, name: "Note"); memo.preWait = 4
+        g.children = [a, f, osc, memo]
+        doc.lists[0].cues = [g]
+        let clips = ShowTimeline.planGroup(doc, group: g.id, fileLength: { _ in 10 }, lanePerCue: true)
+        func lane(_ id: UUID) -> Int? { clips.first { $0.cueID == id }?.lane }
+        XCTAssertEqual([lane(a.id), lane(f.id), lane(osc.id), lane(memo.id)], [0, 1, 2, 3])
+        XCTAssertEqual(clips.first { $0.cueID == f.id }?.start, 2, "a child starts at its pre-wait")
+        XCTAssertEqual(clips.first { $0.cueID == f.id }?.style, .fade)
     }
 
     // MARK: Inner loop (intro → loop → outro)

@@ -11,6 +11,11 @@ struct ShowTimelineView: View {
     var group: UUID? = nil
     /// Seconds across the whole width.
     @State private var span: Double = 40
+    /// Group timeline: seconds at the left edge (pan with a drag on empty space, the wheel / trackpad or the slider).
+    @State private var scroll: Double = 0
+    @State private var panStart: Double?
+    @State private var hovering = false
+    @State private var wheelMonitor: Any?
     @State private var drag: (id: UUID, dx: CGFloat, mode: DragMode)?
 
     /// As in QLab's group timeline: the body moves the cue (its pre-wait); the left edge trims the start of the file
@@ -32,9 +37,18 @@ struct ShowTimelineView: View {
             header
             GeometryReader { geo in
                 let clips = currentClips()
-                let layout = Layout(size: geo.size, span: span, live: groupMode == nil, clips: clips)
+                let layout = Layout(size: geo.size, span: span, live: groupMode == nil, clips: clips,
+                                    scroll: groupMode == nil ? 0 : scroll)
                 ZStack(alignment: .topLeading) {
                     Canvas { ctx, size in draw(&ctx, size: size, clips: clips, layout: layout) }
+                    // Empty space: drag to move along the timeline.
+                    Color.white.opacity(0.001)
+                        .gesture(groupMode != nil ? DragGesture(minimumDistance: 2)
+                            .onChanged { v in
+                                if panStart == nil { panStart = scroll }
+                                scroll = max(-2, (panStart ?? 0) - Double(v.translation.width) / layout.pps)
+                            }
+                            .onEnded { _ in panStart = nil } : nil)
                     ForEach(clips.filter { $0.style != .marker }) { c in
                         let r = layout.rect(c)
                         Color.white.opacity(0.001)
@@ -57,6 +71,26 @@ struct ShowTimelineView: View {
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
                 .clipped()
             }
+            .onHover { hovering = $0 }
+            if groupMode != nil {
+                let length = max(span, (currentClips().compactMap { c in c.duration.map { c.start + $0 } ?? c.start }.max() ?? 0) + 2)
+                Slider(value: $scroll, in: -2...max(-1, length - span * 0.8))
+                    .controlSize(.mini)
+                    .help(loc.t("show.timeline.scroll"))
+            }
+        }
+        .onAppear {
+            // Wheel / trackpad over the group timeline scrolls it sideways.
+            wheelMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { e in
+                guard hovering, groupMode != nil else { return e }
+                let d = abs(e.scrollingDeltaX) > abs(e.scrollingDeltaY) ? e.scrollingDeltaX : e.scrollingDeltaY
+                scroll = max(-2, scroll - Double(d) * span / 900)
+                return nil
+            }
+        }
+        .onDisappear {
+            if let m = wheelMonitor { NSEvent.removeMonitor(m) }
+            wheelMonitor = nil
         }
         .glassCard(padding: group == nil ? 10 : 0, plain: group != nil)
     }
@@ -75,7 +109,15 @@ struct ShowTimelineView: View {
             } label: { Label(loc.t("show.group.addTracks"), systemImage: "plus") }
                 .buttonStyle(SSMTButtonStyle())
                 .disabled(show.showMode)
-            Text(loc.t("show.group.multitrackHint")).font(.system(size: 11)).foregroundStyle(Theme.textMuted).lineLimit(2)
+            if let c = show.doc.cue(g), c.groupMode != .simultaneous {
+                // The multitrack shows the group as a timeline; it plays that way only in timeline mode.
+                Text(loc.t("show.group.notTimeline")).font(.system(size: 11)).foregroundStyle(Theme.signalYellow).lineLimit(2)
+                Button(loc.t("show.group.makeTimeline")) { show.updateCue(g) { $0.groupMode = .simultaneous } }
+                    .buttonStyle(SSMTButtonStyle())
+                    .disabled(show.showMode)
+            } else {
+                Text(loc.t("show.group.multitrackHint")).font(.system(size: 11)).foregroundStyle(Theme.textMuted).lineLimit(2)
+            }
             Spacer()
             zoom
         }
@@ -227,12 +269,16 @@ struct ShowTimelineView: View {
         let laneHeight: CGFloat
         var pps: Double { Double(size.width) / span }
         /// x of time 0 ("now" in the live view, group start otherwise).
-        var origin: CGFloat { live ? size.width * 0.25 : 12 }
+        var origin: CGFloat { live ? size.width * 0.25 : 12 - CGFloat(scroll * pps) }
 
-        init(size: CGSize, span: Double, live: Bool, clips: [TimelineClip]) {
+        /// Seconds at the left edge (group timeline).
+        let scroll: Double
+
+        init(size: CGSize, span: Double, live: Bool, clips: [TimelineClip], scroll: Double = 0) {
             self.size = size
             self.span = span
             self.live = live
+            self.scroll = scroll
             lanes = max(3, (clips.map(\.lane).max() ?? 0) + 1)
             laneHeight = max(16, min(46, (size.height - ruler - controlRow - 6) / CGFloat(lanes)))
         }

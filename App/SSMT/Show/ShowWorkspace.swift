@@ -494,6 +494,7 @@ struct QtrlShortcutsView: View {
         ("Space", "show.keys.go"), ("Esc", "show.keys.panic"), ("[  /  ]", "show.keys.pauseResumeAll"),
         ("P", "show.keys.pauseSelected"), ("S", "show.keys.stopSelected"), ("L", "show.keys.load"), ("V", "show.keys.preview"),
         ("↑  /  ↓", "show.keys.cursor"), ("⇧⌘↑  /  ⇧⌘↓", "show.keys.playhead"), ("⌘J", "show.keys.jump"),
+        ("⌘T", "show.keys.loadToTime"),
         ("⌘]  /  ⌘[", "show.keys.mode"), ("⌘I  /  ⌘L", "show.keys.panels"),
         ("⌘1 · ⌘0 · ⌘7 · ⌘8", "show.keys.newCue"), ("N · Q · E · D · W", "show.keys.fields"), ("C", "show.keys.continue"),
         ("T", "show.keys.target"), ("⌘R", "show.keys.renumber"), ("⌘D", "show.keys.duplicate"),

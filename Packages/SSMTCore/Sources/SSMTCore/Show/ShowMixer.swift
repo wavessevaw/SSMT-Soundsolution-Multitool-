@@ -142,6 +142,8 @@ public struct VoiceSetup: Sendable {
     public var crosspointsDB: [[Double]]
     public var fadeInFrames: Int
     public var fadeOutFrames: Int
+    /// Load to time: the voice starts as if it had already played this far (file frames along the play map).
+    public var startPlayed: Double = 0
 
     public init(map: PlayMap, rate: Double, levelDB: Double,
                 outputLevelsDB: [Double], crosspointsDB: [[Double]], fadeInFrames: Int = 0, fadeOutFrames: Int = 0) {
@@ -396,7 +398,7 @@ public final class ShowMixer: @unchecked Sendable {
             v.clip = clip
             v.setup = setup
             v.startFrame = at
-            v.played = 0
+            v.played = setup.startPlayed
             v.map = setup.map
             v.paused = false
             v.pauseAt = .max; v.resumeAt = .max; v.devampAt = .max; v.stopAt = .max

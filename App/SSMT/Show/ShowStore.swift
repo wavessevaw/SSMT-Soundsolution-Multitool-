@@ -210,6 +210,7 @@ final class ShowStore: ObservableObject {
     func add(_ kind: CueKind) {
         guard let lid = listID else { return }
         var c = Cue(kind: kind, number: kind == .memo || kind == .group ? "" : doc.nextCueNumber)
+        if kind == .group { c.groupMode = .simultaneous }   // QLab 5: new groups are timeline groups
         let anchor = lastSelected
         if kind.needsTarget, let a = anchor, let target = doc.cue(a) {
             if doc.targetCandidates(for: kind, excluding: c.id).contains(where: { $0.id == target.id }) {
@@ -974,6 +975,7 @@ final class ShowStore: ObservableObject {
         case Key.i: showInspector.toggle(); return true                     // ⌘I  inspector
         case Key.l: showSidebar.toggle(); return true                       // ⌘L  lists, one-shot, active
         case Key.j: jumpToCue(); return true                                // ⌘J  jump to cue
+        case Key.t: loadSelectedToTime(); return true                       // ⌘T  load to time
         case Key.up where shift: movePlayhead(by: -1); return true          // ⇧⌘↑ / ⇧⌘↓  playhead
         case Key.down where shift: movePlayhead(by: 1); return true
         default: break
@@ -1034,6 +1036,14 @@ final class ShowStore: ObservableObject {
         if let l = doc.cueLists.first(where: { $0.cues.findCue(cue.id) != nil }), l.id != listID { selectList(l.id) }
         selection = [cue.id]
         setPlayhead(cue.id)
+    }
+
+    /// ⌘T: the selected audio cue's next start begins this many seconds in.
+    private func loadSelectedToTime() {
+        guard selection.count == 1, let id = selection.first, doc.cue(id)?.kind == .audio else { NSSound.beep(); return }
+        guard let v = prompt(loc("show.key.loadToTime"), value: "0"),
+              let s = Double(v.replacingOccurrences(of: ",", with: ".")) else { return }
+        run { e, _ in e.loadToTime(id, seconds: s) }
     }
 
     private enum Field { case number, name, preWait, duration, postWait }

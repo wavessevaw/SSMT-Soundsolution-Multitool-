@@ -220,6 +220,16 @@ public final class ShowEngine {
         if let c = document.cue(id) { preloadTree(c) }
     }
 
+    /// Load to time (QLab ⌘T): the next start of this audio cue begins `seconds` into it (pre-wait excluded).
+    public func loadToTime(_ id: UUID, seconds: Double) {
+        guard let c = document.cue(id), c.kind == .audio else { return }
+        loadedTime[id] = max(0, seconds)
+        preloadTree(c)
+    }
+
+    /// Cues loaded to a time, and that time (seconds).
+    public private(set) var loadedTime: [UUID: Double] = [:]
+
     public func isRunning(_ id: UUID) -> Bool { instances[id].map { !$0.stopping } ?? false }
 
     public func stop(_ id: UUID, now: Int64, fade: Double = 0) {
@@ -481,20 +491,29 @@ public final class ShowEngine {
             if xf.hasNext { a.fadeOut = max(a.fadeOut, xf.seconds) }
             playing.audio = a
         }
-        guard let setup = Self.voiceSetup(playing, clip: clip, outputs: document.outputs.count) else {
+        guard var setup = Self.voiceSetup(playing, clip: clip, outputs: document.outputs.count) else {
             problems[cue.id] = "error.show.missingFile"
             instances[cue.id]?.actionEnd = t   // nothing to play: the cue ends now and the chain goes on
             return
+        }
+        // Loaded to a time: start that far in; the cue's clock and end move accordingly.
+        var skip: Int64 = 0
+        if let s = loadedTime.removeValue(forKey: cue.id) {
+            skip = frames(s)
+            if let total = setup.outputFrames { skip = min(skip, Int64(total)) }
+            setup.startPlayed = Double(skip) * setup.rate * clip.sampleRate / sampleRate
+            setup.fadeInFrames = 0
+            instances[cue.id]?.actionAt = t - skip
         }
         send(.start(cue.id, clip: clip, setup: setup, at: t))
         instances[cue.id]?.hasVoice = true
         instances[cue.id]?.map = setup.map
         instances[cue.id]?.clip = clip
         instances[cue.id]?.rate = setup.rate
-        instances[cue.id]?.actionEnd = setup.outputFrames.map { t + $0 }
+        instances[cue.id]?.actionEnd = setup.outputFrames.map { t + Int64($0) - skip }
         instances[cue.id]?.levelDB = cue.audio?.level ?? 0
         if let xf, xf.hasNext, let len = setup.outputFrames {
-            instances[cue.id]?.crossfadeAt = t + max(0, Int64(len) - frames(xf.seconds))
+            instances[cue.id]?.crossfadeAt = t + max(0, Int64(len) - skip - frames(xf.seconds))
         }
     }
 
