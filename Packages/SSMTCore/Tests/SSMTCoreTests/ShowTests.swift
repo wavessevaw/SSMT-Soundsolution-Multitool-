@@ -194,6 +194,7 @@ final class ShowTests: XCTestCase {
         f.target = a.id
         f.fade?.duration = 0.5
         f.fade?.curve = .linearGain
+        f.fade?.stopWhenDone = true
         doc.lists[0].cues = [a, f]
         let rig = ShowRig(doc)
         rig.clips["a"] = constClip(1, frames: 4800)
@@ -205,6 +206,26 @@ final class ShowTests: XCTestCase {
         XCTAssertEqual(rig.out[0][fadeStart + 12000], 0.5, accuracy: 0.01)
         XCTAssertEqual(rig.out[0][fadeStart + 24100], 0)
         XCTAssertFalse(rig.engine.isActive, "stop when done ends the looping cue")
+    }
+
+    /// QLab: a fade-out does not stop its target unless "stop target when done" is ticked — the track plays on at −∞.
+    func testFadeOutKeepsTheTrackRunningAtSilenceByDefault() {
+        var doc = ShowDocument()
+        let a = audioCue("a", "1", plays: 0)
+        var f = Cue(kind: .fade, number: "2")
+        f.target = a.id
+        f.fade = .preset(fadeIn: false)
+        f.fade?.duration = 0.3
+        doc.lists[0].cues = [a, f]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(1, frames: 4800)
+        rig.engine.start(a.id, now: 0)
+        rig.runSeconds(0.1)
+        rig.engine.start(f.id, now: rig.now)
+        rig.runSeconds(1)
+        XCTAssertTrue(rig.engine.isRunning(a.id), "still playing")
+        XCTAssertEqual(rig.out[0].last ?? 1, 0, accuracy: 0.001, "at −∞")
+        XCTAssertEqual((try? JSONDecoder().decode(FadeCueParams.self, from: Data("{}".utf8)))?.stopWhenDone, false, "a saved fade without the setting does not stop either")
     }
 
     func testDevampPredictionMatchesAudio() {
@@ -609,6 +630,7 @@ final class ShowTests: XCTestCase {
             f.preWait = 0.2
             f.fade?.duration = 1
             f.fade?.curve = .linearGain
+            f.fade?.stopWhenDone = true
             g.children = [f, a]                           // the fade even comes first in the list
             doc.lists[0].cues = [g]
             let rig = ShowRig(doc)
@@ -631,6 +653,7 @@ final class ShowTests: XCTestCase {
         f.target = a.id
         f.fade?.duration = 1
         f.fade?.curve = .linearGain
+        f.fade?.stopWhenDone = true
         g.children = [a, f]
         doc.lists[0].cues = [g]
         let rig = ShowRig(doc)

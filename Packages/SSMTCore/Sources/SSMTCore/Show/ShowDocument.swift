@@ -138,8 +138,9 @@ public struct FadeCueParams: Codable, Equatable, Sendable {
     public var level: Double? = showSilenceDB
     /// New output levels (index = output); nil entries are unchanged.
     public var outputLevels: [Double?] = []
-    /// Stop the target when the fade is done (typical for fade-outs).
-    public var stopWhenDone: Bool = true
+    /// Stop the target when the fade is done. Off by default, as in QLab: a fade-out leaves the target playing
+    /// at −∞ (it can be brought back up); tick it to stop the target at the end.
+    public var stopWhenDone: Bool = false
     /// QLab's relative fade: `level` is added to the target's current level (e.g. −6 dB) instead of replacing it.
     public var relative: Bool = false
     /// Fade in: if the target is not playing, the fade starts it from silence and brings it up (to `level`, or to
@@ -151,7 +152,7 @@ public struct FadeCueParams: Codable, Equatable, Sendable {
     public static func preset(fadeIn: Bool) -> FadeCueParams {
         var f = FadeCueParams()
         f.fromSilence = fadeIn
-        f.stopWhenDone = !fadeIn
+        f.stopWhenDone = false
         f.level = fadeIn ? nil : showSilenceDB
         return f
     }
@@ -162,7 +163,7 @@ public struct FadeCueParams: Codable, Equatable, Sendable {
         curve = try c.decodeIfPresent(FadeCurve.self, forKey: .curve) ?? .sCurve
         level = try c.decodeIfPresent(Double.self, forKey: .level)
         outputLevels = try c.decodeIfPresent([Double?].self, forKey: .outputLevels) ?? []
-        stopWhenDone = try c.decodeIfPresent(Bool.self, forKey: .stopWhenDone) ?? true
+        stopWhenDone = try c.decodeIfPresent(Bool.self, forKey: .stopWhenDone) ?? false
         relative = try c.decodeIfPresent(Bool.self, forKey: .relative) ?? false
         fromSilence = try c.decodeIfPresent(Bool.self, forKey: .fromSilence) ?? false
     }

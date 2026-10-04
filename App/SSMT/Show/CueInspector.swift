@@ -320,7 +320,7 @@ private struct CueInspectorContent: View {
                       Binding(get: { cue.fade?.level ?? showSilenceDB },
                               set: { v in show.updateCue(cue.id) { $0.fade?.level = v } }))
             }
-            Toggle(loc.t("show.fade.stop"), isOn: fade(\.stopWhenDone, true))
+            Toggle(loc.t("show.fade.stop"), isOn: fade(\.stopWhenDone, false))
         }
     }
 
