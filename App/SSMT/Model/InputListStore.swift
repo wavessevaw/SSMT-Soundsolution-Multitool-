@@ -65,6 +65,10 @@ final class InputListStore: ObservableObject {
     /// Undo / redo step: swaps the document and registers the opposite step.
     private func restore(_ state: InputListDocument) {
         let current = doc
+        // Undo can remove rows too: drop selections of rows the restored document does not have.
+        selectedChannels.formIntersection(state.channels.map(\.id))
+        selectedMixes.formIntersection(state.mixes.map(\.id))
+        if let i = selectedItem, !state.stage.items.contains(where: { $0.id == i }) { selectedItem = nil }
         doc = state
         undo?.registerUndo(withTarget: self) { store in
             MainActor.assumeIsolated { store.restore(current) }
@@ -74,9 +78,23 @@ final class InputListStore: ObservableObject {
     // MARK: Files
 
     func newDocument() {
-        edit { $0 = InputListDocument() }
-        fileURL = nil
+        replace(with: InputListDocument(), url: nil)
+    }
+
+    /// Swaps the whole document (new / open): selections are cleared and any field being typed in is closed
+    /// first, then the document changes a moment later, so no view is left editing a row that is gone.
+    private func replace(with d: InputListDocument, url: URL?) {
+        clearSelection()
+        NSApp.keyWindow?.makeFirstResponder(nil)
+        Task { @MainActor [weak self] in
+            self?.edit { $0 = d }
+            self?.fileURL = url
+        }
+    }
+
+    private func clearSelection() {
         selectedChannels = []
+        selectedMixes = []
         selectedItem = nil
     }
 
@@ -86,8 +104,7 @@ final class InputListStore: ObservableObject {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
             let d = try InputListDocument.decode(Data(contentsOf: url))
-            edit { $0 = d }
-            fileURL = url
+            replace(with: d, url: url)
         } catch {
             lastError = "\(url.lastPathComponent): \(error)"
         }

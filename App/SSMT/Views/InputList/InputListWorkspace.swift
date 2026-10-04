@@ -157,9 +157,10 @@ struct ChannelToolbar: View {
             tool("arrow.up", "il.moveUp", enabled: !sel.isEmpty) { store.edit(loc.t("il.moveUp")) { $0.move(sel, by: -1) } }
             tool("arrow.down", "il.moveDown", enabled: !sel.isEmpty) { store.edit(loc.t("il.moveDown")) { $0.move(sel, by: 1) } }
             tool("trash", "action.delete", enabled: !sel.isEmpty) {
+                let ids = sel
                 afterEndingEdit {
-                    store.edit(loc.t("action.delete")) { $0.delete(sel) }
                     store.selectedChannels = []
+                    store.edit(loc.t("action.delete")) { $0.delete(ids) }
                 }
             }
             Divider().frame(height: 20)
@@ -216,65 +217,34 @@ struct ChannelTable: View {
     @EnvironmentObject var loc: Localizer
 
     var body: some View {
-        Table(store.doc.channels, selection: $store.selectedChannels) {
-            TableColumn("№") { ch in
-                HStack(spacing: 6) {
-                    RoundedRectangle(cornerRadius: 1.5).fill(ch.group.color).frame(width: 3, height: 16)
-                    TextField("", value: binding(ch.id, \.number), format: .number)
-                        .multilineTextAlignment(.trailing)
-                        .font(Theme.mono(13))
+        let c = columns
+        EditableRows(columns: c, rows: store.doc.channels, selection: $store.selectedChannels, visibleRows: 4...24,
+                     onDelete: deleteSelected) { ch in
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 1.5).fill(ch.group.color).frame(width: 3, height: 16)
+                TextField("", value: binding(ch.id, \.number), format: .number)
+                    .multilineTextAlignment(.trailing)
+                    .font(Theme.mono(13))
+            }
+            .rowCell(c[0])
+            TextField(loc.t("il.col.source"), text: binding(ch.id, \.source)).rowCell(c[1])
+            MicField(id: ch.id).rowCell(c[2])
+            Picker("", selection: binding(ch.id, \.stand)) {
+                ForEach(StandType.allCases, id: \.self) { Text(loc.t("stand.\($0.rawValue)")).tag($0) }
+            }
+            .labelsHidden()
+            .rowCell(c[3])
+            Toggle("", isOn: binding(ch.id, \.phantom)).labelsHidden().rowCell(c[4])
+            TextField("SB1-01", text: binding(ch.id, \.stagebox)).font(Theme.mono(12)).rowCell(c[5])
+            TextField("", text: binding(ch.id, \.insert)).rowCell(c[6])
+            Picker("", selection: binding(ch.id, \.group)) {
+                ForEach(ChannelGroup.allCases, id: \.self) { g in
+                    Text(loc.t("chgroup.\(g.rawValue)")).tag(g)
                 }
             }
-            .width(54)
-            TableColumn(loc.t("il.col.source")) { ch in
-                TextField(loc.t("il.col.source"), text: binding(ch.id, \.source))
-            }
-            .width(min: 120, ideal: 170)
-            TableColumn(loc.t("il.col.mic")) { ch in
-                MicField(id: ch.id)
-            }
-            .width(min: 110, ideal: 150)
-            TableColumn(loc.t("il.col.stand")) { ch in
-                Picker("", selection: binding(ch.id, \.stand)) {
-                    ForEach(StandType.allCases, id: \.self) { Text(loc.t("stand.\($0.rawValue)")).tag($0) }
-                }
-                .labelsHidden()
-            }
-            .width(min: 140, ideal: 160)
-            TableColumn("+48V") { ch in
-                Toggle("", isOn: binding(ch.id, \.phantom)).labelsHidden()
-            }
-            .width(44)
-            TableColumn(loc.t("il.col.stagebox")) { ch in
-                TextField("SB1-01", text: binding(ch.id, \.stagebox)).font(Theme.mono(12))
-            }
-            .width(min: 70, ideal: 84)
-            TableColumn(loc.t("il.col.insert")) { ch in
-                TextField("", text: binding(ch.id, \.insert))
-            }
-            .width(min: 70, ideal: 100)
-            TableColumn(loc.t("il.col.group")) { ch in
-                Picker("", selection: binding(ch.id, \.group)) {
-                    ForEach(ChannelGroup.allCases, id: \.self) { g in
-                        Text(loc.t("chgroup.\(g.rawValue)")).tag(g)
-                    }
-                }
-                .labelsHidden()
-            }
-            .width(min: 100, ideal: 120)
-            TableColumn(loc.t("il.col.notes")) { ch in
-                TextField("", text: binding(ch.id, \.notes))
-            }
-        }
-        .frame(height: CGFloat(min(max(store.doc.channels.count, 4), 24)) * 28 + 32)
-        .onDeleteCommand {
-            // While a name (or any field) is being typed, Delete edits the text — it never removes the row under it.
-            guard !isTypingText() else { return }
-            let sel = store.selectedChannels
-            afterEndingEdit {
-                store.edit(loc.t("action.delete")) { $0.delete(sel) }
-                store.selectedChannels = []
-            }
+            .labelsHidden()
+            .rowCell(c[7])
+            TextField("", text: binding(ch.id, \.notes)).rowCell(c[8])
         }
         .overlay {
             if store.doc.channels.isEmpty {
@@ -283,6 +253,22 @@ struct ChannelTable: View {
                     Text(loc.t("il.empty")).font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
                 }
             }
+        }
+    }
+
+    private var columns: [RowColumn] {
+        [RowColumn(title: "№", width: 54), RowColumn(title: loc.t("il.col.source"), width: nil, minWidth: 120),
+         RowColumn(title: loc.t("il.col.mic"), width: 150), RowColumn(title: loc.t("il.col.stand"), width: 150),
+         RowColumn(title: "+48V", width: 40), RowColumn(title: loc.t("il.col.stagebox"), width: 84),
+         RowColumn(title: loc.t("il.col.insert"), width: 90), RowColumn(title: loc.t("il.col.group"), width: 116),
+         RowColumn(title: loc.t("il.col.notes"), width: nil, minWidth: 90)]
+    }
+
+    private func deleteSelected() {
+        let sel = store.selectedChannels
+        afterEndingEdit {
+            store.selectedChannels = []
+            store.edit(loc.t("action.delete")) { $0.delete(sel) }
         }
     }
 
@@ -365,13 +351,7 @@ struct MixTable: View {
             HStack(spacing: 8) {
                 Button { store.edit(loc.t("il.addMix")) { _ = $0.addMix() } } label: { Label(loc.t("il.addMix"), systemImage: "plus") }
                     .buttonStyle(SSMTButtonStyle())
-                Button {
-                    let sel = store.selectedMixes
-                    afterEndingEdit {
-                        store.edit(loc.t("action.delete")) { $0.deleteMixes(sel) }
-                        store.selectedMixes = []
-                    }
-                } label: { Image(systemName: "trash") }
+                Button { deleteSelected() } label: { Image(systemName: "trash") }
                     .buttonStyle(SSMTButtonStyle())
                     .disabled(store.selectedMixes.isEmpty)
                     .help(loc.t("action.delete"))
@@ -380,25 +360,33 @@ struct MixTable: View {
                     .help(loc.t("il.renumber"))
                 Spacer()
             }
-            Table(store.doc.mixes, selection: $store.selectedMixes) {
-                TableColumn("№") { m in
-                    TextField("", value: binding(m.id, \.number), format: .number).font(Theme.mono(13))
+            let c = columns
+            EditableRows(columns: c, rows: store.doc.mixes, selection: $store.selectedMixes, visibleRows: 3...16,
+                         onDelete: deleteSelected) { m in
+                TextField("", value: binding(m.id, \.number), format: .number).font(Theme.mono(13)).rowCell(c[0])
+                TextField(loc.t("il.mix.name"), text: binding(m.id, \.name)).rowCell(c[1])
+                Picker("", selection: binding(m.id, \.type)) {
+                    ForEach(MixType.allCases, id: \.self) { Text(loc.t("mixtype.\($0.rawValue)")).tag($0) }
                 }
-                .width(40)
-                TableColumn(loc.t("il.mix.name")) { m in TextField(loc.t("il.mix.name"), text: binding(m.id, \.name)) }
-                    .width(min: 100, ideal: 150)
-                TableColumn(loc.t("il.mix.type")) { m in
-                    Picker("", selection: binding(m.id, \.type)) {
-                        ForEach(MixType.allCases, id: \.self) { Text(loc.t("mixtype.\($0.rawValue)")).tag($0) }
-                    }
-                    .labelsHidden()
-                }
-                .width(min: 90, ideal: 110)
-                TableColumn(loc.t("il.mix.stereo")) { m in Toggle("", isOn: binding(m.id, \.stereo)).labelsHidden() }
-                    .width(56)
-                TableColumn(loc.t("il.col.notes")) { m in TextField("", text: binding(m.id, \.notes)) }
+                .labelsHidden()
+                .rowCell(c[2])
+                Toggle("", isOn: binding(m.id, \.stereo)).labelsHidden().rowCell(c[3])
+                TextField("", text: binding(m.id, \.notes)).rowCell(c[4])
             }
-            .frame(height: CGFloat(min(max(store.doc.mixes.count, 3), 16)) * 28 + 32)
+        }
+    }
+
+    private var columns: [RowColumn] {
+        [RowColumn(title: "№", width: 40), RowColumn(title: loc.t("il.mix.name"), width: nil, minWidth: 100),
+         RowColumn(title: loc.t("il.mix.type"), width: 110), RowColumn(title: loc.t("il.mix.stereo"), width: 56),
+         RowColumn(title: loc.t("il.col.notes"), width: nil, minWidth: 60)]
+    }
+
+    private func deleteSelected() {
+        let sel = store.selectedMixes
+        afterEndingEdit {
+            store.selectedMixes = []
+            store.edit(loc.t("action.delete")) { $0.deleteMixes(sel) }
         }
     }
 
@@ -488,7 +476,7 @@ struct FlowLayout: Layout {
 @MainActor func isTypingText() -> Bool { NSApp.keyWindow?.firstResponder is NSText }
 
 /// Removing rows: the field being edited is closed first and the change runs a moment later, so no text field is
-/// left editing a row that no longer exists (that crashed the table).
+/// left editing a row that no longer exists.
 @MainActor func afterEndingEdit(_ action: @escaping @MainActor () -> Void) {
     NSApp.keyWindow?.makeFirstResponder(nil)
     DispatchQueue.main.async { action() }

@@ -140,21 +140,20 @@ struct StagePlanEditor: View {
     // MARK: Inspector
 
     @ViewBuilder private var inspector: some View {
-        if let id = store.selectedItem, let i = plan.items.firstIndex(where: { $0.id == id }) {
-            let item = plan.items[i]
+        if let id = store.selectedItem, let item = plan.items.first(where: { $0.id == id }) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     StageSymbolIcon(kind: item.kind).frame(width: 34, height: 26)
                     Text(loc.t("stage.kind.\(item.kind.rawValue)")).font(.system(size: 14, weight: .semibold))
                 }
-                field(loc.t(item.kind == .text ? "stage.text" : "stage.label"), text: binding(i, \.label))
+                field(loc.t(item.kind == .text ? "stage.text" : "stage.label"), text: binding(id, \.label))
                 if item.kind != .text {
-                    field(loc.t("stage.info"), text: binding(i, \.info))
+                    field(loc.t("stage.info"), text: binding(id, \.info))
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(String(format: loc.t("stage.rotation"), item.rotation)).font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
                     HStack {
-                        Slider(value: Binding(get: { item.rotation }, set: { v in store.edit { $0.stage.items[i].rotation = (v / 15).rounded() * 15 } }),
+                        Slider(value: Binding(get: { item.rotation }, set: { v in setItem(id, \.rotation, (v / 15).rounded() * 15) }),
                                in: 0...345, step: 15)
                         Button { store.edit { $0.stage.rotate(id, by: 90) } } label: { Image(systemName: "rotate.right") }
                             .buttonStyle(.borderless).help("+90°")
@@ -162,12 +161,12 @@ struct StagePlanEditor: View {
                 }
                 if item.kind == .text {
                     Stepper(String(format: loc.t("stage.fontSize"), item.fontSize),
-                            value: Binding(get: { item.fontSize }, set: { v in store.edit { $0.stage.items[i].fontSize = v } }), in: 8...48, step: 2)
+                            value: Binding(get: { item.fontSize }, set: { v in setItem(id, \.fontSize, v) }), in: 8...48, step: 2)
                 } else {
                     Stepper(String(format: loc.t("stage.width"), item.width),
-                            value: Binding(get: { item.width }, set: { v in store.edit { $0.stage.items[i].width = v } }), in: 0.2...12, step: 0.1)
+                            value: Binding(get: { item.width }, set: { v in setItem(id, \.width, v) }), in: 0.2...12, step: 0.1)
                     Stepper(String(format: loc.t("stage.depth"), item.depth),
-                            value: Binding(get: { item.depth }, set: { v in store.edit { $0.stage.items[i].depth = v } }), in: 0.2...12, step: 0.1)
+                            value: Binding(get: { item.depth }, set: { v in setItem(id, \.depth, v) }), in: 0.2...12, step: 0.1)
                 }
                 HStack(spacing: 8) {
                     iconButton("plus.square.on.square", loc.t("action.duplicate")) {
@@ -205,9 +204,18 @@ struct StagePlanEditor: View {
         Button(action: action) { Image(systemName: icon) }.buttonStyle(SSMTButtonStyle()).help(help)
     }
 
-    private func binding(_ i: Int, _ key: WritableKeyPath<StageItem, String>) -> Binding<String> {
-        Binding(get: { store.doc.stage.items.indices.contains(i) ? store.doc.stage.items[i][keyPath: key] : "" },
-                set: { v in store.edit { if $0.stage.items.indices.contains(i) { $0.stage.items[i][keyPath: key] = v } } })
+    /// Fields of the selected item are found by id on every read and write: the item may be gone (deleted,
+    /// new patch, undo) by the time a field reports its last edit.
+    private func binding(_ id: StageItem.ID, _ key: WritableKeyPath<StageItem, String>) -> Binding<String> {
+        Binding(get: { store.doc.stage.items.first { $0.id == id }?[keyPath: key] ?? "" },
+                set: { v in setItem(id, key, v) })
+    }
+
+    private func setItem<T>(_ id: StageItem.ID, _ key: WritableKeyPath<StageItem, T>, _ v: T) {
+        store.edit { d in
+            guard let i = d.stage.items.firstIndex(where: { $0.id == id }) else { return }
+            d.stage.items[i][keyPath: key] = v
+        }
     }
 
     // MARK: Stage size
