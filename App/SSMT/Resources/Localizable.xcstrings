@@ -16203,6 +16203,23 @@
         }
       }
     },
+    "show.openSettings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings… (double click)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Настройки… (двойной клик)"
+          }
+        }
+      }
+    },
     "show.output.error": {
       "extractionState": "manual",
       "localizations": {
@@ -16866,19 +16883,53 @@
         }
       }
     },
+    "show.tab.fade": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд"
+          }
+        }
+      }
+    },
     "show.tab.main": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "General"
+            "value": "Basics"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Общее"
+            "value": "Основное"
+          }
+        }
+      }
+    },
+    "show.tab.mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mode"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Режим"
           }
         }
       }
@@ -16906,13 +16957,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Outputs"
+            "value": "Levels"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Выходы"
+            "value": "Уровни"
           }
         }
       }
@@ -16934,19 +16985,36 @@
         }
       }
     },
-    "show.tab.time": {
+    "show.tab.triggers": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Time"
+            "value": "Triggers"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Время"
+            "value": "Запуск"
+          }
+        }
+      }
+    },
+    "show.tab.wave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time & loops"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Время и петли"
           }
         }
       }
@@ -17270,6 +17338,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть большой редактор"
+          }
+        }
+      }
+    },
+    "show.wave.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The track's own timeline: drag the start and end markers, the fade-in / fade-out handles and the loop; Listen plays from any point (click the waveform)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Собственный таймлайн трека: перетаскивайте метки начала и конца, ручки нарастания и затухания и петлю; «Слушать» — с любого места (щелчок по волне)."
           }
         }
       }

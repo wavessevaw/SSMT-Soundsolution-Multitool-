@@ -2,18 +2,50 @@ import SSMTCore
 import SwiftUI
 
 /// Right column: every setting of the selected cue.
-/// Inspector tabs; which ones appear depends on the cue type.
+/// Inspector tabs, as in QLab: each cue type shows its own (an audio cue its waveform with start, end, loops and
+/// fades; a fade its duration and curve; a group its multitrack and mode).
 enum InspectorTab: String, CaseIterable {
-    case main, multitrack, time, action, outputs, pad
+    /// Number, name, notes, colour, armed, pre-wait, post-wait, continue (QLab "Basics").
+    case main
+    /// Audio: file, rate and the waveform with start / end, loops, fade in / out (QLab "Time & Loops").
+    case wave
+    /// Fade cue: in or out, duration, curve, target, levels.
+    case fade
+    /// Group: one track per cue (QLab "Timeline").
+    case multitrack
+    /// Group mode, playlist options.
+    case mode
+    /// Network, wait and control cues: what they do.
+    case action
+    /// Audio: level and routing (QLab "Audio Levels").
+    case outputs
+    /// Hotkey and what a second start does (QLab "Triggers").
+    case triggers
+    case pad
 
     static func tabs(for cue: Cue, isPad: Bool) -> [InspectorTab] {
         var t: [InspectorTab] = [.main]
-        if cue.kind == .group { t.append(.multitrack) }
-        t.append(.time)
-        if cue.kind != .memo { t.append(.action) }
-        if cue.kind == .audio { t.append(.outputs) }
+        switch cue.kind {
+        case .audio: t += [.wave, .outputs]
+        case .fade: t += [.fade]
+        case .group: t += [.multitrack, .mode]
+        case .memo: break
+        default: t += [.action]
+        }
+        t.append(.triggers)
         if isPad { t.append(.pad) }
         return t
+    }
+
+    /// The tab a cue of this type opens on: where its own settings are.
+    static func primary(for cue: Cue) -> InspectorTab {
+        switch cue.kind {
+        case .audio: return .wave
+        case .fade: return .fade
+        case .group: return .multitrack
+        case .memo: return .main
+        default: return .action
+        }
     }
 }
 
@@ -26,7 +58,7 @@ struct CueInspector: View {
             if show.selection.count == 1, let id = show.selection.first, let cue = show.doc.cue(id) {
                 let isPad = show.doc.banks.contains { $0.cues.findCue(id) != nil }
                 let tabs = InspectorTab.tabs(for: cue, isPad: isPad)
-                let current = tabs.contains(show.inspectorTab) ? show.inspectorTab : .main
+                let current = tabs.contains(show.inspectorTab) ? show.inspectorTab : InspectorTab.primary(for: cue)
                 VStack(spacing: 10) {
                     HStack(spacing: 4) {
                         ForEach(tabs, id: \.self) { t in
@@ -49,6 +81,8 @@ struct CueInspector: View {
                         .padding(.bottom, 12)
                     }
                 }
+                // Another type of cue selected: open on its own settings (waveform, fade, multitrack…).
+                .onChange(of: cue.kind) { _ in show.inspectorTab = InspectorTab.primary(for: cue) }
             } else {
                 VStack(spacing: 10) {
                     Image(systemName: "slider.horizontal.3").font(.system(size: 26)).foregroundStyle(Theme.textMuted)
@@ -70,11 +104,14 @@ private struct CueInspectorContent: View {
 
     var body: some View {
         switch tab {
-        case .main: mainSection
+        case .main: mainSection; timingSection
+        case .wave: audioSection
+        case .fade: fadeSection
         case .multitrack: ShowTimelineView(group: cue.id).frame(height: 230)
-        case .time: timingSection
+        case .mode: groupSection
         case .action: actionSection
         case .outputs: outputsSection
+        case .triggers: triggersSection
         case .pad: padSection
         }
     }
@@ -122,6 +159,12 @@ private struct CueInspectorContent: View {
                 }
                 .labelsHidden()
             }
+            if cue.kind == .wait { seconds(loc.t("show.duration"), bind(\.duration)) }
+        }
+    }
+
+    @ViewBuilder private var triggersSection: some View {
+        section(loc.t("show.tab.triggers"), icon: "bolt") {
             HStack {
                 caption(loc.t("show.hotkey"))
                 Spacer()
@@ -140,7 +183,6 @@ private struct CueInspectorContent: View {
                 .labelsHidden()
                 .help(loc.t("show.secondTrigger.help"))
             }
-            if cue.kind == .wait { seconds(loc.t("show.duration"), bind(\.duration)) }
         }
     }
 
@@ -163,6 +205,12 @@ private struct CueInspectorContent: View {
     private var info: (duration: Double, channels: Int)? { path.flatMap { show.clipInfo[$0] } }
 
     @ViewBuilder private var audioSection: some View {
+        // The track's own timeline (QLab "Time & Loops"): drag the start / end, the fade in / out handles and the loop.
+        section(loc.t("show.wave.title"), icon: "waveform") {
+            Text(loc.t("show.wave.hint")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            WaveformEditor(cue: cue, compact: false)
+        }
         section(loc.t("show.file"), icon: "music.note") {
             HStack(spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -188,9 +236,6 @@ private struct CueInspectorContent: View {
                 TextField("", value: audio(\.rate, 1), format: .number.precision(.fractionLength(0...3)))
                     .textFieldStyle(.roundedBorder).frame(width: 70)
             }
-        }
-        section(loc.t("show.wave.title"), icon: "waveform") {
-            WaveformEditor(cue: cue, compact: true)
         }
     }
 
@@ -294,15 +339,21 @@ private struct CueInspectorContent: View {
                 Text(loc.t("show.fadeIn.hint")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            HStack(spacing: 8) {
-                seconds(loc.t("show.duration"), fade(\.duration, 3))
-                VStack(alignment: .leading, spacing: 4) {
-                    caption(loc.t("show.curve"))
-                    Picker("", selection: fade(\.curve, .sCurve)) {
-                        ForEach(FadeCurve.allCases, id: \.self) { Text(loc.t("curve.\($0.rawValue)")).tag($0) }
+            HStack(alignment: .top, spacing: 14) {
+                VStack(alignment: .leading, spacing: 8) {
+                    seconds(loc.t("show.duration"), fade(\.duration, 3)).frame(width: 120)
+                    VStack(alignment: .leading, spacing: 4) {
+                        caption(loc.t("show.curve"))
+                        Picker("", selection: fade(\.curve, .sCurve)) {
+                            ForEach(FadeCurve.allCases, id: \.self) { Text(loc.t("curve.\($0.rawValue)")).tag($0) }
+                        }
+                        .labelsHidden()
+                        .frame(width: 180)
                     }
-                    .labelsHidden()
                 }
+                FadeCurvePreview(curve: cue.fade?.curve ?? .sCurve, up: cue.fade?.fromSilence ?? false,
+                                 duration: cue.fade?.duration ?? 3)
+                    .frame(maxWidth: 360).frame(height: 96)
             }
             Toggle(loc.t("show.fade.changeLevel"), isOn: Binding(get: { cue.fade?.level != nil }, set: { v in
                 show.updateCue(cue.id) { $0.fade?.level = v ? showSilenceDB : nil }
@@ -591,5 +642,43 @@ private struct CueInspectorContent: View {
         let id = cue.id
         return Binding(get: { show.doc.cue(id)?.fade?[keyPath: key] ?? fallback },
                        set: { v in show.updateCue(id) { $0.fade?[keyPath: key] = v } })
+    }
+}
+
+/// The fade's shape over its duration, as QLab draws it (up for a fade-in, down for a fade-out).
+private struct FadeCurvePreview: View {
+    var curve: FadeCurve
+    var up: Bool
+    var duration: Double
+
+    var body: some View {
+        Canvas { ctx, size in
+            let r = CGRect(origin: .zero, size: size).insetBy(dx: 6, dy: 8)
+            ctx.fill(Path(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 8), with: .color(Color.black.opacity(0.25)))
+            for k in 1..<4 {
+                var g = Path(); let x = r.minX + r.width * CGFloat(k) / 4
+                g.move(to: CGPoint(x: x, y: r.minY)); g.addLine(to: CGPoint(x: x, y: r.maxY))
+                ctx.stroke(g, with: .color(Color.white.opacity(0.06)), lineWidth: 1)
+            }
+            // Gain (0…1) along the fade, on the same scale the mixer uses (−60 dB … 0 dB shown).
+            var ramp = Path()
+            for i in 0...120 {
+                let t = Double(i) / 120
+                let p = up ? t : 1 - t
+                let gain: Double
+                switch curve {
+                case .linearGain: gain = p
+                case .sCurve, .linearDB:
+                    let shaped = curve.shape(up ? t : t)
+                    let db = up ? -60 + 60 * shaped : -60 * shaped
+                    gain = pow(10, db / 20) * (up && t == 0 ? 0 : 1)
+                }
+                let pt = CGPoint(x: r.minX + r.width * CGFloat(t), y: r.maxY - r.height * CGFloat(min(1, max(0, gain))))
+                if i == 0 { ramp.move(to: pt) } else { ramp.addLine(to: pt) }
+            }
+            ctx.stroke(ramp, with: .color(Theme.signalYellow), lineWidth: 2)
+            ctx.draw(Text(showTime(duration) + " s").font(.system(size: 10, design: .monospaced)).foregroundColor(Theme.textMuted),
+                     at: CGPoint(x: r.maxX, y: r.maxY), anchor: .bottomTrailing)
+        }
     }
 }

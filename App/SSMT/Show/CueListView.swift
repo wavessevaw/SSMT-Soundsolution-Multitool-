@@ -26,7 +26,8 @@ struct CueListView: View {
                                    problem: isMissing(row.cue) ? "show.fileMissing"
                                        : isUnreadable(row.cue) ? "show.fileUnreadable" : show.snapshot.problems[row.cue.id])
                                 .id(row.cue.id)
-                                .onTapGesture(count: 2) { show.setPlayhead(row.cue.id) }
+                                // Double click: the cue's settings (inspector on its own tab); a single click selects.
+                                .onTapGesture(count: 2) { show.openSettings(row.cue.id) }
                                 .simultaneousGesture(TapGesture().onEnded { select(row.cue.id, rows: rows) })
                                 .contextMenu { menu(row.cue) }
                                 .onDrag { NSItemProvider(object: row.cue.id.uuidString as NSString) }
@@ -120,6 +121,7 @@ struct CueListView: View {
     }
 
     @ViewBuilder private func menu(_ cue: Cue) -> some View {
+        Button(loc.t("show.openSettings")) { show.openSettings(cue.id) }.disabled(show.showMode)
         Button(loc.t("show.setPlayhead")) { show.setPlayhead(cue.id) }
         Button(loc.t("show.playNow")) { show.start(cue.id) }
         Button(loc.t("show.stopCue")) { show.stop(cue.id) }

@@ -571,6 +571,16 @@ final class ShowStore: ObservableObject {
         run { e, now in paused ? e.resume(id, now: now) : e.pause(id, now: now) }
     }
     func setPlayhead(_ id: UUID?) { run { e, _ in e.setPlayhead(id) } }
+
+    /// Double click on a cue: it is selected and the inspector opens on its own settings (waveform, fade, multitrack…).
+    /// In Show mode, where nothing is edited, it only stands the cue by.
+    func openSettings(_ id: UUID) {
+        guard let cue = doc.cue(id) else { return }
+        guard !showMode else { setPlayhead(id); return }
+        selection = [id]
+        inspectorTab = InspectorTab.primary(for: cue)
+        showInspector = true
+    }
     /// Timeline group: playback carries on from `seconds` (or starts there next time when it is not running).
     func seekGroup(_ id: UUID, to seconds: Double) { run { e, now in e.seek(id, to: seconds, now: now) } }
 
@@ -997,7 +1007,7 @@ final class ShowStore: ObservableObject {
         case Key.d: editSelected(.duration); return true                    // D  duration
         case Key.w: editSelected(.postWait); return true                    // W  post-wait
         case Key.c: cycleContinueMode(); return true                        // C  continue mode
-        case Key.t: inspectorTab = .action; showInspector = true; return true // T  target (inspector)
+        case Key.t: inspectorTab = selection.first.flatMap { doc.cue($0) }?.kind == .fade ? .fade : .action; showInspector = true; return true // T  target
         default: return false
         }
     }
@@ -1104,7 +1114,7 @@ final class ShowStore: ObservableObject {
         case .name: title = loc("show.key.name"); value = cue.name
         case .preWait: title = loc("show.key.preWait"); value = String(cue.preWait)
         case .duration:
-            guard cue.kind == .wait || cue.kind == .fade else { inspectorTab = .time; showInspector = true; return }
+            guard cue.kind == .wait || cue.kind == .fade else { inspectorTab = cue.kind == .audio ? .wave : .main; showInspector = true; return }
             title = loc("show.key.duration"); value = String(cue.kind == .fade ? cue.fade?.duration ?? 0 : cue.duration)
         case .postWait: title = loc("show.key.postWait"); value = String(cue.postWait)
         }
