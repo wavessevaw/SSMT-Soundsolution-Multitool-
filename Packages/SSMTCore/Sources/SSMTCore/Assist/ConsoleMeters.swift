@@ -1,6 +1,6 @@
 import Foundation
 
-/// Levels and RTA read from the console over the network — the way Mixing Station and X32-Edit see a
+/// Levels and RTA read from the console over the network — the way remote-control apps see a
 /// console over Wi-Fi, with no audio cable to the computer.
 ///
 /// X32 / M32: `/meters ,s "/meters/1"` streams channel meters for 10 s (renew), `/meters/2` buses, and

@@ -2949,13 +2949,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The laptop and the console must be on the same network (Wi-Fi router or cable), as with Mixing Station. Choose the console: it is found on the network, then press Connect. The assistant opens once the console is connected."
+            "value": "The laptop and the console must be on the same network (Wi-Fi router or cable). Choose the console: it is found on the network, then press Connect. The assistant opens once the console is connected."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ноутбук и пульт должны быть в одной сети (Wi-Fi роутера или кабель), как у Mixing Station. Выберите пульт — он найдётся в сети, — и нажмите «Подключить». Ассистент откроется после подключения."
+            "value": "Ноутбук и пульт должны быть в одной сети (Wi-Fi роутера или кабель). Выберите пульт — он найдётся в сети, — и нажмите «Подключить». Ассистент откроется после подключения."
           }
         }
       }
@@ -2983,13 +2983,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Like Mixing Station: the Mac and the console are on the same router (Wi-Fi or cable). Levels and the console RTA come over the network; the measurement mic is plugged into the Mac's audio interface."
+            "value": "The Mac and the console are on the same router (Wi-Fi or cable). Levels and the console RTA come over the network; the measurement mic is plugged into the Mac's audio interface."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Как Mixing Station: Mac и пульт в одной сети роутера (Wi-Fi или кабель). Уровни и RTA пульта приходят по сети; измерительный микрофон подключён к звуковой карте Mac."
+            "value": "Mac и пульт в одной сети роутера (Wi-Fi или кабель). Уровни и RTA пульта приходят по сети; измерительный микрофон подключён к звуковой карте Mac."
           }
         }
       }

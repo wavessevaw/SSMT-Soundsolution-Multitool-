@@ -49,7 +49,7 @@ input list и план сцены, подготовить фонограммы, 
 - ▶️ **Qtrl — Show Control Center** — воспроизведение фонограмм по списку команд: старт с точностью до сэмпла, плавные изменения уровня, группы, паузы,
   OSC для света, видео и пультов (Resolume, ETC Eos, grandMA3, MagicQ, X32/M32, QLab), кнопки one-shot,
   временная шкала, «Стоп всё» и защита от двойного GO.
-- 🤖 **FOH Assist** *(beta)* — ассистент за пультом X32 / M32 и X Air по Wi-Fi, как Mixing Station:
+- 🤖 **FOH Assist** *(beta)* — ассистент за пультом X32 / M32 и X Air по Wi-Fi:
   - 🎛️ **автоматический саундчек** — входное усиление, срез НЧ, эквализация, компрессия до «Готово»; оркестр и хор одной кнопкой
     по названиям каналов; баланс и подъём с проверкой акустической обратной связи; профили Мюзикл · Рок · Классика · Речь;
   - 🔄 **полярность** — проверяет полярность пар микрофонов (kick in/out, snare top/bottom…) и оставляет правильную;
@@ -113,7 +113,7 @@ show playback and a console assistant in one app.**
 - 📋 **Input list & stage plan** — channels from templates, monitor mixes, a pull list, a stage plot; PDF / PNG / CSV.
 - ▶️ **Qtrl — Show Control Center** — cue-based playback with sample-accurate starts, fades, groups, OSC to
   lighting, video and consoles, one-shot pads, a timeline, two-stage Stop all.
-- 🤖 **FOH Assist** *(beta)* — connects to Behringer X32 / Midas M32 and X Air over Wi-Fi like Mixing Station;
+- 🤖 **FOH Assist** *(beta)* — connects to Behringer X32 / Midas M32 and X Air over Wi-Fi;
   tunes channels by itself, one-button orchestra and choir, automatic polarity check, a show guard that backs up
   the engineer without moving channel faders, plus a console test and a show simulation.
 

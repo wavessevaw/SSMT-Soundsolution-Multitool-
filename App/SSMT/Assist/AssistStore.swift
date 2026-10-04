@@ -5,7 +5,7 @@ import SSMTCore
 import SwiftUI
 
 /// UDP link to a Behringer X32 / Midas M32 or X Air console over the venue network (Wi-Fi router or cable),
-/// the same way Mixing Station and X32-Edit connect: OSC parameters, /xremote updates and meter streams.
+/// as remote-control apps do: OSC parameters, /xremote updates and meter streams.
 final class X32Link: @unchecked Sendable {
     let family: MixerFamily
     let host: String
@@ -113,7 +113,7 @@ final class AssistStore: ObservableObject {
 
     /// Where the assistant hears each channel.
     enum SignalSource: String, CaseIterable {
-        /// Console meters and RTA over the network (Wi-Fi), like Mixing Station. Nothing else to connect.
+        /// Console meters and RTA over the network (Wi-Fi). Nothing else to connect.
         case network
         /// Every console channel as an input of the Mac (USB / Dante card): full audio analysis.
         case interface

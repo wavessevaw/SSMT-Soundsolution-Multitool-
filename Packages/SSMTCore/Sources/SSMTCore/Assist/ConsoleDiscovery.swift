@@ -14,7 +14,7 @@ public struct DiscoveredConsole: Equatable, Hashable, Identifiable, Sendable {
     }
 }
 
-/// Discovery the way X32-Edit and Mixing Station do it: "/xinfo" broadcast to UDP 10023 (X32 / M32) or 10024
+/// Discovery as remote-control apps do it: "/xinfo" broadcast to UDP 10023 (X32 / M32) or 10024
 /// (X Air / MR); every console answers "/xinfo ,ssss <ip> <name> <model> <firmware>".
 public enum ConsoleDiscovery {
     public static let request = OSCMessage("/xinfo")

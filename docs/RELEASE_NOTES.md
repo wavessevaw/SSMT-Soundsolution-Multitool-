@@ -14,7 +14,7 @@
   разборчивости, общий журнал ассистента и звукорежиссёра.
 - **Тест пульта:** отчёт по шагам.
 - **Сначала подключение.** Пока пульт не подключён, во вкладке только выбор пульта: X32 / M32 и X Air / MR ищутся
-  в сети Wi-Fi (как в X32-Edit и Mixing Station), найденные пульты показываются с моделью, IP и прошивкой — кнопка
+  в сети Wi-Fi, найденные пульты показываются с моделью, IP и прошивкой — кнопка
   «Подключить»; можно ввести IP вручную или выбрать симулятор. Интерфейс ассистента открывается после подключения.
 - **Лампочка связи** в шапке: зелёная — пульт отвечает, красная — связи нет.
 
@@ -113,7 +113,7 @@ arrows and ⇧⌘ arrows, ⌘J jump, ⌘] / ⌘[ Show / Edit, ⌘I / ⌘L panels
 
 **Новое (beta): функция №4 — FOH Assist.** Четвёртый раздел в боковой панели.
 
-- **Подключение как у Mixing Station:** Behringer X32 / Midas M32 и X Air / MR по сети через роутер (Wi-Fi или
+- **Подключение по сети:** Behringer X32 / Midas M32 и X Air / MR по сети через роутер (Wi-Fi или
   кабель); уровни и RTA пульта — по сети, звуковой кабель не нужен. Карта USB/Dante — по желанию.
 - **Измерительный микрофон** — любой из библиотеки функции №1, с его калибровкой.
 - **Саундчек:** канал настраивается сам каждые 2 с (гейн, срез НЧ, 4 полосы EQ, компрессор) до «Готово»;
@@ -138,7 +138,7 @@ Stop all, double-GO guard, pre-show check, automatic output recovery, no sleep w
 
 
 **New (beta): function #4 — FOH Assist.** Connects to Behringer X32 / Midas M32 and X Air / MR over the network
-like Mixing Station (levels and RTA over Wi-Fi; USB/Dante optional), measures with any microphone of the setup
+over the network (levels and RTA over Wi-Fi; USB/Dante optional), measures with any microphone of the setup
 library, tunes channels by itself (gain, high-pass, EQ, compressor) and groups with one button (orchestra,
 choir, a channel range) with a feedback-checked ring-out, checks mic polarity automatically, and in Show mode
 guards the engineer's mix (feedback notches, monitor loops, lead intelligibility in mass scenes) without moving
