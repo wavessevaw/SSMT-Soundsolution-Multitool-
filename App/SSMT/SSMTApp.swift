@@ -24,7 +24,7 @@ struct SSMTApp: App {
                     switch model.section {
                     case .show: model.show.open()
                     case .inputList: model.inputList.open()
-                    case .setup, .assist: model.openSession()
+                    case .setup, .assist, .handbook: model.openSession()
                     }
                 }
                 .keyboardShortcut("o", modifiers: [.command])
@@ -32,7 +32,7 @@ struct SSMTApp: App {
                     switch model.section {
                     case .show: model.show.save()
                     case .inputList: model.inputList.save()
-                    case .setup, .assist: model.saveSession()
+                    case .setup, .assist, .handbook: model.saveSession()
                     }
                 }
                 .keyboardShortcut("s", modifiers: [.command])

@@ -155,6 +155,19 @@ final class SnapshotTests: XCTestCase {
                      name: "input-list", loc: Self.ru)
     }
 
+    func testHandbook() throws {
+        let d = UserDefaults.standard
+        d.removeObject(forKey: "ssmt.handbook.calc.cable")
+        d.set(HandbookCategory.calculators.rawValue, forKey: HandbookPrefs.category)
+        d.set("calc.cable", forKey: HandbookPrefs.item)
+        try snapshot(HandbookWorkspace().padding(16).background(Backdrop()), size: CGSize(width: 1300, height: 820),
+                     name: "handbook-calculator", loc: Self.ru)
+        d.set(HandbookCategory.pinouts.rawValue, forKey: HandbookPrefs.category)
+        d.set("speakon", forKey: HandbookPrefs.item)
+        try snapshot(HandbookWorkspace().padding(16).background(Backdrop()), size: CGSize(width: 1300, height: 820),
+                     name: "handbook-pinout", loc: Self.ru)
+    }
+
     static var sampleShow: (doc: ShowDocument, intro: UUID, group: UUID, preshow: UUID, bell: UUID) {
         var doc = ShowDocument(name: "Spring gala")
         let l = doc.lists[0].id

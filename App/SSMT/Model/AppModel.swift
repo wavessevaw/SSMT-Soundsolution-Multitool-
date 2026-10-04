@@ -44,6 +44,8 @@ enum AppSection: String, CaseIterable, Identifiable {
     case show
     /// Function #4: FOH Assist, automatic channel and group tuning on the console.
     case assist
+    /// Function #5: handbook — calculators, pinouts, how-to guides, consoles, glossary.
+    case handbook
     var id: String { rawValue }
 }
 
