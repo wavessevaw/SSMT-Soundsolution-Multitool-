@@ -1,4 +1,4 @@
-# SSMT 1.3.0 beta 1 — Qtrl ближе к QLab (предварительная версия для проверки)
+# SSMT 1.3.0 — Qtrl ближе к QLab
 
 ## Русский
 
@@ -16,17 +16,24 @@
 - **Исправления после проверки 1.2.1:** кью с непригодным файлом не «зависает» и не останавливает цепочку; при
   сохранении шоу файлы с одинаковым именем и размером не подменяют друг друга, а не скопированные сохраняют полный
   путь; трек, запущенный во время подготовки файла, играет без провалов.
+- **Проверка всего приложения:** колонки списка кью выровнены во всех строках; зажатый пробел — один GO; клавиши,
+  нажатые в окнах выбора файла, настроек и предупреждений, не запускают кью; порты OSC без разделителя тысяч; новый
+  световой пульт в OSC-устройствах начинается с пустого адреса (не 127.0.0.1).
 
-Это предварительная версия: собрана и проверена автотестами, на реальном оборудовании не проверялась.
+**Настройка системы:** отчёт и графики полностью на русском (раздел, точки и итерации EQ, симуляция, сглаживание).
+**Список каналов и план сцены:** колонка «Стойка» и подписи палитры больше не обрезаются.
+**FOH Assist:** подписи шкал на графике EQ поверх кривой.
 
 ## English
 
-**SSMT 1.3.0 beta 1 (pre-release for testing).** Qtrl: fade-in (starts the target from silence) and fade-out with
+**SSMT 1.3.0.** Qtrl: fade-in (starts the target from silence) and fade-out with
 toolbar buttons; relative fades; playlist crossfades; ⌘T Load to time; the group multitrack shows every cue on its
 own track and scrolls, new groups are timeline groups; every start moves the playhead to the next cue. Fixes from
 the 1.2.1 audit: a cue with an unplayable file no longer hangs, show media with the same name and size are no longer
-mixed up on save, playback while a file is prepared no longer drops out. Built and tested automatically; not yet
-verified on real hardware.
+mixed up on save, playback while a file is prepared no longer drops out. Full audit: cue list columns aligned in
+every row, a held Space fires one GO, keys typed in panels and alerts never start cues, OSC ports without digit
+grouping, new console OSC devices start with an empty address; the setup report and graphs are fully localized;
+input list and stage plan labels no longer clip; FOH Assist EQ scale labels drawn above the curve.
 
 ---
 
