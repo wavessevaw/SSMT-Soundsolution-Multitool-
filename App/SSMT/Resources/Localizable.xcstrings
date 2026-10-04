@@ -14690,6 +14690,125 @@
         }
       }
     },
+    "show.env.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A volume line over the waveform (QLab's integrated fade): shape the level of the track over its length."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Линия громкости поверх волны (integrated fade в QLab): задаёт уровень трека по ходу его звучания."
+          }
+        }
+      }
+    },
+    "show.env.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click the yellow line to add a point and drag it (top = the cue's level, bottom = silence); ⌥-click a point to remove it."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Щёлкните по жёлтой линии — появится точка, тяните её (вверху — уровень кью, внизу — тишина); ⌥-щелчок по точке удаляет её."
+          }
+        }
+      }
+    },
+    "show.env.linear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Straight lines"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прямые линии"
+          }
+        }
+      }
+    },
+    "show.env.lock": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stretch with start / end"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Растягивать по началу и концу"
+          }
+        }
+      }
+    },
+    "show.env.on": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Integrated fade"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Огибающая громкости"
+          }
+        }
+      }
+    },
+    "show.env.reset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сбросить"
+          }
+        }
+      }
+    },
+    "show.env.smooth": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smooth curve"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Плавная кривая"
+          }
+        }
+      }
+    },
     "show.fade.absolute": {
       "extractionState": "manual",
       "localizations": {

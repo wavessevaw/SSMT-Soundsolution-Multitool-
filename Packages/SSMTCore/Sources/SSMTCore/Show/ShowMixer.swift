@@ -144,6 +144,10 @@ public struct VoiceSetup: Sendable {
     public var fadeOutFrames: Int
     /// Load to time: the voice starts as if it had already played this far (file frames along the play map).
     public var startPlayed: Double = 0
+    /// Integrated fade envelope as linear gains sampled every `envelopeStep` file frames from the file's start
+    /// (nil = none). Built on the control thread; the mixer only reads it.
+    public var envelope: [Float]?
+    public var envelopeStep: Double = 256
 
     public init(map: PlayMap, rate: Double, levelDB: Double,
                 outputLevelsDB: [Double], crosspointsDB: [[Double]], fadeInFrames: Int = 0, fadeOutFrames: Int = 0) {
@@ -539,6 +543,9 @@ public final class ShowMixer: @unchecked Sendable {
         let main1 = v.main.gain(at: f1) * v.stopEnv.gain(at: f1)
         let last = clip.frames - 1
         guard last >= 0 else { return false }
+        let envTable = setup.envelope
+        let envLast = (envTable?.count ?? 1) - 1
+        let envStep = setup.envelopeStep
 
         // Positions, interpolation and envelope (fades × main level ramp) for the segment.
         var pos = v.played
@@ -552,6 +559,13 @@ public final class ShowMixer: @unchecked Sendable {
             var env = 1.0
             if fadeIn > 0 && pos < fadeIn { env = pos / fadeIn }
             if fadeOut > 0 && total.isFinite && pos > total - fadeOut { env = min(env, max(0, (total - pos) / fadeOut)) }
+            if let tbl = envTable, envLast >= 0 {
+                // Integrated fade: the drawn volume line at this point of the file.
+                let k = idx / envStep
+                let e0 = min(Int(k), envLast), e1 = min(e0 + 1, envLast)
+                let g0 = Double(tbl[e0])
+                env *= g0 + (Double(tbl[e1]) - g0) * (k - Double(e0))
+            }
             scratchEnv[count] = Float(env * (main0 + (main1 - main0) * Double(count) * invN))
             pos += rate
             count += 1

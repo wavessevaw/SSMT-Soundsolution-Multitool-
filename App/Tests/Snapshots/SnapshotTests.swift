@@ -252,11 +252,12 @@ final class SnapshotTests: XCTestCase {
             c.audio?.loopStart = 10
             c.audio?.loopEnd = 22
             c.audio?.plays = 0
+            c.audio?.envelope = VolumeEnvelope(points: [.init(u: 0.3, db: 0), .init(u: 0.45, db: -12), .init(u: 0.7, db: -12), .init(u: 0.85, db: -3)])
         }
         show.doc = doc
         let cue = show.doc.cue(show.selection.first!)!
         try snapshot(WaveformEditor(cue: cue, compact: false).padding(20).frame(width: 1000).background(Backdrop()),
-                     size: CGSize(width: 1000, height: 520), name: "show-waveform", loc: Self.ru)
+                     size: CGSize(width: 1000, height: 600), name: "show-waveform", loc: Self.ru)
     }
 
     func testOSCSetup() throws {

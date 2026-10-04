@@ -74,6 +74,9 @@ final class ShowStore: ObservableObject {
     /// When `snapshot` was taken: views move playback cursors on smoothly between snapshots.
     private(set) var snapshotDate = Date()
     @Published private(set) var meters: [Float] = []
+    /// Outputs that clipped in the last 1.5 s.
+    @Published private(set) var clipping: [Bool] = []
+    private var clipUntil: [Int: Date] = [:]
     @Published private(set) var outputName = ""
     @Published private(set) var outputError: String?
     @Published private(set) var sampleRate: Double = 48000
@@ -677,7 +680,18 @@ final class ShowStore: ObservableObject {
     private func apply(_ snap: ShowSnapshot, peaks: [Float]) {
         if snap != snapshot { snapshotDate = Date(); snapshot = snap }
         let used = Array(peaks.prefix(doc.outputs.count))
-        if used != meters { meters = used }
+        // Ballistics as on a console: rises at once, falls about 25 dB/s; clipping (≥ 0 dBFS, the output really
+        // overloads) stays lit 1.5 s.
+        var shown = meters
+        if shown.count != used.count { shown = used }
+        for i in used.indices {
+            let fall = shown[i] * Float(pow(10, -1.0 / 20))   // −1 dB per update (25 a second)
+            shown[i] = max(used[i], fall < 1e-5 ? 0 : fall)
+            if used[i] >= 1 { clipUntil[i] = Date().addingTimeInterval(1.5) }
+        }
+        if shown != meters { meters = shown }
+        let clips = used.indices.map { (clipUntil[$0] ?? .distantPast) > Date() }
+        if clips != clipping { clipping = clips }
         if let lid = snap.listID, lid != listID, doc.lists.contains(where: { $0.id == lid }) { listID = lid }
     }
 

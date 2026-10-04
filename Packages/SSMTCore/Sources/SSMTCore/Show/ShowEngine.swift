@@ -722,7 +722,7 @@ public final class ShowEngine {
             p.fadeIn = 0; p.fadeOut = 0
         }
         let outs = max(1, outputs)
-        return VoiceSetup(
+        var setup = VoiceSetup(
             map: p.playMap(fileLength: clip.duration, scale: sr), rate: max(0.05, p.rate),
             levelDB: p.level,
             outputLevelsDB: (0..<outs).map { p.outputLevel($0) },
@@ -730,6 +730,14 @@ public final class ShowEngine {
                 (0..<outs).map { p.crosspoint(channel: c, output: $0, fileChannels: clip.channelCount) }
             },
             fadeInFrames: Int(p.fadeIn * sr), fadeOutFrames: Int(p.fadeOut * sr))
+        if let env = p.envelope, env.enabled, !env.points.isEmpty {
+            let step = setup.envelopeStep
+            let n = Int(Double(clip.frames) / step) + 2
+            setup.envelope = (0..<n).map { i in
+                Float(showGain(p.envelopeDB(atFile: Double(i) * step / sr, fileLength: clip.duration)))
+            }
+        }
+        return setup
     }
 
     /// Audio cues with a voice under `id` (itself or the children of a group).

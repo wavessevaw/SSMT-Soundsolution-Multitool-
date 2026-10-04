@@ -472,14 +472,19 @@ struct OutputMeters: View {
                     let peak = i < show.meters.count ? Double(show.meters[i]) : 0
                     let db = peak > 0 ? 20 * log10(peak) : -100
                     let fill = max(0, min(1, (db + 60) / 60))
+                    let clip = i < show.clipping.count && show.clipping[i]
                     VStack(spacing: 3) {
+                        // Clip lamp: lit only when the output really overloads (≥ 0 dBFS).
+                        RoundedRectangle(cornerRadius: 1.5).fill(clip ? Theme.statusError : Color.white.opacity(0.07)).frame(height: 4)
                         ZStack(alignment: .bottom) {
                             RoundedRectangle(cornerRadius: 2).fill(Color.white.opacity(0.07))
+                            // Green up to −12 dBFS, yellow up to the top: a normal programme level is green / yellow.
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(db > -3 ? Theme.statusError : (db > -12 ? Theme.signalYellow : Theme.accent))
+                                .fill(clip ? Theme.statusError : (db > -12 ? Theme.signalYellow : Theme.accent))
                                 .frame(height: 54 * fill)
                         }
                         .frame(height: 54)
+                        .help(db > -99 ? String(format: "%.1f dBFS", db) : "−∞")
                         Text(o.name).font(.system(size: 8)).foregroundStyle(Theme.textMuted).lineLimit(1)
                     }
                     .frame(maxWidth: 22)

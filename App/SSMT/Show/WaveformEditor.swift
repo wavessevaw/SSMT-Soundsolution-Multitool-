@@ -19,7 +19,7 @@ struct WaveformEditor: View {
     @State private var panOrigin: Double?
     @State private var showFull = false
 
-    enum Handle { case start, end, fadeIn, fadeOut, loopStart, loopEnd, pan }
+    enum Handle: Equatable { case start, end, fadeIn, fadeOut, loopStart, loopEnd, pan, envelope(Int), envelopeNew }
 
     private var path: String? { show.resolvedPath(cue) }
     private var length: Double? { show.fileLength(cue) }
@@ -33,6 +33,7 @@ struct WaveformEditor: View {
                 transport(length: length)
                 fields(length: length)
                 loopControls(length: length)
+                envelopeControls
             } else {
                 Text(loc.t(path.map { show.missingFiles.contains($0) } == true ? "show.fileMissing" : "show.wave.loading"))
                     .font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
@@ -89,11 +90,22 @@ struct WaveformEditor: View {
                             dragHandle = handle(at: g.startLocation, x: x, height: geo.size.height)
                             draft = cue.audio
                             panOrigin = v0
+                            if dragHandle == .envelopeNew {
+                                // A click on the volume line adds a control point there (QLab's integrated fade).
+                                dragHandle = addEnvelopePoint(time: t(g.startLocation.x), length: length)
+                            }
                         }
-                        apply(dragHandle, time: t(g.location.x), dx: g.translation.width, pps: pps, length: length)
+                        apply(dragHandle, time: t(g.location.x), dx: g.translation.width, pps: pps, length: length,
+                              y: g.location.y, height: geo.size.height)
                     }
                     .onEnded { g in
-                        if abs(g.translation.width) < 3 && abs(g.translation.height) < 3 {
+                        if case let .envelope(i)? = dragHandle {
+                            // ⌥-click on a point removes it; anything else keeps what was drawn.
+                            if NSEvent.modifierFlags.contains(.option), abs(g.translation.width) < 3, abs(g.translation.height) < 3 {
+                                draft?.envelope?.points.remove(at: i)
+                            }
+                            if let d = draft { show.updateCue(cue.id) { $0.audio = d } }
+                        } else if abs(g.translation.width) < 3 && abs(g.translation.height) < 3 {
                             // A click: listen from here.
                             show.audition(cue, from: max(0, min(length, t(g.location.x))))
                         } else if dragHandle != .pan, let d = draft {
@@ -117,11 +129,53 @@ struct WaveformEditor: View {
         }
     }
 
+    // MARK: Integrated fade (volume line)
+
+    private var envelopeOn: Bool { params.envelope?.enabled == true }
+
+    /// File seconds the envelope's 0…1 runs over (the cue's start…end when locked, else the whole file).
+    private func envelopeSpan(_ length: Double) -> (Double, Double) {
+        let a = params
+        guard a.envelope?.lockToRegion ?? true else { return (0, length) }
+        return (a.start, max(a.start + 0.001, a.end ?? length))
+    }
+
+    private static let envTop: CGFloat = 32
+    private func envY(_ db: Double, height: CGFloat) -> CGFloat {
+        let v = max(VolumeEnvelope.floorDB, min(0, db))
+        return Self.envTop + CGFloat(v / VolumeEnvelope.floorDB) * (height - 22 - Self.envTop)
+    }
+    private func envDB(_ y: CGFloat, height: CGFloat) -> Double {
+        let f = Double((y - Self.envTop) / max(1, height - 22 - Self.envTop))
+        return ((max(0, min(1, f)) * VolumeEnvelope.floorDB) * 2).rounded() / 2
+    }
+
+    private func addEnvelopePoint(time: Double, length: Double) -> Handle {
+        guard var a = draft ?? cue.audio else { return .pan }
+        var env = a.envelope ?? VolumeEnvelope()
+        let (s, e) = envelopeSpan(length)
+        let u = max(0, min(1, (time - s) / (e - s)))
+        let db = env.points.isEmpty ? 0 : env.db(at: u)
+        env.points.append(.init(u: u, db: db <= showSilenceDB ? VolumeEnvelope.floorDB : db))
+        env.points.sort { $0.u < $1.u }
+        a.envelope = env
+        draft = a
+        return .envelope(env.points.firstIndex { $0.u == u } ?? 0)
+    }
+
     /// Which handle a drag starting at `p` grabs. Fade handles live in the top strip.
     private func handle(at p: CGPoint, x: (Double) -> CGFloat, height: CGFloat) -> Handle {
         let a = params
         let len = length ?? 0
         let s = a.start, e = a.end ?? len
+        if envelopeOn, let env = a.envelope {
+            let (es, ee) = envelopeSpan(len)
+            // A control point under the pointer…
+            for (i, pt) in env.points.enumerated() {
+                let px = x(es + pt.u * (ee - es)), py = envY(pt.db, height: height)
+                if abs(px - p.x) <= 8 && abs(py - p.y) <= 8 { return .envelope(i) }
+            }
+        }
         var candidates: [(Handle, CGFloat)] = []
         if p.y < 24 {
             candidates += [(.fadeIn, x(s + a.fadeIn)), (.fadeOut, x(e - a.fadeOut))]
@@ -132,11 +186,28 @@ struct WaveformEditor: View {
         candidates += [(.start, x(s)), (.end, x(e))]
         let best = candidates.min { abs($0.1 - p.x) < abs($1.1 - p.x) }
         if let best, abs(best.1 - p.x) <= 12 { return best.0 }
+        // …or the volume line itself: a new point.
+        if envelopeOn, let env = a.envelope {
+            let (es, ee) = envelopeSpan(len)
+            let tt = (Double(p.x) - Double(x(0))) / Double(x(1) - x(0))
+            if tt >= es && tt <= ee, abs(envY(env.db(at: (tt - es) / (ee - es)), height: height) - p.y) <= 8 { return .envelopeNew }
+        }
         return .pan
     }
 
-    private func apply(_ h: Handle?, time: Double, dx: CGFloat, pps: Double, length: Double) {
+    private func apply(_ h: Handle?, time: Double, dx: CGFloat, pps: Double, length: Double, y: CGFloat = 0, height: CGFloat = 1) {
         guard var a = draft ?? cue.audio else { return }
+        if case let .envelope(i)? = h, var env = a.envelope, env.points.indices.contains(i) {
+            // Between its neighbours, so the points keep their order.
+            let (s, e) = envelopeSpan(length)
+            let lo = i > 0 ? env.points[i - 1].u + 0.0005 : 0
+            let hi = i + 1 < env.points.count ? env.points[i + 1].u - 0.0005 : 1
+            env.points[i].u = max(lo, min(hi, (time - s) / (e - s)))
+            env.points[i].db = envDB(y, height: height)
+            a.envelope = env
+            draft = a
+            return
+        }
         let t = (max(0, min(length, time)) * 1000).rounded() / 1000
         let e = a.end ?? length
         switch h {
@@ -149,7 +220,7 @@ struct WaveformEditor: View {
         case .pan?:
             if let o = panOrigin, viewSpan != nil { viewStart = max(0, o - Double(dx) / pps) }
             return
-        case nil: return
+        case .envelope?, .envelopeNew?, nil: return
         }
         draft = a
     }
@@ -209,6 +280,26 @@ struct WaveformEditor: View {
             ctx.fill(Path(ellipseIn: CGRect(x: hx - 5, y: 3, width: 10, height: 10)), with: .color(Theme.signalYellow))
         }
 
+        // Integrated fade: the volume line (0 dB at the top) and its control points.
+        if let env = a.envelope, env.enabled {
+            let (es, ee) = envelopeSpan(length)
+            var line = Path()
+            var started = false
+            var px: CGFloat = max(0, x(es))
+            while px <= min(size.width, x(ee)) {
+                let tt = v0 + Double(px) / pps
+                let pt = CGPoint(x: px, y: envY(env.db(at: (tt - es) / (ee - es)), height: size.height))
+                if started { line.addLine(to: pt) } else { line.move(to: pt); started = true }
+                px += 2
+            }
+            ctx.stroke(line, with: .color(Theme.signalYellow), lineWidth: 2)
+            for pt in env.points {
+                let c = CGPoint(x: x(es + pt.u * (ee - es)), y: envY(pt.db, height: size.height))
+                ctx.fill(Path(ellipseIn: CGRect(x: c.x - 5, y: c.y - 5, width: 10, height: 10)), with: .color(Theme.signalYellow))
+                ctx.stroke(Path(ellipseIn: CGRect(x: c.x - 5, y: c.y - 5, width: 10, height: 10)), with: .color(.black.opacity(0.5)), lineWidth: 1)
+            }
+        }
+
         // Start / end flags.
         for (fx, isStart) in [(x(s), true), (x(e), false)] {
             var l = Path(); l.move(to: CGPoint(x: fx, y: 0)); l.addLine(to: CGPoint(x: fx, y: size.height))
@@ -234,6 +325,38 @@ struct WaveformEditor: View {
     }
 
     // MARK: Controls
+
+    /// QLab's "Integrated fade" under the waveform: on / off, curve type, lock to start / end, reset.
+    @ViewBuilder private var envelopeControls: some View {
+        let env = params.envelope
+        HStack(spacing: 10) {
+            Toggle(loc.t("show.env.on"), isOn: Binding(get: { env?.enabled == true }, set: { on in
+                show.updateCue(cue.id) { c in
+                    if c.audio?.envelope == nil { c.audio?.envelope = VolumeEnvelope() }
+                    c.audio?.envelope?.enabled = on
+                }
+            }))
+            .help(loc.t("show.env.help"))
+            if env?.enabled == true {
+                Picker("", selection: Binding(get: { env?.smooth ?? true }, set: { v in show.updateCue(cue.id) { $0.audio?.envelope?.smooth = v } })) {
+                    Text(loc.t("show.env.smooth")).tag(true)
+                    Text(loc.t("show.env.linear")).tag(false)
+                }
+                .pickerStyle(.segmented).labelsHidden().fixedSize()
+                Toggle(loc.t("show.env.lock"), isOn: Binding(get: { env?.lockToRegion ?? true },
+                                                              set: { v in show.updateCue(cue.id) { $0.audio?.envelope?.lockToRegion = v } }))
+                Button(loc.t("show.env.reset")) { show.updateCue(cue.id) { $0.audio?.envelope?.points = [] } }
+                    .buttonStyle(ToolButtonStyle())
+                    .disabled(env?.points.isEmpty ?? true)
+            }
+            Spacer(minLength: 0)
+        }
+        .font(.system(size: 12))
+        if env?.enabled == true {
+            Text(loc.t("show.env.hint")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 
     private func transport(length: Double) -> some View {
         let a = params

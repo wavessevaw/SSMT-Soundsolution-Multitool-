@@ -228,6 +228,33 @@ final class ShowTests: XCTestCase {
         XCTAssertEqual((try? JSONDecoder().decode(FadeCueParams.self, from: Data("{}".utf8)))?.stopWhenDone, false, "a saved fade without the setting does not stop either")
     }
 
+    /// QLab's integrated fade: the audio follows the volume line drawn over the waveform.
+    func testIntegratedFadeEnvelopeShapesTheTrack() {
+        var doc = ShowDocument()
+        var a = audioCue("a", "1")
+        a.audio?.envelope = VolumeEnvelope(points: [.init(u: 0, db: 0), .init(u: 0.5, db: -6.0206), .init(u: 1, db: -6.0206)], smooth: false)
+        doc.lists[0].cues = [a]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(1, frames: 48000)
+        rig.engine.start(a.id, now: 0)
+        rig.runSeconds(1.2)
+        let s0 = 256
+        XCTAssertEqual(rig.out[0][s0 + 100], 1, accuracy: 0.01, "starts at the cue's level")
+        XCTAssertEqual(rig.out[0][s0 + 36000], 0.5, accuracy: 0.01, "−6 dB on the flat part")
+        XCTAssertEqual(rig.out[0][s0 + 12000], Float(pow(10, -3.0103 / 20)), accuracy: 0.01, "half way down the slope")
+        // Smooth curves pass through every point and stay between neighbours.
+        let env = VolumeEnvelope(points: [.init(u: 0, db: 0), .init(u: 0.4, db: -20), .init(u: 1, db: -10)])
+        XCTAssertEqual(env.db(at: 0.4), -20, accuracy: 1e-9)
+        for u in stride(from: 0.0, through: 0.4, by: 0.05) { XCTAssertLessThanOrEqual(env.db(at: u), 0.0001); XCTAssertGreaterThanOrEqual(env.db(at: u), -20.0001) }
+        // Locked to the region: the line stretches with start and end.
+        var p = AudioCueParams(file: "a")
+        p.start = 2; p.end = 4
+        p.envelope = VolumeEnvelope(points: [.init(u: 0, db: 0), .init(u: 1, db: -20)], smooth: false)
+        XCTAssertEqual(p.envelopeDB(atFile: 3, fileLength: 10), -10, accuracy: 1e-9)
+        p.envelope?.lockToRegion = false
+        XCTAssertEqual(p.envelopeDB(atFile: 5, fileLength: 10), -10, accuracy: 1e-9)
+    }
+
     func testDevampPredictionMatchesAudio() {
         var doc = ShowDocument()
         var a = audioCue("a", "1", plays: 0)
