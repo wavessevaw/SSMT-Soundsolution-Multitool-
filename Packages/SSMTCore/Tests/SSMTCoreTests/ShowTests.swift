@@ -208,7 +208,7 @@ final class ShowTests: XCTestCase {
         XCTAssertFalse(rig.engine.isActive, "stop when done ends the looping cue")
     }
 
-    /// QLab: a fade-out does not stop its target unless "stop target when done" is ticked — the track plays on at −∞.
+    /// A fade-out does not stop its target unless "stop target when done" is ticked — the track plays on at −∞.
     func testFadeOutKeepsTheTrackRunningAtSilenceByDefault() {
         var doc = ShowDocument()
         let a = audioCue("a", "1", plays: 0)
@@ -228,7 +228,7 @@ final class ShowTests: XCTestCase {
         XCTAssertEqual((try? JSONDecoder().decode(FadeCueParams.self, from: Data("{}".utf8)))?.stopWhenDone, false, "a saved fade without the setting does not stop either")
     }
 
-    /// QLab's integrated fade: the audio follows the volume line drawn over the waveform.
+    /// Integrated fade: the audio follows the volume line drawn over the waveform.
     func testIntegratedFadeEnvelopeShapesTheTrack() {
         var doc = ShowDocument()
         var a = audioCue("a", "1")
@@ -274,6 +274,13 @@ final class ShowTests: XCTestCase {
         rig.runSeconds(0.2)
         XCTAssertFalse(rig.engine.isActive, "nothing left playing")
         XCTAssertEqual(rig.out[0].last ?? 1, 0, accuracy: 1e-6, "silent")
+    }
+
+    /// An OSC device of a kind this version no longer lists (from an older show) opens as a generic one, address
+    /// and port kept, so the show still loads.
+    func testUnknownOSCDeviceKindOpensAsGeneric() throws {
+        let json = Data(#"["resolume", "playback-server", "eos"]"#.utf8)
+        XCTAssertEqual(try JSONDecoder().decode([OSCDeviceKind].self, from: json), [.resolume, .generic, .eos])
     }
 
     func testDevampPredictionMatchesAudio() {
@@ -613,7 +620,7 @@ final class ShowTests: XCTestCase {
         XCTAssertEqual(setups.first?.levelDB, 0, "the other child plays at its own level")
     }
 
-    /// Pause in the middle of a fade (QLab): the fade stops where it is and continues after resume, it does not
+    /// Pause in the middle of a fade: the fade stops where it is and continues after resume, it does not
     /// jump to the end.
     func testPausedVoiceFreezesItsFade() {
         var doc = ShowDocument()
@@ -793,7 +800,7 @@ final class ShowTests: XCTestCase {
         XCTAssertTrue(rig.engine.isRunning(g.children[0].id))
     }
 
-    /// Start First And Enter (QLab): GO on the group starts its first child and the playhead steps through the
+    /// Start First And Enter: GO on the group starts its first child and the playhead steps through the
     /// children; after the last one it leaves the group.
     func testStartFirstAndEnterGroupWalksThePlayheadThroughItsChildren() {
         var doc = ShowDocument()
@@ -830,7 +837,7 @@ final class ShowTests: XCTestCase {
         XCTAssertNotEqual(rig2.engine.snapshot(now: 0).playhead, plain.children[0].id, "not inside a Start First group")
     }
 
-    /// Second trigger (QLab): what a running cue does when told to start again.
+    /// Second trigger: what a running cue does when told to start again.
     func testSecondTriggerBehaviours() {
         func run(_ mode: SecondTrigger) -> (ShowRig, Cue) {
             var doc = ShowDocument()
@@ -1153,96 +1160,6 @@ final class ShowTests: XCTestCase {
         XCTAssertEqual(IPv4.reachableDirectly("127.0.0.1", interfaces: ifs), true)
         XCTAssertNil(IPv4.reachableDirectly("resolume.local", interfaces: ifs))
     }
-
-    // MARK: QLab import
-
-    func testQLabImportFromOSCReplies() throws {
-        let json = """
-        {"status":"ok","data":[
-          {"uniqueID":"L1","type":"Cue List","listName":"Main Cue List","cues":[
-            {"uniqueID":"A","number":"1","name":"Preshow","type":"Audio","colorName":"blue","armed":true,"cues":[]},
-            {"uniqueID":"F","number":"2","name":"","type":"Fade","colorName":"none","armed":true,"cues":[]},
-            {"uniqueID":"G","number":"3","name":"Scene","type":"Group","colorName":"none","armed":true,"cues":[
-              {"uniqueID":"V","number":"3.1","name":"Projection","type":"Video","colorName":"none","armed":true,"cues":[]}
-            ]},
-            {"uniqueID":"S","number":"4","name":"","type":"Stop","colorName":"none","armed":false,"cues":[]}
-          ]},
-          {"uniqueID":"C1","type":"Cart","listName":"Effects","cues":[
-            {"uniqueID":"B","number":"","name":"Bell","type":"Audio","colorName":"none","armed":true,"cues":[]}
-          ]}
-        ]}
-        """
-        let data = try XCTUnwrap(QLabImport.replyData(json) as? [[String: Any]])
-        var lists = data.map(QLabImport.item(fromJSON:))
-        // valuesForKeys replies merged per cue.
-        func values(_ id: String) -> [String: Any] {
-            switch id {
-            case "A": return ["fileTarget": "/Sounds/Preshow.wav", "infiniteLoop": true, "continueMode": 1, "postWait": 2.5, "startTime": 1.0]
-            case "F": return ["duration": 4.0, "cueTargetID": "A", "stopTargetWhenDone": true]
-            case "G": return ["mode": 3, "preWait": 1.0]
-            case "S": return ["cueTargetID": "G"]
-            default: return [:]
-            }
-        }
-        func fill(_ q: inout QLabImport.Item) {
-            QLabImport.merge(values: values(q.uniqueID), into: &q)
-            for i in q.children.indices { fill(&q.children[i]) }
-        }
-        for i in lists.indices { fill(&lists[i]) }
-        let (doc, report) = QLabImport.makeShow(name: "Gala", lists: lists)
-        XCTAssertEqual(report.lists, 1)
-        XCTAssertEqual(report.banks, 1)
-        XCTAssertEqual(report.unsupported, ["Video": 1])
-        XCTAssertEqual(report.lostTargets, 0)
-        let main = doc.cueLists[0]
-        XCTAssertEqual(main.name, "Main Cue List")
-        let a = main.cues[0]
-        XCTAssertEqual(a.kind, .audio)
-        XCTAssertEqual(a.audio?.file, "/Sounds/Preshow.wav")
-        XCTAssertEqual(a.audio?.plays, 0)
-        XCTAssertEqual(a.audio?.start, 1)
-        XCTAssertEqual(a.continueMode, .autoContinue)
-        XCTAssertEqual(a.color, "blue")
-        let f = main.cues[1]
-        XCTAssertEqual(f.target, a.id)
-        XCTAssertEqual(f.fade?.duration, 4)
-        XCTAssertEqual(f.fade?.level, showSilenceDB)
-        XCTAssertEqual(main.cues[2].groupMode, .simultaneous)
-        XCTAssertEqual(main.cues[2].children.first?.kind, .memo, "unsupported type kept as a memo")
-        XCTAssertEqual(main.cues[3].target, main.cues[2].id)
-        XCTAssertFalse(main.cues[3].armed)
-        XCTAssertEqual(doc.banks.first?.cues.first?.name, "Bell")
-    }
-
-    func testQLabFileArchiveIsRead() throws {
-        // A keyed archive as written by NSKeyedArchiver (UIDs as CF$UID dictionaries in XML form).
-        func uid(_ i: Int) -> [String: Any] { ["CF$UID": i] }
-        let objects: [Any] = [
-            "$null",
-            ["NS.keys": [uid(2)], "NS.objects": [uid(3)], "$class": uid(9)],          // 1: root {cueLists: [...]}
-            "cueLists",                                                                  // 2
-            ["NS.objects": [uid(4)], "$class": uid(9)],                                  // 3: [list]
-            ["NS.keys": [uid(5), uid(6), uid(7)], "NS.objects": [uid(8), uid(10), uid(11)], "$class": uid(9)], // 4: list
-            "type", "name", "cues",                                                      // 5, 6, 7
-            "Cue List",                                                                  // 8
-            ["$classname": "NSDictionary"],                                              // 9
-            "Act 1",                                                                     // 10
-            ["NS.objects": [uid(12)], "$class": uid(9)],                                 // 11: [cue]
-            ["NS.keys": [uid(5), uid(13), uid(14), uid(15)], "NS.objects": [uid(16), uid(17), uid(18), uid(19)], "$class": uid(9)], // 12
-            "number", "uniqueID", "path",                                                // 13, 14, 15
-            "Audio", "1", "X1", "Music/Overture.wav",                                    // 16…19
-        ]
-        let archive: [String: Any] = ["$archiver": "NSKeyedArchiver", "$version": 100000, "$top": ["root": uid(1)], "$objects": objects]
-        let data = try PropertyListSerialization.data(fromPropertyList: archive, format: .xml, options: 0)
-        let lists = try XCTUnwrap(QLabImport.lists(fromFile: data))
-        XCTAssertEqual(lists.first?.name, "Act 1")
-        XCTAssertEqual(lists.first?.children.first?.type, "Audio")
-        XCTAssertEqual(lists.first?.children.first?.fileTarget, "Music/Overture.wav")
-        XCTAssertNil(QLabImport.lists(fromFile: Data("not a workspace".utf8)))
-    }
-
-    // MARK: Reliability
-
     func testMappedClipPlaysLikeOwnedClip() throws {
         let samples = (0..<4800).map { Float(sin(Double($0) * 0.01)) }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("ssmt-mapped-\(UUID()).raw")

@@ -1,4 +1,4 @@
-# SSMT 1.3.2 — FOH Assist на настоящем пульте, Qtrl как в QLab
+# SSMT 1.3.2 — FOH Assist на настоящем пульте
 
 ## Русский
 
@@ -22,8 +22,8 @@
 - Таймлайн группы: жёлтый курсор воспроизведения, переход по щелчку на линейке, фейд в один момент с треком.
 - Настройки каждой кью — по двойному клику: «Время и петли» (волна с началом, концом, петлёй, нарастанием и
   затуханием), «Фейд» (длительность и кривая с рисунком), «Уровни», «Запуск».
-- Огибающая громкости на волне трека (как integrated fade в QLab): точки на жёлтой линии, плавная или прямая.
-- Фейд-аут по умолчанию оставляет трек играть на −∞ (как в QLab); «Остановить цель» — галочкой.
+- Огибающая громкости на волне трека: точки на жёлтой линии, плавная или прямая.
+- Фейд-аут по умолчанию оставляет трек играть на −∞; «Остановить цель» — галочкой.
 - Удаление играющей кью сразу её глушит; индикаторы выходов краснеют только при перегрузке.
 
 **Ptch** (бывший Input list): новое название; Delete при вводе текста больше не удаляет строку (вылет).
@@ -44,7 +44,7 @@ protocol is not yet verified on a live console.
 
 ---
 
-# SSMT 1.3.1 — Qtrl: таймлайн группы как в QLab 5
+# SSMT 1.3.1 — Qtrl: таймлайн группы
 
 ## Русский
 
@@ -59,7 +59,7 @@ protocol is not yet verified on a live console.
 - Перетаскивание с ⌥ сдвигает звук внутри клипа; клипы прилипают к линии воспроизведения; цвет кью на клипах;
   ⌥← / ⌥→ — пауза до ±0,1 с; ⌘= / ⌘− — масштаб.
 
-**Qtrl — как в QLab**
+**Qtrl — новые функции**
 - Режим группы **«Первая и войти»** (Start First And Enter): GO идёт по кью внутри группы и выходит после последней.
 - **Повторный запуск играющей кью:** ничего, плавно остановить, остановить, остановить сразу, начать заново, выйти
   из петли; для плейлиста — следующий трек.
@@ -74,7 +74,7 @@ protocol is not yet verified on a live console.
 
 ## English
 
-**SSMT 1.3.1.** Qtrl group timeline as in QLab 5: a yellow playback line exactly on the ruler and waveforms, moving
+**SSMT 1.3.1.** Qtrl group timeline: a yellow playback line exactly on the ruler and waveforms, moving
 smoothly and followed by the view; click or drag the ruler to play from there (a stopped group is loaded there, also
 with ⌘T), tracks start part-way and fades under way continue from their current point; a fade at the same moment as
 its track now fades it; ⌥-drag slips the sound inside a clip; snapping to the playback line; cue colours; ⌥← / ⌥→ and
@@ -84,18 +84,18 @@ stopping a waiting group no longer follows on, faded group stops end cleanly, fa
 
 ---
 
-# SSMT 1.3.0 — Qtrl ближе к QLab
+# SSMT 1.3.0 — Qtrl: фейды, плейлисты, мультитрек
 
 ## Русский
 
 **Qtrl**
 - **Фейд-ин и фейд-аут.** Две кнопки на панели инструментов. Фейд-ин запускает цель из тишины и поднимает до её
   уровня (или до указанного); фейд-аут уводит в тишину и останавливает. В инспекторе — переключатель направления.
-- **Относительный фейд, как в QLab:** «изменить на ±N дБ» от текущего уровня или «до уровня».
+- **Относительный фейд:** «изменить на ±N дБ» от текущего уровня или «до уровня».
 - **Кроссфейд в плейлисте:** следующий трек начинается раньше конца текущего с плавным переходом.
 - **⌘T «Загрузить до времени»:** следующий старт выделенной аудио-кью — с указанного места.
 - **Мультитрек группы:** у каждой кью своя дорожка (аудио, фейд, пауза, OSC, управляющие, заметки), раскладка по
-  паузе до, как у таймлайн-группы QLab 5; таймлайн прокручивается (перетаскивание пустого места, колесо / трекпад,
+  паузе до; таймлайн прокручивается (перетаскивание пустого места, колесо / трекпад,
   полоса прокрутки); новые группы — таймлайн.
 - **Курсор GO:** после запуска кью любым способом (GO, «Воспроизвести сейчас», V) встаёт на следующую; щелчок по
   играющей кью его не сбивает.
@@ -143,35 +143,35 @@ input list and stage plan labels no longer clip; FOH Assist EQ scale labels draw
   «Подключить»; можно ввести IP вручную или выбрать симулятор. Интерфейс ассистента открывается после подключения.
 - **Лампочка связи** в шапке: зелёная — пульт отвечает, красная — связи нет.
 
-**Qtrl: аудио в шоу — как в QLab.** При сохранении шоу все его аудиофайлы копируются в папку «<имя шоу> Audio»
+**Qtrl: аудио в шоу —.** При сохранении шоу все его аудиофайлы копируются в папку «<имя шоу> Audio»
 рядом с файлом шоу и записываются относительно него — шоу переносится одной папкой. До сохранения треки играют
 с исходного места. Если файл не удаётся скопировать или прочитать, показывается
 настоящая причина от macOS, а не общее «Файл не найден». SSMT запрашивает доступ к папкам «Рабочий стол»,
 «Документы», «Загрузки» и внешним дискам с понятным объяснением.
 
-**Qtrl: трек играет сразу после добавления, как в QLab.** Воспроизведение начинается, как только подготовлены
+**Qtrl: трек играет сразу после добавления.** Воспроизведение начинается, как только подготовлены
 первые ~1,5 с файла (доли секунды), остальное готовится в фоне быстрее, чем играет.
 
 **Qtrl:** трек, добавленный перетаскиванием, сразу запускается по GO. Раньше, если файл ещё готовился к
 воспроизведению, кью показывала «Файл не найден» и не играла; теперь она дожидается готовности файла (до 15 с),
 а в списке пишется «Файл ещё готовится». Отсутствующий файл по-прежнему сообщается сразу.
 Кнопка GO и пробел больше не «засыпают» после добавления кью: курсор GO переходит на первую добавленную кью
-(и с конца списка), при удалении кью под курсором — на следующую; щелчок по кью ставит на неё курсор GO, как в QLab.
+(и с конца списка), при удалении кью под курсором — на следующую; щелчок по кью ставит на неё курсор GO.
 GO, пауза и «Стоп всё» есть и в режиме «Правка»: треки можно слушать, не переходя в режим «Шоу». Пробел больше не теряется в полях (заметки, имя, номер): щелчок в любом месте вне поля или Esc заканчивает
 ввод, и пробел снова запускает GO.
 
-**Qtrl: экран переделан по образцу QLab, без дублей.** Сверху — GO, «Далее» с заметками, «Пауза» и «Стоп всё»
+**Qtrl: экран переделан, без дублей.** Сверху — GO, «Далее» с заметками, «Пауза» и «Стоп всё»
 (одинаково в «Правке» и «Шоу»); под ней — панель инструментов с типами кью; в центре — список; справа — вкладки
 «Списки · One-shot · Идёт»; снизу — инспектор и по кнопке таймлайн; внизу — строка состояния с «Правка / Шоу».
 Переключатель «Простой / Эксперт» и повторяющиеся панели убраны.
 
-**Qtrl: группы как локальный мультитрек (как в QLab).** Выделите несколько кью и нажмите «Группа» (или «Сгруппировать
+**Qtrl: группы как локальный мультитрек.** Выделите несколько кью и нажмите «Группа» (или «Сгруппировать
 выделенные» в меню) — они объединятся в группу. Файлы и кью, перетащенные на нижнюю часть строки группы, попадают
 внутрь неё. У группы в инспекторе есть вкладка «Мультитрек»: каждая кью — своя дорожка, старт сдвигается
 перетаскиванием, края клипа обрезают начало и конец, клипы прилипают к краям соседних (⌘ при перетаскивании —
 без прилипания), кнопка «Добавить треки»; в режиме «Таймлайн (все вместе)» группа играет как мультитрек.
 
-**Qtrl: сочетания клавиш QLab.** Пробел — GO, Esc — стоп всё, [ и ] — пауза и продолжение всего, P/S/L/V — пауза,
+**Qtrl: сочетания клавиш.** Пробел — GO, Esc — стоп всё, [ и ] — пауза и продолжение всего, P/S/L/V — пауза,
 стоп, загрузка и прослушивание выделенных, ↑/↓ и ⇧⌘↑/⇧⌘↓ — переходы, ⌘J — к кью по номеру, ⌘]/⌘[ — «Шоу»/«Правка»,
 ⌘I/⌘L — инспектор и боковая панель, ⌘1/⌘0/⌘7/⌘8 — новые кью, N/Q/E/D/W/C/T — поля кью, ⌘R, ⌘D, ⌘C/⌘X/⌘V/⌘A, ⌫.
 Буквенные клавиши работают и в русской раскладке. Полный список — кнопка с клавиатурой в строке состояния.
@@ -188,27 +188,27 @@ engineer; the console test report as steps. Until a console is connected the tab
 and X Air / MR consoles are found on the Wi-Fi network (model, IP, firmware, Connect), or enter an IP, or use the
 simulator. A link lamp in the header is green while the console answers and red when the link is lost.
 
-**Qtrl: show audio as in QLab.** Saving a show copies all its audio into "<show name> Audio" next to the show file
+**Qtrl: show audio.** Saving a show copies all its audio into "<show name> Audio" next to the show file
 (stored relative to it), so a show travels as one folder; before saving, tracks play from where they are. A file that cannot be copied or read
 shows the system's reason instead of a generic "File not found". Folder access prompts now explain why.
 
-**Qtrl: a track plays right after it is added, as in QLab** — playback starts once the first ~1.5 s are decoded
+**Qtrl: a track plays right after it is added** — playback starts once the first ~1.5 s are decoded
 (a fraction of a second); the rest is decoded in the background faster than it plays.
 
 **Qtrl fix:** a track dropped into the cue list now plays on GO: if its file is still being prepared, the cue waits
 for it (up to 15 s) instead of reporting "File not found"; a genuinely missing file is still reported at once. GO and Space no longer stay disabled after adding cues: the
 playhead moves to the first added cue (also from the end of the list) and off a deleted cue; clicking a cue puts the
-playhead on it, as in QLab. Edit mode now has a transport (GO, pause, Stop all), so tracks can be played while
-building the show; a click anywhere outside a text field (notes, name, number) or Esc ends typing, so Space is GO again. **Qtrl laid out as QLab, without duplicates:** GO, standing by with notes, Pause all and Stop all on top (same in Edit
+playhead on it. Edit mode now has a transport (GO, pause, Stop all), so tracks can be played while
+building the show; a click anywhere outside a text field (notes, name, number) or Esc ends typing, so Space is GO again. **Qtrl laid out anew, without duplicates:** GO, standing by with notes, Pause all and Stop all on top (same in Edit
 and Show); the cue toolbar; the cue list; a sidebar with Cue lists · One-shot · Active; the inspector and optional
 timeline at the bottom; a status bar with Edit / Show. The Simple / Expert switch and repeated panels are gone.
 
-**Qtrl groups as a local multitrack (as in QLab):** select cues and press Group (or "Group the selected cues") to wrap
+**Qtrl groups as a local multitrack:** select cues and press Group (or "Group the selected cues") to wrap
 them; files and cues dropped on the lower part of a group row go into it; the group inspector has a Multitrack tab —
 one track per cue, drag to move its start (pre-wait), drag its edges to trim, clips snap to each other (⌘ while
 dragging: no snapping), "Add tracks"; in "Timeline (all together)" mode the group plays as a multitrack.
 
-**Qtrl: QLab keyboard shortcuts** — Space GO, Esc stop all, [ ] pause / resume all, P S L V on the selected cues,
+**Qtrl: keyboard shortcuts** — Space GO, Esc stop all, [ ] pause / resume all, P S L V on the selected cues,
 arrows and ⇧⌘ arrows, ⌘J jump, ⌘] / ⌘[ Show / Edit, ⌘I / ⌘L panels, ⌘1 ⌘0 ⌘7 ⌘8 new cues, N Q E D W C T fields,
 ⌘R ⌘D ⌘C ⌘X ⌘V ⌘A ⌫. Letter keys work on any layout; the full list is behind the keyboard button in the status bar.
 
@@ -229,7 +229,7 @@ arrows and ⇧⌘ arrows, ⌘J jump, ⌘] / ⌘[ Show / Edit, ⌘I / ⌘L panels
   файлы раскладываются в кэш на диске и читаются заранее — память не забивается, GO не ждёт диск.
   Редактор волны: начало, конец, нарастание, затухание, петля внутри трека, прослушивание с любого места.
   До 64 выходов с матрицей «канал файла → выход».
-- **OSC:** мастер подключения Resolume, ETC Eos, grandMA3, ChamSys MagicQ, Behringer X32 / Midas M32 и QLab
+- **OSC:** мастер подключения Resolume, ETC Eos, grandMA3, ChamSys MagicQ, Behringer X32 / Midas M32
   с подсказками, проверкой связи и предупреждением о другой сети; готовые команды и OSC-монитор.
 - **Надёжность:** «Стоп всё» (Esc) — плавно, повторно — мгновенно; защита от двойного GO; проверка шоу
   (пропавшие и неготовые файлы, цели, номера, клавиши); поиск пропавших файлов; выход сам восстанавливается
@@ -257,7 +257,7 @@ arrows and ⇧⌘ arrows, ⌘J jump, ⌘] / ⌘[ Show / Edit, ⌘I / ⌘L panels
 memo, OSC and control cues; pre/post-wait and continue modes; Simple and Expert views (one-shot pads
 on F1–F12, wide multitrack timeline); sample-accurate starts; any format macOS reads, including the
 sound of video files, cached on disk and read ahead; waveform editor with an inner loop; up to 64
-outputs; OSC with guided setup for Resolume, ETC Eos, grandMA3, MagicQ, X32/M32 and QLab; two-stage
+outputs; OSC with guided setup for Resolume, ETC Eos, grandMA3, MagicQ, X32/M32; two-stage
 Stop all, double-GO guard, pre-show check, automatic output recovery, no sleep while Qtrl is open.
 
 

@@ -53,7 +53,7 @@ func showTime(_ s: Double?) -> String {
     return m > 0 ? String(format: "%d:%04.1f", m, rest) : String(format: "%.1f", rest)
 }
 
-/// Function #3: Qtrl, the show control center, laid out as in QLab:
+/// Function #3: Qtrl, the show control center, laid out as a show control desk:
 /// GO and "standing by" on top, the cue toolbar (editing), the cue list with a sidebar (lists, one-shot, active),
 /// the inspector (and optionally the timeline) at the bottom, and a status bar with Edit / Show.
 struct ShowWorkspace: View {
@@ -94,12 +94,6 @@ struct ShowWorkspace: View {
             show.installKeyMonitor()
         }
         .onDisappear { show.isActive = false }
-        .sheet(isPresented: $show.showQLabImport) {
-            QLabImportView()
-                .environmentObject(show)
-                .environmentObject(loc)
-                .preferredColorScheme(.dark)
-        }
         .sheet(isPresented: $show.showOSC) {
             OSCDevicesView()
                 .environmentObject(show)
@@ -179,7 +173,7 @@ struct QtrlGoBar: View {
                     .fill(ready ? AnyShapeStyle(LinearGradient(colors: [Theme.accent, Theme.accentHot], startPoint: .top, endPoint: .bottom))
                                 : AnyShapeStyle(Color.white.opacity(0.08)))
             )
-            // QLab: green border = GO will start the standing-by cue; red = double-GO protection holds it.
+            // Green border = GO will start the standing-by cue; red = double-GO protection holds it.
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(show.goGuarded ? Theme.statusError : (ready ? Color.white.opacity(0.55) : Color.white.opacity(0.25)),
                               lineWidth: show.goGuarded ? 3 : 1.5))
@@ -193,7 +187,7 @@ struct QtrlGoBar: View {
 
 // MARK: - Toolbar (Edit)
 
-/// Every cue type as an icon (as QLab's toolbar), then the selection tools.
+/// Every cue type as an icon (as a toolbar), then the selection tools.
 struct QtrlToolbar: View {
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
@@ -234,7 +228,7 @@ struct QtrlToolbar: View {
 
 enum QtrlSidebarTab: String, CaseIterable { case lists, pads, active }
 
-/// Cue lists, one-shot pads and what is playing, as tabs (QLab's "Lists, Carts & Active Cues").
+/// Cue lists, one-shot pads and what is playing, as tabs ("Lists, Carts & Active Cues").
 struct QtrlSidebar: View {
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
@@ -496,7 +490,7 @@ struct OutputMeters: View {
     }
 }
 
-/// The keyboard shortcuts (QLab's), for the status bar popover.
+/// The keyboard shortcuts, for the status bar popover.
 struct QtrlShortcutsView: View {
     @EnvironmentObject var loc: Localizer
 

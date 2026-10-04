@@ -13,7 +13,7 @@
 ![Apple Silicon | Intel](https://img.shields.io/badge/Apple%20Silicon%20%7C%20Intel-universal-10A86E)
 ![RU | EN](https://img.shields.io/badge/язык-RU%20%7C%20EN-A7F3D0)
 
-<img src="docs/media/hero-2x2.png" alt="SSMT" width="100%">
+<img src="docs/media/hero-main.png" alt="SSMT" width="100%">
 
 </div>
 
@@ -47,7 +47,7 @@ input list и план сцены, подготовить фонограммы, 
 - 📋 **Ptch — каналы и план сцены** — каналы из шаблонов, мониторные миксы, сводка «что выдать на сцену»
   (микрофоны, DI, стойки, +48 V), план сцены. PDF, PNG, CSV — готовый райдер для площадки.
 - ▶️ **Qtrl — Show Control Center** — воспроизведение фонограмм по списку команд: старт с точностью до сэмпла, плавные изменения уровня, группы, паузы,
-  OSC для света, видео и пультов (Resolume, ETC Eos, grandMA3, MagicQ, X32/M32, QLab), кнопки one-shot,
+  OSC для света, видео и пультов (Resolume, ETC Eos, grandMA3, MagicQ, X32/M32), кнопки one-shot,
   временная шкала, «Стоп всё» и защита от двойного GO.
 - 🤖 **FOH Assist** *(beta)* — ассистент за пультом X32 / M32 и X Air по Wi-Fi:
   - 🎛️ **автоматический саундчек** — входное усиление, срез НЧ, эквализация, компрессия до «Готово»; оркестр и хор одной кнопкой

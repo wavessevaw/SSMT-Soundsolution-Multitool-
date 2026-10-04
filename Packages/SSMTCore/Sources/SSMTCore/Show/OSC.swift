@@ -123,14 +123,19 @@ public struct OSCMessage: Equatable, Sendable {
 
 /// What is on the other end; decides default port, instructions and command templates.
 public enum OSCDeviceKind: String, Codable, CaseIterable, Sendable {
-    case resolume, eos, grandMA3, magicQ, x32, qlab, generic
+    case resolume, eos, grandMA3, magicQ, x32, generic
+
+    /// A kind this version no longer lists (from an older show) opens as a generic OSC device, address and port kept.
+    public init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = OSCDeviceKind(rawValue: raw) ?? .generic
+    }
 
     public var defaultPort: UInt16 {
         switch self {
         case .resolume: return 7000
         case .eos, .grandMA3, .magicQ: return 8000
         case .x32: return 10023
-        case .qlab: return 53000
         case .generic: return 8000
         }
     }
@@ -258,11 +263,6 @@ public struct OSCPreset: Equatable, Sendable {
                 OSCPreset(id: "x32.fader", fields: [OSCPresetField(key: "channel", kind: .twoDigits, defaultValue: "1"),
                                                     OSCPresetField(key: "value", kind: .level, defaultValue: "0.75")],
                           address: "/ch/{channel}/mix/fader", arguments: ["{value}"]),
-            ]
-        case .qlab:
-            return [
-                OSCPreset(id: "qlab.go", fields: [], address: "/go", arguments: []),
-                OSCPreset(id: "qlab.start", fields: [t("cue", "1")], address: "/cue/{cue}/start", arguments: []),
             ]
         case .generic:
             return []

@@ -31,7 +31,7 @@ struct CueListView: View {
                                 .simultaneousGesture(TapGesture().onEnded { select(row.cue.id, rows: rows) })
                                 .contextMenu { menu(row.cue) }
                                 .onDrag { NSItemProvider(object: row.cue.id.uuidString as NSString) }
-                                // As in QLab: dropped on the lower part of a group row, files and cues go into the group.
+                                // Dropped on the lower part of a group row, files and cues go into the group.
                                 .onDrop(of: [.text, .fileURL], isTargeted: nil) { providers, at in
                                     drop(providers, before: row.cue, into: row.cue.kind == .group && at.y > 14 ? row.cue.id : nil)
                                 }
@@ -112,7 +112,7 @@ struct CueListView: View {
         } else {
             show.selection = [id]
             anchor = id
-            // As in QLab: the clicked cue is the next one for GO / Space (a cue of the list, or inside a Start First And
+            // The clicked cue is the next one for GO / Space (a cue of the list, or inside a Start First And
             // Enter group; the engine ignores others). A cue that is playing is only selected (e.g. to look into a
             // running group): the playhead stays on what comes next.
             let playing = show.snapshot.running.contains { $0.id == id }

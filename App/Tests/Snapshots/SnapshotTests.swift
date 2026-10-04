@@ -269,10 +269,6 @@ final class SnapshotTests: XCTestCase {
         try snapshot(OSCDevicesView(startWith: .eos), size: CGSize(width: 640, height: 600), name: "osc-setup-eos", loc: Self.ru)
     }
 
-    func testQLabImport() throws {
-        prepareShow()
-        try snapshot(QLabImportView(), size: CGSize(width: 600, height: 560), name: "qlab-import", loc: Self.ru)
-    }
 
     /// The hidden game's launcher (the game itself is a Mega Drive ROM, screenshots come from an emulator).
     func testHiddenGameLauncher() throws {

@@ -51,7 +51,7 @@ public struct ShowSnapshot: Equatable, Sendable {
 public final class ShowEngine {
     public var document: ShowDocument { didSet { keepPlayhead(after: oldValue); stopRemovedCues() } }
 
-    /// A cue deleted while it plays (or waits) stops at once, with a short de-click fade (QLab).
+    /// A cue deleted while it plays (or waits) stops at once, with a short de-click fade.
     private func stopRemovedCues() {
         let gone = instances.keys.filter { document.cue($0) == nil }
         guard !gone.isEmpty else { return }
@@ -269,12 +269,12 @@ public final class ShowEngine {
         advance(to: now)
     }
 
-    /// Loads a cue (QLab "L"): its files are read in advance so it starts instantly.
+    /// Loads a cue: its files are read in advance so it starts instantly.
     public func load(_ id: UUID) {
         if let c = document.cue(id) { preloadTree(c) }
     }
 
-    /// Load to time (QLab ⌘T): the next start of this audio cue begins `seconds` into it (pre-wait excluded); for a
+    /// Load to time: the next start of this audio cue begins `seconds` into it (pre-wait excluded); for a
     /// timeline group, `seconds` into its timeline (everything already under way there starts part-way through).
     public func loadToTime(_ id: UUID, seconds: Double) {
         guard let c = document.cue(id) else { return }
@@ -291,7 +291,7 @@ public final class ShowEngine {
     /// Timeline groups loaded to a time, and that time (seconds).
     public private(set) var loadedGroupTime: [UUID: Double] = [:]
 
-    /// A click in a timeline group's ruler (QLab): a running group carries on from `seconds`; a group that is not
+    /// A click in a timeline group's ruler: a running group carries on from `seconds`; a group that is not
     /// running is loaded there for its next start. The cue list's playhead does not move.
     public func seek(_ group: UUID, to seconds: Double, now: Int64) {
         guard let c = document.cue(group), c.kind == .group, c.groupMode == .simultaneous else { return }
@@ -519,7 +519,7 @@ public final class ShowEngine {
         instances[id] = inst
     }
 
-    /// Told to start while already running (QLab's second trigger).
+    /// Told to start while already running (second trigger).
     private func secondTrigger(_ cue: Cue, at t: Int64) {
         switch cue.secondTrigger {
         case .nothing:
@@ -781,7 +781,7 @@ public final class ShowEngine {
         }
         let targets = voiceTargets(target)
         for v in targets {
-            // Relative (QLab): the level is a change from where the target is now.
+            // Relative: the level is a change from where the target is now.
             let level = f.relative ? f.level.map { max(showSilenceDB, (instances[v]?.levelDB ?? 0) + $0) } : f.level
             if let level, let into = instances[cue.id]?.fadeInto, into > 0, f.duration > 0 {
                 // Part-way: first where the fade would be by now, then on along the same curve.
@@ -999,7 +999,7 @@ public final class ShowEngine {
         inst.pausedAt = t
         instances[id] = inst
         if inst.hasVoice { send(.pause(id, at: t)) }
-        // A paused Fade cue freezes its targets where they are (QLab); resume continues the fade.
+        // A paused Fade cue freezes its targets where they are; resume continues the fade.
         if inst.kind == .fade, inst.phase == .running, !inst.actionEnded {
             for v in inst.holdTargets { send(.holdLevels(v, at: t)) }
         }

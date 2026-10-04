@@ -28,7 +28,7 @@ public enum ContinueMode: String, Codable, CaseIterable, Sendable {
     case autoFollow
 }
 
-/// How a group plays its children (QLab 5's group modes, in its order).
+/// How a group plays its children.
 public enum GroupMode: String, Codable, CaseIterable, Sendable {
     /// Start First And Enter: the first child starts and the GO playhead moves into the group, onto the next child;
     /// after the last child it leaves the group.
@@ -44,7 +44,7 @@ public enum GroupMode: String, Codable, CaseIterable, Sendable {
     case random
 }
 
-/// What a cue does when it is told to start while it is already running (QLab's second trigger).
+/// What a cue does when it is told to start while it is already running (second trigger).
 public enum SecondTrigger: String, Codable, CaseIterable, Sendable {
     case nothing, panic, stop, hardStop, restart, devamp
     /// Playlist groups: the next entry plays (crossfading if set).
@@ -113,7 +113,7 @@ public struct AudioCueParams: Codable, Equatable, Sendable {
     /// Built-in fade-in at start and fade-out at the end of the region (seconds).
     public var fadeIn: Double = 0
     public var fadeOut: Double = 0
-    /// QLab's integrated fade: a volume line drawn over the waveform (nil = none).
+    /// Integrated fade: a volume line drawn over the waveform (nil = none).
     public var envelope: VolumeEnvelope?
 
     public init(file: String = "") { self.file = file }
@@ -142,7 +142,7 @@ public struct AudioCueParams: Codable, Equatable, Sendable {
     }
 }
 
-/// QLab's integrated fade envelope of an audio cue: control points on a volume line over the waveform.
+/// Integrated fade envelope of an audio cue: control points on a volume line over the waveform.
 /// Points sit at a fraction of the span they are locked to (the cue's start…end, or the whole file); between them
 /// the level follows a smooth curve or straight lines; before the first and after the last it holds.
 public struct VolumeEnvelope: Codable, Equatable, Sendable {
@@ -155,7 +155,7 @@ public struct VolumeEnvelope: Codable, Equatable, Sendable {
     }
 
     public var points: [Point] = []
-    /// Smooth curve through the points (QLab "Custom Curve"); false = straight lines with sharp bends ("Linear").
+    /// Smooth curve through the points; false = straight lines with sharp bends ("Linear").
     public var smooth = true
     /// Stretch with the cue's start and end ("Lock fade to start/end"); false = fixed to the file's own times.
     public var lockToRegion = true
@@ -202,10 +202,10 @@ public struct FadeCueParams: Codable, Equatable, Sendable {
     public var level: Double? = showSilenceDB
     /// New output levels (index = output); nil entries are unchanged.
     public var outputLevels: [Double?] = []
-    /// Stop the target when the fade is done. Off by default, as in QLab: a fade-out leaves the target playing
+    /// Stop the target when the fade is done. Off by default: a fade-out leaves the target playing
     /// at −∞ (it can be brought back up); tick it to stop the target at the end.
     public var stopWhenDone: Bool = false
-    /// QLab's relative fade: `level` is added to the target's current level (e.g. −6 dB) instead of replacing it.
+    /// Relative fade: `level` is added to the target's current level (e.g. −6 dB) instead of replacing it.
     public var relative: Bool = false
     /// Fade in: if the target is not playing, the fade starts it from silence and brings it up (to `level`, or to
     /// the target's own level when `level` is nil).

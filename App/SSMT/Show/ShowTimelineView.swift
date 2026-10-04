@@ -20,7 +20,7 @@ struct ShowTimelineView: View {
     /// Group timeline: where the ruler is being dragged (the playback cursor follows; release = seek there).
     @State private var scrub: Double?
 
-    /// As in QLab's group timeline: the body moves the cue (its pre-wait); the left edge trims the start of the file
+    /// Group timeline: the body moves the cue (its pre-wait); the left edge trims the start of the file
     /// together with the pre-wait; the right edge trims the end; ⌥ while dragging slips the sound inside the clip
     /// (file start and end move, the clip's place and length stay).
     enum DragMode { case move, trimStart, trimEnd, slip }
@@ -75,7 +75,7 @@ struct ShowTimelineView: View {
                                 } : nil)
                             .help(label(c.cueID))
                     }
-                    // Ruler of a group timeline: click or drag to move playback there (QLab).
+                    // Ruler of a group timeline: click or drag to move playback there.
                     if let g = groupMode {
                         Color.white.opacity(0.001)
                             .frame(width: geo.size.width, height: layout.ruler + 4)
@@ -249,7 +249,7 @@ struct ShowTimelineView: View {
     /// Edges of the other clips (and the group start): the dragged edge snaps to them (⌘ while dragging: no snapping).
     private func guides(except id: UUID, clips: [TimelineClip]) -> [Double] {
         var g: [Double] = [0]
-        // The playback cursor too (QLab: pause, then drag a cue to exactly that moment).
+        // The playback cursor too (pause, then drag a cue to exactly that moment).
         if let c = cursor(0, clips: clips) { g.append(c.time) }
         for o in clips where o.cueID != id {
             g.append(o.start)
@@ -419,7 +419,7 @@ struct ShowTimelineView: View {
             switch c.style {
             case .audio:
                 let shape = Path(roundedRect: r, cornerRadius: 5)
-                // The cue's colour, as in QLab; green otherwise.
+                // The cue's colour; green otherwise.
                 let tint = cue.flatMap { CueColor(rawValue: $0.color) }.flatMap { $0 == .none ? nil : $0.color } ?? Theme.accent
                 ctx.fill(shape, with: .color(tint.opacity(ghost ? 0.05 : 0.16)))
                 var slip = 0.0
@@ -461,7 +461,7 @@ struct ShowTimelineView: View {
             }
         }
 
-        // Playback cursor of a group timeline (QLab's yellow line): exactly at the group's clock on the ruler,
+        // Playback cursor of a group timeline (yellow line): exactly at the group's clock on the ruler,
         // so it crosses each waveform at the sample being heard.
         if let c = cursor, !L.live {
             let x = L.x(c.time)

@@ -2,24 +2,24 @@ import SSMTCore
 import SwiftUI
 
 /// Right column: every setting of the selected cue.
-/// Inspector tabs, as in QLab: each cue type shows its own (an audio cue its waveform with start, end, loops and
+/// Inspector tabs: each cue type shows its own (an audio cue its waveform with start, end, loops and
 /// fades; a fade its duration and curve; a group its multitrack and mode).
 enum InspectorTab: String, CaseIterable {
-    /// Number, name, notes, colour, armed, pre-wait, post-wait, continue (QLab "Basics").
+    /// Number, name, notes, colour, armed, pre-wait, post-wait, continue.
     case main
-    /// Audio: file, rate and the waveform with start / end, loops, fade in / out (QLab "Time & Loops").
+    /// Audio: file, rate and the waveform with start / end, loops, fade in / out.
     case wave
     /// Fade cue: in or out, duration, curve, target, levels.
     case fade
-    /// Group: one track per cue (QLab "Timeline").
+    /// Group: one track per cue.
     case multitrack
     /// Group mode, playlist options.
     case mode
     /// Network, wait and control cues: what they do.
     case action
-    /// Audio: level and routing (QLab "Audio Levels").
+    /// Audio: level and routing.
     case outputs
-    /// Hotkey and what a second start does (QLab "Triggers").
+    /// Hotkey and what a second start does.
     case triggers
     case pad
 
@@ -205,7 +205,7 @@ private struct CueInspectorContent: View {
     private var info: (duration: Double, channels: Int)? { path.flatMap { show.clipInfo[$0] } }
 
     @ViewBuilder private var audioSection: some View {
-        // The track's own timeline (QLab "Time & Loops"): drag the start / end, the fade in / out handles and the loop.
+        // The track's own timeline: drag the start / end, the fade in / out handles and the loop.
         section(loc.t("show.wave.title"), icon: "waveform") {
             Text(loc.t("show.wave.hint")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -359,7 +359,7 @@ private struct CueInspectorContent: View {
                 show.updateCue(cue.id) { $0.fade?.level = v ? showSilenceDB : nil }
             }))
             if cue.fade?.level != nil {
-                // Absolute: "to −∞ / to −10 dB"; relative (QLab): "by −6 dB" from where the target is.
+                // Absolute: "to −∞ / to −10 dB"; relative: "by −6 dB" from where the target is.
                 Picker("", selection: Binding(get: { cue.fade?.relative ?? false }, set: { v in
                     show.updateCue(cue.id) { $0.fade?.relative = v; $0.fade?.level = v ? -6 : showSilenceDB }
                 })) {
@@ -645,7 +645,7 @@ private struct CueInspectorContent: View {
     }
 }
 
-/// The fade's shape over its duration, as QLab draws it (up for a fade-in, down for a fade-out).
+/// The fade's shape over its duration (up for a fade-in, down for a fade-out).
 private struct FadeCurvePreview: View {
     var curve: FadeCurve
     var up: Bool

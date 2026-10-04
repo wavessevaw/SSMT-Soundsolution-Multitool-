@@ -185,7 +185,7 @@ final class ClipCache: @unchecked Sendable {
         lock.unlock()
         defer { lock.lock(); inFlight.remove(path); lock.unlock() }
         do {
-            // As QLab does: the cue can play as soon as the first second or so is decoded; the rest is decoded
+            // The cue can play as soon as the first second or so is decoded; the rest is decoded
             // far faster than it plays, into the same memory-mapped file.
             let clip = try Self.open(URL(fileURLWithPath: path), sampleRate: sampleRate) { [weak self] early in
                 guard let self else { return }

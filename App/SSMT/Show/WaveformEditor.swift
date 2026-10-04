@@ -91,7 +91,7 @@ struct WaveformEditor: View {
                             draft = cue.audio
                             panOrigin = v0
                             if dragHandle == .envelopeNew {
-                                // A click on the volume line adds a control point there (QLab's integrated fade).
+                                // A click on the volume line adds a control point there (integrated fade).
                                 dragHandle = addEnvelopePoint(time: t(g.startLocation.x), length: length)
                             }
                         }
@@ -326,7 +326,7 @@ struct WaveformEditor: View {
 
     // MARK: Controls
 
-    /// QLab's "Integrated fade" under the waveform: on / off, curve type, lock to start / end, reset.
+    /// "Integrated fade" under the waveform: on / off, curve type, lock to start / end, reset.
     @ViewBuilder private var envelopeControls: some View {
         let env = params.envelope
         HStack(spacing: 10) {
