@@ -280,6 +280,15 @@ final class SnapshotTests: XCTestCase {
 
     func testAssistWorkspace() throws {
         let store = Self.model.assist
+        // Before a console is connected: only the console choice and the consoles found on the network.
+        store.disconnect()
+        store.autoScan = false
+        store.family = .x32
+        store.showDiscovered([
+            DiscoveredConsole(family: .x32, ip: "192.168.1.64", name: "X32-02-4A-53", model: "X32", firmware: "4.06"),
+            DiscoveredConsole(family: .x32, ip: "192.168.1.71", name: "M32R-11-0C-2B", model: "M32R", firmware: "4.06"),
+        ])
+        try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-connect", loc: Self.ru)
         store.family = .simulator
         store.character = .musical
         store.connect()

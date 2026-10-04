@@ -13,6 +13,10 @@
   обратным отсчётом восстановления, список активных коррекций — каждую можно отменить отдельно, солисты для
   разборчивости, общий журнал ассистента и звукорежиссёра.
 - **Тест пульта:** отчёт по шагам.
+- **Сначала подключение.** Пока пульт не подключён, во вкладке только выбор пульта: X32 / M32 и X Air / MR ищутся
+  в сети Wi-Fi (как в X32-Edit и Mixing Station), найденные пульты показываются с моделью, IP и прошивкой — кнопка
+  «Подключить»; можно ввести IP вручную или выбрать симулятор. Интерфейс ассистента открывается после подключения.
+- **Лампочка связи** в шапке: зелёная — пульт отвечает, красная — связи нет.
 
 **Qtrl: аудио в шоу — как в QLab.** При сохранении шоу все его аудиофайлы копируются в папку «<имя шоу> Audio»
 рядом с файлом шоу и записываются относительно него — шоу переносится одной папкой. До сохранения треки играют
@@ -56,7 +60,9 @@
 profile status, settings in a sheet; soundcheck as a grouped channel list with live meters plus a detail card
 with the EQ curve over the channel spectrum; show mode with the guard status, monitor lines with levels and a
 restore countdown, active corrections that can be cancelled one by one, and one log for the assistant and the
-engineer; the console test report as steps.
+engineer; the console test report as steps. Until a console is connected the tab shows only the console choice: X32 / M32
+and X Air / MR consoles are found on the Wi-Fi network (model, IP, firmware, Connect), or enter an IP, or use the
+simulator. A link lamp in the header is green while the console answers and red when the link is lost.
 
 **Qtrl: show audio as in QLab.** Saving a show copies all its audio into "<show name> Audio" next to the show file
 (stored relative to it), so a show travels as one folder; before saving, tracks play from where they are. A file that cannot be copied or read

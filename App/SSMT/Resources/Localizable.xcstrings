@@ -716,6 +716,244 @@
         }
       }
     },
+    "assist.connect.after": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After connecting: soundcheck, show guard and console test. The lamp in the header is green while the console answers and red when the link is lost."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "После подключения: саундчек, страховка шоу и тест пульта. Лампочка в шапке горит зелёным, пока пульт отвечает, и красным, когда связь пропала."
+          }
+        }
+      }
+    },
+    "assist.connect.connecting": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to %@…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключение к %@…"
+          }
+        }
+      }
+    },
+    "assist.connect.console": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Console"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульт"
+          }
+        }
+      }
+    },
+    "assist.connect.failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No connection"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет соединения"
+          }
+        }
+      }
+    },
+    "assist.connect.found": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consoles on the network"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульты в сети"
+          }
+        }
+      }
+    },
+    "assist.connect.fw": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "firmware %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "прошивка %@"
+          }
+        }
+      }
+    },
+    "assist.connect.manual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or by IP address"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Или по IP-адресу"
+          }
+        }
+      }
+    },
+    "assist.connect.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No console found. Check that it is on and connected to the same router as this Mac, or enter its IP below."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульт не найден. Проверьте, что он включён и подключён к тому же роутеру, что и Mac, или введите его IP ниже."
+          }
+        }
+      }
+    },
+    "assist.connect.rescan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search again"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Искать снова"
+          }
+        }
+      }
+    },
+    "assist.connect.searching": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searching the network…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск в сети…"
+          }
+        }
+      }
+    },
+    "assist.connect.sim": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Симулятор"
+          }
+        }
+      }
+    },
+    "assist.connect.simGo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect the simulator"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключить симулятор"
+          }
+        }
+      }
+    },
+    "assist.connect.simHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Practice without a console"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Без пульта, для обучения"
+          }
+        }
+      }
+    },
+    "assist.connect.wifi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found over Wi-Fi"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск по Wi-Fi"
+          }
+        }
+      }
+    },
     "assist.connecting": {
       "extractionState": "manual",
       "localizations": {
@@ -2348,6 +2586,57 @@
         }
       }
     },
+    "assist.link.lost": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No link"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет связи"
+          }
+        }
+      }
+    },
+    "assist.link.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not connected"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не подключено"
+          }
+        }
+      }
+    },
+    "assist.link.ok": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link OK"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Связь есть"
+          }
+        }
+      }
+    },
     "assist.list.count": {
       "extractionState": "manual",
       "localizations": {
@@ -2660,13 +2949,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Over the router's Wi-Fi, like Mixing Station. Or choose the simulator in the settings to try everything without a console."
+            "value": "The laptop and the console must be on the same network (Wi-Fi router or cable), as with Mixing Station. Choose the console: it is found on the network, then press Connect. The assistant opens once the console is connected."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Через Wi-Fi роутера, как Mixing Station. Или выберите в настройках симулятор, чтобы попробовать все функции без пульта."
+            "value": "Ноутбук и пульт должны быть в одной сети (Wi-Fi роутера или кабель), как у Mixing Station. Выберите пульт — он найдётся в сети, — и нажмите «Подключить». Ассистент откроется после подключения."
           }
         }
       }
