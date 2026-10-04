@@ -300,9 +300,12 @@ final class SnapshotTests: XCTestCase {
         // Show mode: the guard backs up the engineer.
         store.mode = .show
         store.startGuard()
-        store.runGuardNow(steps: 6)
+        store.runGuardNow(steps: 24)   // 6 s at 4 steps a second
         try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-show", loc: Self.ru)
         store.stopGuard()
+        // Console test with the fader wave panel.
+        store.mode = .test
+        try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-test", loc: Self.ru)
         store.mode = .soundcheck
         store.selectedChannel = nil
         store.disconnect()

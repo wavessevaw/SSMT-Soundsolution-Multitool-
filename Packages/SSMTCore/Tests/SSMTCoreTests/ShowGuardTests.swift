@@ -96,6 +96,28 @@ final class ShowGuardTests: XCTestCase {
         XCTAssertEqual(g.activeCorrections, 0)
     }
 
+    /// Four steps a second (as in the app): a ringing monitor is pulled down within a second of starting to ring,
+    /// and pulled again half a second later if it keeps ringing.
+    func testRingingMonitorIsCaughtWithinASecond() {
+        let g = makeGuard()
+        let inputs = [1: feature(rms: -20)]
+        var t = 0.0
+        while t < 2 { _ = g.step(time: t, channels: inputs, busLevels: [2: -25]); t += 0.25 }
+        let onset = t
+        var firstDip: Double?
+        var dips: [Double] = []
+        while t < onset + 2.5 {
+            let r = g.step(time: t, channels: inputs, busLevels: [2: -10])   // keeps ringing
+            for a in r.actions { if case .monitorDip(bus: 2, _) = a { dips.append(t); if firstDip == nil { firstDip = t } } }
+            t += 0.25
+        }
+        XCTAssertNotNil(firstDip)
+        XCTAssertLessThanOrEqual((firstDip ?? 99) - onset, 0.75 + 1e-9, "pulled down within ¾ s")
+        XCTAssertGreaterThanOrEqual(dips.count, 2, "pulled again while it keeps ringing")
+        if dips.count >= 2 { XCTAssertLessThanOrEqual(dips[1] - dips[0], 0.5 + 1e-9) }
+        XCTAssertEqual(g.bus(2)!.faderDB, -2 - 9, accuracy: 0.01, "no deeper than 9 dB")
+    }
+
     func testEngineerTouchWins() {
         let g = makeGuard()
         let inputs = [1: feature(rms: -20)]

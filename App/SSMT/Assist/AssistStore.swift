@@ -160,7 +160,7 @@ final class AssistStore: ObservableObject {
     @Published private(set) var connection: Connection = .disconnected
     @Published private(set) var strips: [ChannelStrip] = []
     @Published private(set) var buses: [BusStrip] = []
-    @Published var mode: Mode = .soundcheck
+    @Published var mode: Mode = .soundcheck { didSet { if mode != .test { stopWave() } } }
     @Published var character: MixCharacter = .musical {
         didSet { session?.character = character; guardian?.character = character }
     }
@@ -296,6 +296,7 @@ final class AssistStore: ObservableObject {
             heard = []
             gainAsked = []
             l.queryAll(channels: family.channelCount, routing: routing)
+            l.ask([X32Codec.mainOnAddress(family)])
             // Ask again for whatever got lost on the way (Wi-Fi drops UDP).
             for delay in [2.5, 5.0, 9.0] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.askMissing(from: l) }
@@ -347,6 +348,7 @@ final class AssistStore: ObservableObject {
     }
 
     func disconnect() {
+        stopWave()
         healthTimer?.invalidate()
         healthTimer = nil
         linkAlive = false
@@ -402,6 +404,10 @@ final class AssistStore: ObservableObject {
         lastHeard = Date()
         if !linkAlive && isConnected { linkAlive = true }
         if !m.arguments.isEmpty { heard.insert(m.address) }
+        if m.address == X32Codec.mainOnAddress(family), let a = m.arguments.first {
+            switch a { case let .int(i): mainOn = i != 0; case let .float(f): mainOn = f != 0; default: break }
+            return
+        }
         if family != .xAir, routing.apply(m) {
             askGains()
             return
@@ -596,6 +602,7 @@ final class AssistStore: ObservableObject {
     /// (in the simulator: against the built-in X32 emulator). The console is restored at the end.
     func runConsoleTest() {
         guard !testing else { return }
+        stopWave()
         stopJob()
         stopGuard()
         let scenario = AssistScenario.all.first { $0.id == testScenario } ?? .musical
@@ -764,6 +771,72 @@ final class AssistStore: ObservableObject {
 
     var inputDevices: [AudioDeviceInfo] { DeviceCatalog.allDevices().filter { $0.inputChannels > 0 } }
 
+    // MARK: fader wave (console test)
+
+    /// Every channel fader runs a travelling sine wave top to bottom, to judge the motor faders' smoothness.
+    @Published private(set) var waving = false
+    /// Seconds for one fader to go top → bottom → top.
+    @Published var waveCycle: Double = 4
+    private(set) var waveStart = Date()
+    private var waveTimer: Timer?
+    private var waveBackup: [Int: Double] = [:]
+    private var waveMainWasOn: Bool?
+    /// The console's main output on / off, as last read or pushed.
+    private var mainOn: Bool?
+    /// Fader updates per second during the wave.
+    static let waveRate = 25.0
+
+    var waveChannels: Int { family == .simulator ? stripMap.count : family.channelCount }
+
+    func startWave() {
+        guard isConnected, !waving else { return }
+        stopJob()
+        stopGuard()
+        stopRehearsal()
+        waveBackup = stripMap.mapValues(\.faderDB)
+        // Faders at the top must not reach the PA: the main output is off for the wave.
+        waveMainWasOn = mainOn
+        link?.send([OSCMessage(X32Codec.mainOnAddress(family), [.int(0)])])
+        waveStart = Date()
+        waving = true
+        let t = Timer(timeInterval: 1 / Self.waveRate, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.waveTick() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        waveTimer = t
+    }
+
+    private func waveTick() {
+        guard waving else { return }
+        let w = FaderWave(cycleSeconds: waveCycle)
+        let t = Date().timeIntervalSince(waveStart)
+        if let link {
+            link.send(w.messages(at: t, channels: waveChannels))
+        } else if let sim {
+            for (i, p) in w.positions(at: t, channels: waveChannels).enumerated() {
+                guard var s = stripMap[i + 1] else { continue }
+                s.faderDB = X32Codec.faderDB(p)
+                sim.setStrip(s)
+            }
+        }
+    }
+
+    func stopWave() {
+        guard waving else { return }
+        waveTimer?.invalidate()
+        waveTimer = nil
+        waving = false
+        // Faders back where they were, then the main output as it was (left off if that is not known).
+        if let link {
+            link.send(waveBackup.keys.sorted().map { OSCMessage(X32Codec.faderAddress($0), [.float(Float(X32Codec.faderPosition(waveBackup[$0]!)))]) })
+            if waveMainWasOn == true { link.send([OSCMessage(X32Codec.mainOnAddress(family), [.int(1)])]) }
+            else if waveMainWasOn == nil { message = "assist.wave.mainLeftOff" }
+        } else if let sim {
+            for (ch, db) in waveBackup { if var s = stripMap[ch] { s.faderDB = db; sim.setStrip(s) } }
+        }
+        waveBackup = [:]
+    }
+
     // MARK: show guard
 
     func startGuard() {
@@ -779,7 +852,9 @@ final class AssistStore: ObservableObject {
         hallDetector.reset()
         stageDetector.reset()
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+        // 4 steps a second: feedback and ringing monitors are caught within a quarter of a second.
+        guardSteps = 0
+        timer = Timer.scheduledTimer(withTimeInterval: Self.guardInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.guardStep() }
         }
     }
@@ -813,6 +888,8 @@ final class AssistStore: ObservableObject {
     }
 
     private var guardTime: Double = 0
+    private var guardSteps = 0
+    static let guardInterval = 0.25
 
     /// The engineer cancels one correction of the guard from the list.
     func cancelCorrection(_ id: String) {
@@ -831,16 +908,18 @@ final class AssistStore: ObservableObject {
     private func guardStep() {
         guard let g = guardian else { return }
         let t = sim != nil ? guardTime : Date().timeIntervalSince(guardStart)
-        guardTime += 1
-        // Spectra visit the channels that are playing, loudest first, one per second.
+        guardTime += Self.guardInterval
+        guardSteps += 1
+        // Spectra visit the channels that are playing, one per second (the console has one RTA, and needs a moment
+        // after each switch).
         let playing = stripMap.values.filter { !$0.muted && $0.faderDB > -60 }.map(\.id).sorted()
-        if !playing.isEmpty, let link {
+        if !playing.isEmpty, let link, guardSteps % Int((1 / Self.guardInterval).rounded()) == 1 {
             let ch = playing[rtaCursor % playing.count]
             rtaCursor += 1
             meters.rtaChannel = ch
             link.send(ConsoleMeters.rtaFollow(channel: ch, family: family))
         }
-        let (feats, mic, stage) = window(channels: sim != nil ? playing : Array(stripMap.keys), seconds: 1)
+        let (feats, mic, stage) = window(channels: sim != nil ? playing : Array(stripMap.keys), seconds: Self.guardInterval)
         if let sim {
             busLevels = sim.busLevels(channelRMS: feats.filter { $0.value.hasSignal }.mapValues(\.rmsDB))
         }

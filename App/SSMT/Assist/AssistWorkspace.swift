@@ -17,7 +17,7 @@ struct AssistWorkspace: View {
         VStack(alignment: .leading, spacing: 12) {
             AssistHeader()
             if let m = store.message {
-                ErrorBanner(text: m == "nothing found" ? loc.t("assist.nothingFound") : m) { store.message = nil }
+                ErrorBanner(text: m == "nothing found" ? loc.t("assist.nothingFound") : m.hasPrefix("assist.") ? loc.t(m) : m) { store.message = nil }
             }
             switch store.mode {
             case .soundcheck: SoundcheckScreen()
@@ -1175,14 +1175,64 @@ private struct ConsoleTestScreen: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            Panel(title: loc.t("assist.test"), tint: Theme.signalYellow) { ConsoleTestPanel() }
-                .frame(width: 440)
+            VStack(spacing: 12) {
+                Panel(title: loc.t("assist.test"), tint: Theme.signalYellow) { ConsoleTestPanel() }
+                Panel(title: loc.t("assist.wave"), tint: Theme.accent) { FaderWavePanel() }
+            }
+            .frame(width: 440)
             Card(title: loc.t("assist.test.report"), tint: Theme.dataSecondary, accessory: { EmptyView() }) {
                 ScrollView { TestStepper().padding(16) }
             }
             .frame(maxHeight: .infinity)
         }
         .frame(maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// Fader wave: every channel fader of the console runs a sine wave top to bottom, to judge the motor faders'
+/// smoothness; the same wave is drawn here, so the console can be compared with it.
+private struct FaderWavePanel: View {
+    @EnvironmentObject var store: AssistStore
+    @EnvironmentObject var loc: Localizer
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(loc.t("assist.wave.hint")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            TimelineView(.animation(minimumInterval: 1 / 30, paused: !store.waving)) { tl in
+                let n = max(1, store.waveChannels)
+                let t = store.waving ? tl.date.timeIntervalSince(store.waveStart) : 0
+                let pos = FaderWave(cycleSeconds: store.waveCycle).positions(at: t, channels: n)
+                Canvas { ctx, size in
+                    let w = size.width / CGFloat(n)
+                    for (i, p) in pos.enumerated() {
+                        let x = CGFloat(i) * w + w / 2
+                        var slot = Path(); slot.move(to: CGPoint(x: x, y: 4)); slot.addLine(to: CGPoint(x: x, y: size.height - 4))
+                        ctx.stroke(slot, with: .color(Color.white.opacity(0.1)), lineWidth: 2)
+                        let y = 4 + (1 - CGFloat(p)) * (size.height - 8)
+                        let cap = CGRect(x: x - max(2, w * 0.35), y: y - 3, width: max(4, w * 0.7), height: 6)
+                        ctx.fill(Path(roundedRect: cap, cornerRadius: 1.5), with: .color(store.waving ? Theme.accent : Theme.textMuted))
+                    }
+                }
+            }
+            .frame(height: 110)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.black.opacity(0.25)))
+            HStack(spacing: 10) {
+                Text(loc.t("assist.wave.cycle")).font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                Slider(value: $store.waveCycle, in: 1...12, step: 0.5)
+                Text(String(format: "%.1f s", store.waveCycle)).font(Theme.mono(11)).frame(width: 44)
+            }
+            Button {
+                store.waving ? store.stopWave() : store.startWave()
+            } label: {
+                Label(loc.t(store.waving ? "assist.wave.stop" : "assist.wave.start"),
+                      systemImage: store.waving ? "stop.fill" : "water.waves").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(SSMTButtonStyle(kind: store.waving ? .danger : .primary))
+            .disabled(store.testing)
+            Text(loc.t("assist.wave.safety")).font(.system(size: 11)).foregroundStyle(Theme.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 

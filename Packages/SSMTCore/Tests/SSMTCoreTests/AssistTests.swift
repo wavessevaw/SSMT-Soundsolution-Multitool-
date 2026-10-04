@@ -111,6 +111,24 @@ final class AssistTests: XCTestCase {
         XCTAssertLessThan(b2.max() ?? 0, -40, "only channel 2's own frames")
     }
 
+    /// The fader wave runs every fader over its whole travel, neighbours a little apart, smoothly in time.
+    func testFaderWaveCoversTheWholeTravelSmoothly() {
+        let w = FaderWave(cycleSeconds: 4)
+        var lo = 1.0, hi = 0.0
+        var prev = w.positions(at: 0, channels: 32)
+        for k in 1...400 {
+            let p = w.positions(at: Double(k) * 0.04, channels: 32)   // 25 updates a second
+            lo = min(lo, p.min()!); hi = max(hi, p.max()!)
+            for i in p.indices { XCTAssertLessThan(abs(p[i] - prev[i]), 0.07, "no jumps between updates") }
+            prev = p
+        }
+        XCTAssertLessThan(lo, 0.01, "down to the bottom")
+        XCTAssertGreaterThan(hi, 0.99, "up to the top")
+        let p = w.positions(at: 1, channels: 32)
+        XCTAssertNotEqual(p[0], p[16], accuracy: 0.1, "a wave across the console, not all together")
+        XCTAssertEqual(w.messages(at: 0, channels: 2).map(\.address), ["/ch/01/mix/fader", "/ch/02/mix/fader"])
+    }
+
     func testOSCBlobRoundTrip() {
         let m = OSCMessage("/meters/1", [.blob(Data([1, 2, 3, 4, 5]))])
         XCTAssertEqual(OSCMessage.decode(m.encoded()), [m])

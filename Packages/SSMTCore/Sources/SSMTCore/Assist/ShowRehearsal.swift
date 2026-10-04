@@ -166,11 +166,11 @@ public final class ShowRehearsal {
             }
         }
 
-        // The guard listens once a second.
-        if time - lastGuardTime >= 1 - 1e-9 {
+        // The guard listens 4 times a second, as in the app.
+        if time - lastGuardTime >= 0.25 - 1e-9 {
             lastGuardTime = time
             let on = strips.keys.filter { !(console.silent.contains($0)) && (strips[$0]?.faderDB ?? -90) > -90 }
-            let r = console.render(seconds: 1, channels: on.sorted())
+            let r = console.render(seconds: 0.25, channels: on.sorted())
             let feats = r.taps.mapValues { extractor.analyze($0) }
             let levels = console.busLevels(channelRMS: feats.filter { $0.value.hasSignal }.mapValues(\.rmsDB))
             lastBusLevels = levels

@@ -251,6 +251,35 @@ public enum X32Codec {
 
     /// Console identification request ("/info" → version, name, model, firmware).
     public static let info = OSCMessage("/info")
+
+    /// On / off of the main stereo output (1 = on).
+    public static func mainOnAddress(_ family: MixerFamily) -> String { family == .xAir ? "/lr/mix/on" : "/main/st/mix/on" }
+
+    public static func faderAddress(_ ch: Int) -> String { channelPath(ch) + "/mix/fader" }
+}
+
+/// Console test "fader wave": every channel fader travels its whole range, top to bottom, as a sine wave that runs
+/// across the console (each channel a little behind its left neighbour), so the smoothness of the motor faders
+/// can be judged by eye.
+public struct FaderWave: Sendable {
+    /// Seconds for one fader to go top → bottom → top.
+    public var cycleSeconds: Double
+    /// How many waves are spread across the channels at once.
+    public var wavesAcross: Double = 1
+
+    public init(cycleSeconds: Double = 4) { self.cycleSeconds = cycleSeconds }
+
+    /// Fader positions (0 = bottom, 1 = top) of channels 1…n at time `t` (seconds).
+    public func positions(at t: Double, channels n: Int) -> [Double] {
+        guard n > 0 else { return [] }
+        let c = max(0.2, cycleSeconds)
+        return (0..<n).map { i in 0.5 + 0.5 * sin(2 * .pi * (t / c - wavesAcross * Double(i) / Double(n))) }
+    }
+
+    /// The OSC messages that put the console's faders where the wave is at `t`.
+    public func messages(at t: Double, channels n: Int) -> [OSCMessage] {
+        positions(at: t, channels: n).enumerated().map { OSCMessage(X32Codec.faderAddress($0.offset + 1), [.float(Float($0.element))]) }
+    }
 }
 
 /// Which head amp feeds each channel of an X32 / M32 (local inputs, AES50 A / B stage boxes, card…), so the

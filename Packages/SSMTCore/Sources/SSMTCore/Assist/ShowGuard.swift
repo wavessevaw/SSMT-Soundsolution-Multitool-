@@ -79,17 +79,24 @@ public final class ShowGuard {
     var notches: [Int: (offset: Offset, frequency: Double, last: Double)] = [:]
     var unmasks: [Int: Offset] = [:]
     var tonal: [Int: Offset] = [:]
-    var dips: [Int: (original: Double, dipDB: Double, quietSince: Double?)] = [:]
+    /// Monitor dips: where the engineer had the bus, how far it is pulled down, since when it is quiet, and when and
+    /// at what bus level it was last pulled (to pull again at once if it keeps ringing).
+    var dips: [Int: (original: Double, dipDB: Double, quietSince: Double?, at: Double, level: Double)] = [:]
     /// Highest fader a monitor bus may be brought back to: 1 dB under where it rang (until the engineer moves it).
     var safeMax: [Int: Double] = [:]
     var rangAt: [Int: Double] = [:]
     var hands: [Int: Double] = [:]          // channel → time the engineer last touched it
     var busHands: [Int: Double] = [:]
-    var busHistory: [Int: [Double]] = [:]
-    var inputHistory: [Double] = []
+    /// Recent bus levels and summed input level, by time (the last 6 s).
+    var busHistory: [Int: [(t: Double, v: Double)]] = [:]
+    var inputHistory: [(t: Double, v: Double)] = []
     var drift: [Int: [Double]] = [:]          // EMA of bands per channel
-    var previousBands: [Int: [[Double]]] = [:]  // the last three seconds' spectra per channel
+    var previousBands: [Int: [(t: Double, b: [Double])]] = [:]  // the last three seconds' spectra per channel
     var lastMassScene = -1e9
+    /// Time of the last slow step: tone, intelligibility and bringing things back run once a second; feedback and
+    /// ringing monitors are handled at every step (4 a second in the app).
+    var lastSlowStep = -1e9
+    var slowAcc: [Int: (last: SignalFeatures, bands: [Double], n: Int, rms: Double, count: Int)] = [:]
     let kinds: [Int: SourceKind]
 
     public init(strips: [ChannelStrip], buses: [BusStrip], character: MixCharacter, sampleRate: Double = 48000) {
@@ -174,7 +181,7 @@ public final class ShowGuard {
     func handsOff(_ ch: Int, _ t: Double) -> Bool { (hands[ch].map { t - $0 < settings.engineerHoldSeconds }) ?? false }
     func record(_ t: Double, _ a: GuardAction) { log.append((t, a)); if log.count > 500 { log.removeFirst(100) } }
 
-    // MARK: step (about once a second)
+    // MARK: step (4 a second in the app; anything from 1 a second works)
 
     /// - Parameters:
     ///   - time: seconds since the guard started.
@@ -189,14 +196,41 @@ public final class ShowGuard {
         let busBefore = Dictionary(uniqueKeysWithValues: buses.keys.compactMap { id in bus(id).map { (id, $0) } })
         let mark = log.count
 
+        let slow = t - lastSlowStep >= 1 - 1e-9
+        if slow { lastSlowStep = t }
+        // Tone and intelligibility judge a whole second: the spectra of the fast steps are averaged (power).
+        for (k, f) in channels {
+            var a = slowAcc[k] ?? (f, [Double](repeating: 0, count: f.bandsDB.count), 0, 0, 0)
+            a.last = f
+            if f.bandsDB.contains(where: { $0 > -119 }) {
+                if a.bands.count != f.bandsDB.count { a.bands = [Double](repeating: 0, count: f.bandsDB.count); a.n = 0 }
+                for i in f.bandsDB.indices { a.bands[i] += pow(10, f.bandsDB[i] / 10) }
+                a.n += 1
+            }
+            a.rms += pow(10, f.rmsDB / 10)
+            a.count += 1
+            slowAcc[k] = a
+        }
+        var slowChannels: [Int: SignalFeatures] = [:]
+        if slow {
+            for (k, a) in slowAcc {
+                var f = a.last
+                if a.n > 0 { f.bandsDB = a.bands.map { Decibel.fromPower($0 / Double(a.n) + 1e-15) } }
+                if a.count > 0 { f.rmsDB = Decibel.fromPower(a.rms / Double(a.count) + 1e-15) }
+                slowChannels[k] = f
+            }
+            slowAcc.removeAll()
+        }
         hall(t, channels, hallFeedback)
         for (k, f) in channels where f.bandsDB.contains(where: { $0 > -119 }) {
-            previousBands[k, default: []].append(f.bandsDB)
-            if previousBands[k]!.count > 3 { previousBands[k]!.removeFirst() }
+            previousBands[k, default: []].append((t, f.bandsDB))
+            previousBands[k]!.removeAll { t - $0.t >= 3 - 1e-9 }
         }
-        monitors(t, channels, busLevels, stageFeedback)
-        massScene(t, channels)
-        tonalDrift(t, channels)
+        monitors(t, channels, busLevels, stageFeedback, slow: slow)
+        if slow {
+            massScene(t, slowChannels)
+            tonalDrift(t, slowChannels)
+        }
 
         let strips = base.keys.sorted().compactMap { ch -> ChannelStrip? in
             guard let s = strip(ch), s != before[ch] else { return nil }
@@ -220,8 +254,9 @@ public final class ShowGuard {
 
     func hall(_ t: Double, _ ch: [Int: SignalFeatures], _ events: [FeedbackDetector.Event]) {
         for e in events {
-            // The same howl dying away after a fresh notch: neither deepen nor blame another channel.
-            if notches.values.contains(where: { abs(log2($0.frequency / e.frequency)) < 1.0 / 6 && t - $0.last < 5 }) { continue }
+            // The same howl dying away right after a fresh notch: neither deepen nor blame another channel. Still
+            // howling 1.5 s later: the notch goes deeper.
+            if notches.values.contains(where: { abs(log2($0.frequency / e.frequency)) < 1.0 / 6 && t - $0.last < 1.5 }) { continue }
             let b = ThirdOctave.index(of: e.frequency)
             let culprit = base.values.filter { !$0.muted && $0.faderDB > -60 && !((hands[$0.id].map { t - $0 < settings.safetyHoldSeconds }) ?? false) }
                 .max { score($0, b, ch) < score($1, b, ch) }
@@ -253,43 +288,51 @@ public final class ShowGuard {
     /// So the rise over the last seconds counts most; how loud the channel is sent to the room breaks ties.
     func score(_ s: ChannelStrip, _ band: Int, _ ch: [Int: SignalFeatures]) -> Double {
         let now = ch[s.id].map { $0.bandsDB[band] > -119 ? $0.bandsDB[band] : $0.rmsDB - 15 } ?? -100
-        let before = previousBands[s.id]?.map { $0[band] }.filter { $0 > -119 }.min() ?? now
+        let before = previousBands[s.id]?.map { $0.b[band] }.filter { $0 > -119 }.min() ?? now
         return (now - before) + 0.2 * (now + s.faderDB)
     }
 
     // MARK: monitor loops → dip the bus, then bring it back
 
-    func monitors(_ t: Double, _ ch: [Int: SignalFeatures], _ levels: [Int: Double], _ stage: [FeedbackDetector.Event]) {
+    func monitors(_ t: Double, _ ch: [Int: SignalFeatures], _ levels: [Int: Double], _ stage: [FeedbackDetector.Event],
+                  slow: Bool = true) {
         let inputs = Decibel.fromPower(ch.values.filter(\.hasSignal).reduce(0) { $0 + pow(10, $1.rmsDB / 10) } + 1e-12)
-        inputHistory.append(inputs)
-        if inputHistory.count > 6 { inputHistory.removeFirst() }
+        inputHistory.append((t, inputs))
+        inputHistory.removeAll { t - $0.t >= 6 - 1e-9 }
         var looping: Set<Int> = []
         for id in monitorBuses {
             guard let l = levels[id] else { continue }
             var h = busHistory[id] ?? []
-            h.append(l)
-            if h.count > 6 { h.removeFirst() }
+            h.append((t, l))
+            h.removeAll { t - $0.t >= 6 - 1e-9 }
             busHistory[id] = h
-            guard h.count >= 4 else { continue }
-            let recent = Array(h.suffix(2)), before = h.prefix(h.count - 2).min() ?? l
+            // Recent = the last ¾ s (at least the last two readings); before = what came earlier (≥ 1 s of history).
+            let nRecent = max(2, h.filter { t - $0.t < 0.75 }.count)
+            guard h.count >= nRecent + 2, t - h[0].t >= 1 - 1e-9 else { continue }
+            let recent = h.suffix(nRecent).map(\.v), before = h.prefix(h.count - nRecent).map(\.v).min() ?? l
             let rise = (recent.min() ?? l) - before
             let steady = (recent.max() ?? l) - (recent.min() ?? l) < 1.5
-            let inputRise = (inputHistory.last ?? 0) - (inputHistory.prefix(max(1, inputHistory.count - 2)).min() ?? 0)
+            let inputBefore = inputHistory.prefix(max(1, inputHistory.count - nRecent)).map(\.v).min() ?? 0
+            let inputRise = (inputHistory.last?.v ?? 0) - inputBefore
             // A loop: the bus jumps and holds a steady level that the inputs do not explain.
             if l > -30 && rise >= 8 && steady && inputRise < rise - 5 { looping.insert(id) }
+        }
+        // Pulled down half a second ago and not one dB quieter for it: still ringing — pull again now.
+        for (id, d) in dips where t - d.at >= 0.5 - 1e-9 && t - d.at < 3 {
+            if let l = levels[id], l > -30, l >= d.level - 1 { looping.insert(id) }
         }
         if !stage.isEmpty {
             // The stage mic heard it: blame the monitor bus that rose most recently, else the loudest.
             let rising = monitorBuses.max { a, b in
-                let ra = (busHistory[a]?.last ?? -120) - (busHistory[a]?.first ?? -120)
-                let rb = (busHistory[b]?.last ?? -120) - (busHistory[b]?.first ?? -120)
+                let ra = (busHistory[a]?.last?.v ?? -120) - (busHistory[a]?.first?.v ?? -120)
+                let rb = (busHistory[b]?.last?.v ?? -120) - (busHistory[b]?.first?.v ?? -120)
                 return ra < rb
             }
             if let r = rising { looping.insert(r) }
         }
         for id in looping {
             guard let b = buses[id], !(busHands[id].map { t - $0 < settings.safetyHoldSeconds } ?? false) else { continue }
-            var d = dips[id] ?? (b.faderDB, 0, nil)
+            var d = dips[id] ?? (b.faderDB, 0, nil, t, levels[id] ?? -120)
             guard d.dipDB < settings.monitorMaxDipDB else { continue }
             // First time: pull down and later bring it all the way back. If it rings again, it is the setting
             // itself: from then on it is only brought back to 1 dB under where it rang.
@@ -297,13 +340,16 @@ public final class ShowGuard {
             if let first = rangAt[id] { safeMax[id] = min(safeMax[id] ?? .infinity, min(first, rang) - 1) } else { rangAt[id] = rang }
             d.dipDB = min(d.dipDB + settings.monitorStepDB, settings.monitorMaxDipDB)
             d.quietSince = nil
+            d.at = t
+            d.level = levels[id] ?? d.level
             dips[id] = d
             busHistory[id] = []
             record(t, .monitorDip(bus: id, byDB: d.dipDB))
         }
         for (id, var d) in dips where !looping.contains(id) {
             if d.quietSince == nil { d.quietSince = t }
-            if t - d.quietSince! >= settings.holdSeconds {
+            // Brought back 1 dB a second (on the slow steps), after `holdSeconds` of quiet.
+            if slow, t - d.quietSince! >= settings.holdSeconds {
                 let target = max(0, d.original - (safeMax[id] ?? d.original))
                 if d.dipDB > target {
                     d.dipDB = max(target, d.dipDB - settings.restoreStepDB)

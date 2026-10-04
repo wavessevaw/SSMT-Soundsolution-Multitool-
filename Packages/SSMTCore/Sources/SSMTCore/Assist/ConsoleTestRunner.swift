@@ -52,7 +52,8 @@ public final class ConsoleTestRunner {
         onProgress?(checks)
     }
 
-    var mainOnAddress: String { family == .xAir ? "/lr/mix/on" : "/main/st/mix/on" }
+    var mainOnAddress: String { X32Codec.mainOnAddress(family) }
+    var mainWasOn: Bool?
 
     /// Reads strips back from the console (the routing first, so the gains are read from the right preamps).
     func readStrips(_ chans: [Int]) async -> [Int: ChannelStrip] {
@@ -108,6 +109,11 @@ public final class ConsoleTestRunner {
         busBackup = await readBuses(Array(1...4))
         let gotNames = backup.values.filter { !$0.name.isEmpty || $0.gainDB != 20 }.count
         report("backup", gotNames > 0 || !backup.isEmpty ? .ok : .warning, "\(backup.count) ch, \(busBackup.count) bus")
+        // The main output's own state, so the test puts it back as it was (not switched on if it was off).
+        let mainReply = await transport.query([mainOnAddress], timeout: 1).first { $0.address == mainOnAddress }
+        mainWasOn = mainReply?.arguments.first.flatMap { a -> Bool? in
+            switch a { case let .int(i): return i != 0; case let .float(f): return f != 0; default: return nil }
+        }
         if muteMain { transport.send([OSCMessage(mainOnAddress, [.int(0)])]) }
 
         // 3. Names and a neutral start.
@@ -219,7 +225,8 @@ public final class ConsoleTestRunner {
         report("restore", .running)
         for ch in channels { if let b = backup[ch] { transport.send(X32Codec.messages(from: nil, to: b, family: family, routing: routing)) } }
         for (_, b) in busBackup { transport.send(X32Codec.busMessages(from: nil, to: b, family: family) + [OSCMessage(X32Codec.busPath(b.id, family: family) + "/config/name", [.string(b.name)])]) }
-        if muteMain { transport.send([OSCMessage(mainOnAddress, [.int(1)])]) }
+        // Back on only if it was on (unknown: on, as the test found the console playing).
+        if muteMain, mainWasOn ?? true { transport.send([OSCMessage(mainOnAddress, [.int(1)])]) }
         sent = backup
         await verify("restore", okDetail: "\(channels.count) channels and 4 buses as before the test")
         return checks

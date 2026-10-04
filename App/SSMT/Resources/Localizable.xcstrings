@@ -4728,6 +4728,125 @@
         }
       }
     },
+    "assist.wave": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fader wave"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Волна фейдеров"
+          }
+        }
+      }
+    },
+    "assist.wave.cycle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One wave"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Одна волна"
+          }
+        }
+      }
+    },
+    "assist.wave.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Every channel fader runs top to bottom and back as a wave across the console, until stopped — to judge how smoothly the motor faders move. The same wave is drawn below."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все фейдеры каналов ходят сверху вниз и обратно волной через весь пульт, пока не остановите, — чтобы оценить плавность моторных фейдеров. Ниже нарисована та же волна."
+          }
+        }
+      }
+    },
+    "assist.wave.mainLeftOff": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The main output was left off: its earlier state was not known. Switch it on at the console when ready."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Главный выход оставлен выключенным: его прежнее состояние неизвестно. Включите его на пульте, когда будете готовы."
+          }
+        }
+      }
+    },
+    "assist.wave.safety": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Meanwhile the main output is off and the guard is stopped; afterwards the faders and the main output return to how they were. No musicians on stage."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "На это время главный выход выключен, страховка остановлена; потом фейдеры и главный выход возвращаются как были. Без музыкантов на сцене."
+          }
+        }
+      }
+    },
+    "assist.wave.start": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start the wave"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запустить волну"
+          }
+        }
+      }
+    },
+    "assist.wave.stop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop and put the faders back"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить и вернуть фейдеры"
+          }
+        }
+      }
+    },
     "autolevel.clipped": {
       "extractionState": "manual",
       "localizations": {
