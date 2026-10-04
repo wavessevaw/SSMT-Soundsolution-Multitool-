@@ -7,8 +7,9 @@
 кардиоидный саб, комнатные моды, RT60 и радиус гулкости, темп → дилей, сэмплы ↔ мс, частота ↔ нота); распайки
 (XLR, TRS, TS, Insert, mini-jack, RCA, Speakon, powerCON, RJ45/etherCON, DMX, MIDI, Socapex, BNC, DI) с рисунком
 контактов; инструкции (гейн-стейджинг, прозвонка мониторов, лайн-чек, полярность, саб и топ, дилей-линии, EQ,
-компрессор, in-ear, радиосистемы, фон, микрофоны); шпаргалки по пультам (X32/M32, X Air, WING, Yamaha CL/QL, TF/DM3,
-A&H SQ, dLive/Avantis, DiGiCo, Midas PRO/HD96, Soundcraft) со ссылками на официальные руководства; 65 терминов.
+компрессор, in-ear, радиосистемы, фон, микрофоны); шпаргалки по 20 пультам (X32/M32, X Air, WING, Yamaha CL/QL, TF/DM3,
+DM7, RIVAGE PM, A&H SQ, Qu, CQ, dLive/Avantis, DiGiCo SD и S21/S31, Midas PRO/HD96, Soundcraft, Avid S6L, SSL Live,
+PreSonus StudioLive III, Mackie DL, Roland M-5000) со ссылками на официальные руководства; 65 терминов.
 Поиск по всему (⌘F) на русском и английском, избранное, значения калькуляторов запоминаются.
 
 ---
