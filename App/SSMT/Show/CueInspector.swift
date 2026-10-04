@@ -4,10 +4,12 @@ import SwiftUI
 /// Right column: every setting of the selected cue.
 /// Inspector tabs; which ones appear depends on the cue type.
 enum InspectorTab: String, CaseIterable {
-    case main, time, action, outputs, pad
+    case main, multitrack, time, action, outputs, pad
 
     static func tabs(for cue: Cue, isPad: Bool) -> [InspectorTab] {
-        var t: [InspectorTab] = [.main, .time]
+        var t: [InspectorTab] = [.main]
+        if cue.kind == .group { t.append(.multitrack) }
+        t.append(.time)
         if cue.kind != .memo { t.append(.action) }
         if cue.kind == .audio { t.append(.outputs) }
         if isPad { t.append(.pad) }
@@ -18,18 +20,17 @@ enum InspectorTab: String, CaseIterable {
 struct CueInspector: View {
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
-    @State private var tab: InspectorTab = .main
 
     var body: some View {
         Group {
             if show.selection.count == 1, let id = show.selection.first, let cue = show.doc.cue(id) {
                 let isPad = show.doc.banks.contains { $0.cues.findCue(id) != nil }
                 let tabs = InspectorTab.tabs(for: cue, isPad: isPad)
-                let current = tabs.contains(tab) ? tab : .main
+                let current = tabs.contains(show.inspectorTab) ? show.inspectorTab : .main
                 VStack(spacing: 10) {
                     HStack(spacing: 4) {
                         ForEach(tabs, id: \.self) { t in
-                            Button { tab = t } label: {
+                            Button { show.inspectorTab = t } label: {
                                 Text(loc.t("show.tab.\(t.rawValue)"))
                                     .font(.system(size: 12, weight: t == current ? .semibold : .regular))
                                     .lineLimit(1)
@@ -70,6 +71,7 @@ private struct CueInspectorContent: View {
     var body: some View {
         switch tab {
         case .main: mainSection
+        case .multitrack: ShowTimelineView(group: cue.id).frame(height: 230)
         case .time: timingSection
         case .action: actionSection
         case .outputs: outputsSection
@@ -161,6 +163,12 @@ private struct CueInspectorContent: View {
                         Text("\(showTime(info.duration)) · \(info.channels) ch").font(Theme.mono(11)).foregroundStyle(Theme.textSecondary)
                     } else if let p = path, show.missingFiles.contains(p) {
                         Text(loc.t("show.fileMissing")).font(.system(size: 11)).foregroundStyle(Theme.statusWarning)
+                        Text(p).font(.system(size: 10)).foregroundStyle(Theme.textMuted).lineLimit(3).textSelection(.enabled)
+                    } else if let p = path, let why = show.unreadableFiles[p] {
+                        Text(loc.t("show.fileUnreadable") + ": " + why).font(.system(size: 11)).foregroundStyle(Theme.statusWarning)
+                            .lineLimit(4).textSelection(.enabled)
+                    } else if show.loadingFiles > 0 {
+                        Text(loc.t("error.show.notReady")).font(.system(size: 11)).foregroundStyle(Theme.dataBlue)
                     }
                 }
                 Spacer()

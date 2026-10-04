@@ -716,6 +716,244 @@
         }
       }
     },
+    "assist.connect.after": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After connecting: soundcheck, show guard and console test. The lamp in the header is green while the console answers and red when the link is lost."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "После подключения: саундчек, страховка шоу и тест пульта. Лампочка в шапке горит зелёным, пока пульт отвечает, и красным, когда связь пропала."
+          }
+        }
+      }
+    },
+    "assist.connect.connecting": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecting to %@…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключение к %@…"
+          }
+        }
+      }
+    },
+    "assist.connect.console": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Console"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульт"
+          }
+        }
+      }
+    },
+    "assist.connect.failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No connection"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет соединения"
+          }
+        }
+      }
+    },
+    "assist.connect.found": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consoles on the network"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульты в сети"
+          }
+        }
+      }
+    },
+    "assist.connect.fw": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "firmware %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "прошивка %@"
+          }
+        }
+      }
+    },
+    "assist.connect.manual": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Or by IP address"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Или по IP-адресу"
+          }
+        }
+      }
+    },
+    "assist.connect.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No console found. Check that it is on and connected to the same router as this Mac, or enter its IP below."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пульт не найден. Проверьте, что он включён и подключён к тому же роутеру, что и Mac, или введите его IP ниже."
+          }
+        }
+      }
+    },
+    "assist.connect.rescan": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search again"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Искать снова"
+          }
+        }
+      }
+    },
+    "assist.connect.searching": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Searching the network…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск в сети…"
+          }
+        }
+      }
+    },
+    "assist.connect.sim": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Simulator"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Симулятор"
+          }
+        }
+      }
+    },
+    "assist.connect.simGo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect the simulator"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключить симулятор"
+          }
+        }
+      }
+    },
+    "assist.connect.simHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Practice without a console"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Без пульта, для обучения"
+          }
+        }
+      }
+    },
+    "assist.connect.wifi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found over Wi-Fi"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Поиск по Wi-Fi"
+          }
+        }
+      }
+    },
     "assist.connecting": {
       "extractionState": "manual",
       "localizations": {
@@ -2348,6 +2586,57 @@
         }
       }
     },
+    "assist.link.lost": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No link"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет связи"
+          }
+        }
+      }
+    },
+    "assist.link.none": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not connected"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не подключено"
+          }
+        }
+      }
+    },
+    "assist.link.ok": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Link OK"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Связь есть"
+          }
+        }
+      }
+    },
     "assist.list.count": {
       "extractionState": "manual",
       "localizations": {
@@ -2660,13 +2949,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Over the router's Wi-Fi, like Mixing Station. Or choose the simulator in the settings to try everything without a console."
+            "value": "The laptop and the console must be on the same network (Wi-Fi router or cable). Choose the console: it is found on the network, then press Connect. The assistant opens once the console is connected."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Через Wi-Fi роутера, как Mixing Station. Или выберите в настройках симулятор, чтобы попробовать все функции без пульта."
+            "value": "Ноутбук и пульт должны быть в одной сети (Wi-Fi роутера или кабель). Выберите пульт — он найдётся в сети, — и нажмите «Подключить». Ассистент откроется после подключения."
           }
         }
       }
@@ -2694,13 +2983,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Like Mixing Station: the Mac and the console are on the same router (Wi-Fi or cable). Levels and the console RTA come over the network; the measurement mic is plugged into the Mac's audio interface."
+            "value": "The Mac and the console are on the same router (Wi-Fi or cable). Levels and the console RTA come over the network; the measurement mic is plugged into the Mac's audio interface."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Как Mixing Station: Mac и пульт в одной сети роутера (Wi-Fi или кабель). Уровни и RTA пульта приходят по сети; измерительный микрофон подключён к звуковой карте Mac."
+            "value": "Mac и пульт в одной сети роутера (Wi-Fi или кабель). Уровни и RTA пульта приходят по сети; измерительный микрофон подключён к звуковой карте Mac."
           }
         }
       }
@@ -7913,13 +8202,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "All together"
+            "value": "Timeline (all together)"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Все вместе"
+            "value": "Таймлайн (все вместе)"
           }
         }
       }
@@ -13704,6 +13993,23 @@
         }
       }
     },
+    "show.bank.add": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New bank"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новый банк"
+          }
+        }
+      }
+    },
     "show.banks": {
       "extractionState": "manual",
       "localizations": {
@@ -14248,6 +14554,23 @@
         }
       }
     },
+    "show.fileUnreadable": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot read the file"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удаётся прочитать файл"
+          }
+        }
+      }
+    },
     "show.go.help": {
       "extractionState": "manual",
       "localizations": {
@@ -14299,6 +14622,23 @@
         }
       }
     },
+    "show.group.addTracks": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add tracks"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавить треки"
+          }
+        }
+      }
+    },
     "show.group.count": {
       "extractionState": "manual",
       "localizations": {
@@ -14316,6 +14656,57 @@
         }
       }
     },
+    "show.group.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Group — select several cues first to put them into one group"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Группа — выделите несколько кью, чтобы объединить их в группу"
+          }
+        }
+      }
+    },
+    "show.group.multitrackHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One track per cue. Drag a clip to move its start (pre-wait), its edges to trim; clips snap to each other, ⌘ while dragging turns snapping off."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Каждая кью — своя дорожка. Перетащите клип, чтобы сдвинуть старт (паузу до), края — чтобы обрезать; клипы прилипают друг к другу, ⌘ при перетаскивании отключает прилипание."
+          }
+        }
+      }
+    },
+    "show.groupSelection": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Group the selected cues"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сгруппировать выделенные кью"
+          }
+        }
+      }
+    },
     "show.hotkey": {
       "extractionState": "manual",
       "localizations": {
@@ -14329,6 +14720,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Клавиша"
+          }
+        }
+      }
+    },
+    "show.import.failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not add to the show:"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось добавить в шоу:"
           }
         }
       }
@@ -14486,53 +14894,495 @@
         }
       }
     },
-    "show.layout.expert": {
+    "show.key.duration": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Expert"
+            "value": "Duration, s"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Эксперт"
+            "value": "Длительность, с"
           }
         }
       }
     },
-    "show.layout.help": {
+    "show.key.jump": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Simple: list and one side panel. Expert: library, one-shot pads and timeline."
+            "value": "Jump to cue number"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Простой: список и одна панель сбоку. Эксперт: библиотека, one-shot и таймлайн."
+            "value": "Перейти к кью с номером"
           }
         }
       }
     },
-    "show.layout.simple": {
+    "show.key.name": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Simple"
+            "value": "Cue name"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Простой"
+            "value": "Имя кью"
+          }
+        }
+      }
+    },
+    "show.key.number": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cue number"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Номер кью"
+          }
+        }
+      }
+    },
+    "show.key.postWait": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Post-wait, s"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пауза после, с"
+          }
+        }
+      }
+    },
+    "show.key.preWait": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pre-wait, s"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пауза до, с"
+          }
+        }
+      }
+    },
+    "show.keys.clipboard": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy · cut · paste cues · select all"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Копировать · вырезать · вставить кью · выделить все"
+          }
+        }
+      }
+    },
+    "show.keys.continue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue mode: none → auto-continue → auto-follow"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Режим продолжения: нет → по паузе после → по окончании"
+          }
+        }
+      }
+    },
+    "show.keys.cursor": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Previous / next cue (with the playhead)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Предыдущая / следующая кью (вместе с курсором GO)"
+          }
+        }
+      }
+    },
+    "show.keys.delete": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete the selected cues"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить выделенные кью"
+          }
+        }
+      }
+    },
+    "show.keys.duplicate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duplicate"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Дублировать"
+          }
+        }
+      }
+    },
+    "show.keys.fields": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit the number · name · pre-wait · duration · post-wait"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Изменить номер · имя · паузу до · длительность · паузу после"
+          }
+        }
+      }
+    },
+    "show.keys.go": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GO"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GO"
+          }
+        }
+      }
+    },
+    "show.keys.jump": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jump to a cue by number"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перейти к кью по номеру"
+          }
+        }
+      }
+    },
+    "show.keys.load": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load the selected cues (read the files in advance)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузить выделенные кью (заранее прочитать файлы)"
+          }
+        }
+      }
+    },
+    "show.keys.mode": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show mode / Edit mode"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Режим «Шоу» / «Правка»"
+          }
+        }
+      }
+    },
+    "show.keys.newCue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "New cue: audio · group (of the selection) · fade · OSC"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новая кью: аудио · группа (из выделенного) · фейд · OSC"
+          }
+        }
+      }
+    },
+    "show.keys.note": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letter keys work on any keyboard layout. Hotkeys you give to cues take priority. In Show mode only playback keys work."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Буквенные клавиши работают в любой раскладке. Горячие клавиши, назначенные кью, важнее. В режиме «Шоу» работают только клавиши воспроизведения."
+          }
+        }
+      }
+    },
+    "show.keys.pads": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One-shot pads"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Кнопки one-shot"
+          }
+        }
+      }
+    },
+    "show.keys.panels": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show or hide the inspector / the sidebar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать или скрыть инспектор / боковую панель"
+          }
+        }
+      }
+    },
+    "show.keys.panic": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop all with a fade; twice — at once"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Стоп всё с затуханием; дважды — мгновенно"
+          }
+        }
+      }
+    },
+    "show.keys.pauseResumeAll": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause all / resume all"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пауза всего / продолжить всё"
+          }
+        }
+      }
+    },
+    "show.keys.pauseSelected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause / resume the selected cues"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пауза / продолжение выделенных кью"
+          }
+        }
+      }
+    },
+    "show.keys.playhead": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Move only the playhead"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сдвинуть только курсор GO"
+          }
+        }
+      }
+    },
+    "show.keys.preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview: play the selected cues now"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прослушать: запустить выделенные кью сейчас"
+          }
+        }
+      }
+    },
+    "show.keys.renumber": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renumber the selected cues"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Перенумеровать выделенные кью"
+          }
+        }
+      }
+    },
+    "show.keys.stopSelected": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop the selected cues; S again — at once"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить выделенные кью; S ещё раз — мгновенно"
+          }
+        }
+      }
+    },
+    "show.keys.target": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Target (opens the Action tab)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Цель (открывает вкладку «Действие»)"
+          }
+        }
+      }
+    },
+    "show.keys.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keyboard shortcuts (as in QLab)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сочетания клавиш (как в QLab)"
           }
         }
       }
@@ -15387,6 +16237,23 @@
         }
       }
     },
+    "show.sidebar.active": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Active %ld"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Идёт %ld"
+          }
+        }
+      }
+    },
     "show.start": {
       "extractionState": "manual",
       "localizations": {
@@ -15468,6 +16335,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Общее"
+          }
+        }
+      }
+    },
+    "show.tab.multitrack": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Multitrack"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Мультитрек"
           }
         }
       }
@@ -15659,6 +16543,23 @@
         }
       }
     },
+    "show.trim": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trim"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Обрезка"
+          }
+        }
+      }
+    },
     "show.ungroup": {
       "extractionState": "manual",
       "localizations": {
@@ -15689,6 +16590,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Выше"
+          }
+        }
+      }
+    },
+    "show.view.inspector": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inspector"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Инспектор"
+          }
+        }
+      }
+    },
+    "show.view.sidebar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sidebar: lists, one-shot, active"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Боковая панель: списки, one-shot, идёт"
           }
         }
       }

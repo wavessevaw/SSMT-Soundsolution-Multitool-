@@ -42,6 +42,11 @@ targets:
         LSMinimumSystemVersion: "13.0"
         NSHighResolutionCapable: true
         NSLocalNetworkUsageDescription: "SSMT sends OSC commands to video servers, lighting and sound consoles on your network. / SSMT отправляет OSC-команды видеосерверам, световым и звуковым пультам в вашей сети."
+        NSDesktopFolderUsageDescription: "SSMT plays and copies the audio files you add to a show. / SSMT воспроизводит и копирует в шоу добавленные аудиофайлы."
+        NSDocumentsFolderUsageDescription: "SSMT plays and copies the audio files you add to a show. / SSMT воспроизводит и копирует в шоу добавленные аудиофайлы."
+        NSDownloadsFolderUsageDescription: "SSMT plays and copies the audio files you add to a show. / SSMT воспроизводит и копирует в шоу добавленные аудиофайлы."
+        NSRemovableVolumesUsageDescription: "SSMT plays audio files of a show from external drives. / SSMT воспроизводит аудиофайлы шоу с внешних дисков."
+        NSNetworkVolumesUsageDescription: "SSMT plays audio files of a show from network drives. / SSMT воспроизводит аудиофайлы шоу с сетевых дисков."
         NSMicrophoneUsageDescription: "SSMT measures your sound system with a measurement microphone. / SSMT измеряет акустическую систему через измерительный микрофон."
     settings:
       base:

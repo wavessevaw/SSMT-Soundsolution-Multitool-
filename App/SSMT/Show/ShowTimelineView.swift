@@ -7,9 +7,15 @@ import SwiftUI
 struct ShowTimelineView: View {
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
+    /// A group's own multitrack (inside its inspector): one track per cue, drag to set its start.
+    var group: UUID? = nil
     /// Seconds across the whole width.
     @State private var span: Double = 40
-    @State private var drag: (id: UUID, dx: CGFloat)?
+    @State private var drag: (id: UUID, dx: CGFloat, mode: DragMode)?
+
+    /// As in QLab's group timeline: the body moves the cue (its pre-wait); the left edge trims the start of the file
+    /// together with the pre-wait; the right edge trims the end.
+    enum DragMode { case move, trimStart, trimEnd }
 
     private var selectedGroup: Cue? {
         guard show.selection.count == 1, let id = show.selection.first, let c = show.doc.cue(id), c.kind == .group else { return nil }
@@ -17,7 +23,7 @@ struct ShowTimelineView: View {
     }
 
     private var groupMode: Cue? {
-        guard let g = show.timelineGroup else { return nil }
+        guard let g = group ?? show.timelineGroup else { return nil }
         return show.doc.cue(g)
     }
 
@@ -34,10 +40,17 @@ struct ShowTimelineView: View {
                         Color.white.opacity(0.001)
                             .frame(width: max(8, r.width), height: max(8, r.height))
                             .offset(x: r.minX, y: r.minY)
-                            .onTapGesture { show.selection = [c.cueID] }
+                            .onTapGesture { if group == nil { show.selection = [c.cueID] } }
                             .gesture(groupMode != nil && !show.showMode ? DragGesture(minimumDistance: 2)
-                                .onChanged { v in drag = (c.cueID, v.translation.width) }
-                                .onEnded { v in commit(c, dx: v.translation.width, layout: layout) } : nil)
+                                .onChanged { v in
+                                    let mode = drag?.mode ?? dragMode(c, at: v.startLocation.x, width: r.width)
+                                    drag = (c.cueID, snapped(c, dx: v.translation.width, mode: mode, clips: clips, layout: layout), mode)
+                                }
+                                .onEnded { v in
+                                    let mode = drag?.mode ?? .move
+                                    commit(c, dx: snapped(c, dx: v.translation.width, mode: mode, clips: clips, layout: layout),
+                                           mode: mode, layout: layout)
+                                } : nil)
                             .help(label(c.cueID))
                     }
                 }
@@ -45,10 +58,38 @@ struct ShowTimelineView: View {
                 .clipped()
             }
         }
-        .glassCard(padding: 10)
+        .glassCard(padding: group == nil ? 10 : 0, plain: group != nil)
     }
 
-    private var header: some View {
+    @ViewBuilder private var header: some View {
+        if let g = group { multitrackHeader(g) } else { liveHeader }
+    }
+
+    private func multitrackHeader(_ g: UUID) -> some View {
+        HStack(spacing: 8) {
+            Button {
+                let panel = NSOpenPanel()
+                panel.allowedContentTypes = ShowStore.audioTypes
+                panel.allowsMultipleSelection = true
+                if panel.runModal() == .OK { show.addAudioFiles(panel.urls, intoGroup: g) }
+            } label: { Label(loc.t("show.group.addTracks"), systemImage: "plus") }
+                .buttonStyle(SSMTButtonStyle())
+                .disabled(show.showMode)
+            Text(loc.t("show.group.multitrackHint")).font(.system(size: 11)).foregroundStyle(Theme.textMuted).lineLimit(2)
+            Spacer()
+            zoom
+        }
+    }
+
+    private var zoom: some View {
+        HStack(spacing: 8) {
+            Button { span = min(600, span * 1.5) } label: { Image(systemName: "minus.magnifyingglass") }.buttonStyle(.borderless)
+            Text("\(Int(span)) \(loc.t("show.sec"))").font(Theme.mono(10)).foregroundStyle(Theme.textSecondary).frame(width: 44)
+            Button { span = max(5, span / 1.5) } label: { Image(systemName: "plus.magnifyingglass") }.buttonStyle(.borderless)
+        }
+    }
+
+    private var liveHeader: some View {
         HStack(spacing: 8) {
             Text(loc.t("show.timeline").uppercased()).font(Theme.label(11)).tracking(1.2).foregroundStyle(Theme.textSecondary)
             Picker("", selection: Binding(get: { show.timelineGroup }, set: { show.timelineGroup = $0 })) {
@@ -72,7 +113,7 @@ struct ShowTimelineView: View {
 
     private func currentClips() -> [TimelineClip] {
         if let g = groupMode {
-            return ShowTimeline.planGroup(show.doc, group: g.id, fileLength: show.fileLength)
+            return ShowTimeline.planGroup(show.doc, group: g.id, fileLength: show.fileLength, lanePerCue: group != nil)
         }
         var clips: [TimelineClip] = []
         for r in show.snapshot.running {
@@ -102,12 +143,71 @@ struct ShowTimelineView: View {
         return ShowTimeline.assignLanes(clips)
     }
 
-    private func commit(_ c: TimelineClip, dx: CGFloat, layout: Layout) {
+    private func dragMode(_ c: TimelineClip, at x: CGFloat, width: CGFloat) -> DragMode {
+        guard c.style == .audio, width > 24 else { return .move }
+        if x < 7 { return .trimStart }
+        if c.duration != nil && x > width - 7 { return .trimEnd }
+        return .move
+    }
+
+    /// Edges of the other clips (and the group start): the dragged edge snaps to them (⌘ while dragging: no snapping).
+    private func guides(except id: UUID, clips: [TimelineClip]) -> [Double] {
+        var g: [Double] = [0]
+        for o in clips where o.cueID != id {
+            g.append(o.start)
+            if let d = o.duration { g.append(o.start + d) }
+        }
+        return g
+    }
+
+    private func snapped(_ c: TimelineClip, dx: CGFloat, mode: DragMode, clips: [TimelineClip], layout: Layout) -> CGFloat {
+        guard !NSEvent.modifierFlags.contains(.command) else { return dx }
+        let delta = Double(dx) / layout.pps
+        let edges: [Double]
+        switch mode {
+        case .move: edges = [c.start] + (c.duration.map { [c.start + $0] } ?? [])
+        case .trimStart: edges = [c.start]
+        case .trimEnd: edges = c.duration.map { [c.start + $0] } ?? []
+        }
+        let tolerance = 8 / layout.pps
+        var best: Double?
+        for e in edges {
+            for g in guides(except: c.cueID, clips: clips) where abs(e + delta - g) < tolerance {
+                let d = g - e
+                if best == nil || abs(d - delta) < abs(best! - delta) { best = d }
+            }
+        }
+        return CGFloat((best ?? delta) * layout.pps)
+    }
+
+    private func commit(_ c: TimelineClip, dx: CGFloat, mode: DragMode, layout: Layout) {
         drag = nil
         let delta = Double(dx) / layout.pps
         guard abs(delta) > 0.01, let cue = show.doc.cue(c.cueID) else { return }
-        let newPre = max(0, ((cue.preWait + delta) * 10).rounded() / 10)
-        show.edit(loc.t("show.preWait")) { $0.updateCue(c.cueID) { $0.preWait = newPre } }
+        func r(_ v: Double) -> Double { (v * 100).rounded() / 100 }
+        switch mode {
+        case .move:
+            let newPre = max(0, r(cue.preWait + delta))
+            show.edit(loc.t("show.preWait")) { $0.updateCue(c.cueID) { $0.preWait = newPre } }
+        case .trimStart:
+            guard let a = cue.audio else { return }
+            let rate = max(a.rate, 0.05)
+            let limitEnd = (a.end ?? show.fileLength(cue) ?? .infinity) - 0.05
+            // Not before the file start or the group start, not past the end.
+            let d = min(max(delta, -cue.preWait, -a.start / rate), (limitEnd - a.start) / rate)
+            show.edit(loc.t("show.trim")) {
+                $0.updateCue(c.cueID) { cue in
+                    cue.preWait = max(0, r(cue.preWait + d))
+                    cue.audio?.start = max(0, r(a.start + d * rate))
+                }
+            }
+        case .trimEnd:
+            guard let a = cue.audio, let dur = c.duration, a.plays == 1, a.loopStart == nil else { return }
+            let rate = max(a.rate, 0.05)
+            let length = show.fileLength(cue) ?? .infinity
+            let newEnd = min(length, max(a.start + 0.05, a.start + (dur + delta) * rate))
+            show.edit(loc.t("show.trim")) { $0.updateCue(c.cueID) { $0.audio?.end = r(newEnd) } }
+        }
     }
 
     private func label(_ id: UUID) -> String {
@@ -178,9 +278,21 @@ struct ShowTimelineView: View {
         }
 
         // Clips.
+        if let d = drag {
+            for g in guides(except: d.id, clips: clips) {
+                var p = Path(); p.move(to: CGPoint(x: L.x(g), y: L.ruler)); p.addLine(to: CGPoint(x: L.x(g), y: size.height))
+                ctx.stroke(p, with: .color(Theme.dataBlue.opacity(0.35)), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            }
+        }
         for c in clips {
-            let dx = drag?.id == c.cueID ? drag?.dx ?? 0 : 0
-            let r = L.rect(c, dx: dx)
+            var r = L.rect(c)
+            if let d = drag, d.id == c.cueID {
+                switch d.mode {
+                case .move: r = r.offsetBy(dx: d.dx, dy: 0)
+                case .trimStart: r = CGRect(x: r.minX + d.dx, y: r.minY, width: max(3, r.width - d.dx), height: r.height)
+                case .trimEnd: r = CGRect(x: r.minX, y: r.minY, width: max(3, r.width + d.dx), height: r.height)
+                }
+            }
             guard r.maxX > -20, r.minX < size.width + 20 else { continue }
             let cue = show.doc.cue(c.cueID)
             let ghost = L.live && !c.live

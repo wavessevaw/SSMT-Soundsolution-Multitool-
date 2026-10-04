@@ -177,18 +177,24 @@ final class ClipCache: @unchecked Sendable {
     /// thread and never on the playback queue.
     @discardableResult
     func load(_ path: String, sampleRate: Double) -> AudioClip? {
-        if let c = cached(path, sampleRate: sampleRate) { return c }
         lock.lock()
+        // While a file is being decoded, its (growing) clip already plays, but only the decoder returns it.
         if inFlight.contains(path) { lock.unlock(); return nil }
+        if let c = clips[path], c.sampleRate == sampleRate { lock.unlock(); return c }
         inFlight.insert(path)
         lock.unlock()
         defer { lock.lock(); inFlight.remove(path); lock.unlock() }
         do {
-            let clip = try Self.open(URL(fileURLWithPath: path), sampleRate: sampleRate)
+            // As QLab does: the cue can play as soon as the first second or so is decoded; the rest is decoded
+            // far faster than it plays, into the same memory-mapped file.
+            let clip = try Self.open(URL(fileURLWithPath: path), sampleRate: sampleRate) { [weak self] early in
+                guard let self else { return }
+                self.lock.lock(); self.clips[path] = early; self.lock.unlock()
+            }
             lock.lock(); clips[path] = clip; failed[path] = nil; lock.unlock()
             return clip
         } catch {
-            lock.lock(); failed[path] = error.localizedDescription; lock.unlock()
+            lock.lock(); failed[path] = error.localizedDescription; clips[path] = nil; lock.unlock()
             return nil
         }
     }
@@ -205,7 +211,8 @@ final class ClipCache: @unchecked Sendable {
         return folder.appendingPathComponent(String(h, radix: 16) + "-\(channels)ch.f32")
     }
 
-    static func open(_ url: URL, sampleRate: Double) throws -> AudioClip {
+    /// `started` receives a clip of the whole file as soon as its first block is decoded (the rest fills in).
+    static func open(_ url: URL, sampleRate: Double, started: ((AudioClip) -> Void)? = nil) throws -> AudioClip {
         // Already decoded: map it.
         for ch in 1...16 {
             if let c = cacheURL(for: url, sampleRate: sampleRate, channels: ch), FileManager.default.fileExists(atPath: c.path),
@@ -217,12 +224,21 @@ final class ClipCache: @unchecked Sendable {
         }
         let tmp = folder.appendingPathComponent(UUID().uuidString + ".part")
         defer { try? FileManager.default.removeItem(at: tmp) }
+        var published = false
+        let early: (PlanarWriter) -> Void = { w in
+            guard let started, let data = try? NSData(contentsOf: w.url, options: .alwaysMapped),
+                  let clip = AudioClip(sampleRate: sampleRate, channelCount: w.channels, mapped: data) else { return }
+            published = true
+            started(clip)
+        }
         let channels: Int
         do {
-            channels = try decodeWithAudioFile(url, sampleRate: sampleRate, to: tmp)
+            channels = try decodeWithAudioFile(url, sampleRate: sampleRate, to: tmp, started: early)
         } catch {
-            // Containers AVAudioFile cannot read (video files, some streams): AVFoundation reader.
-            channels = try decodeWithAssetReader(url, sampleRate: sampleRate, to: tmp)
+            // A failure after playback started is final; otherwise try the AVFoundation reader
+            // (containers AVAudioFile cannot read: video files, some streams).
+            if published { throw error }
+            channels = try decodeWithAssetReader(url, sampleRate: sampleRate, to: tmp, started: early)
         }
         guard let dest = cacheURL(for: url, sampleRate: sampleRate, channels: channels) else { throw CocoaError(.fileReadUnknown) }
         try? FileManager.default.removeItem(at: dest)
@@ -235,11 +251,15 @@ final class ClipCache: @unchecked Sendable {
     /// Planar writer: channel c of frame f lives at (c × frames + f) × 4 bytes.
     private final class PlanarWriter {
         let handle: FileHandle
+        let url: URL
         let channels: Int
         let frames: Int
         var written = 0
+        /// Called once, after the first block is on disk (the file already has its full, zero-filled size).
+        var onFirstBlock: ((PlanarWriter) -> Void)?
 
         init(url: URL, channels: Int, frames: Int) throws {
+            self.url = url
             FileManager.default.createFile(atPath: url.path, contents: nil)
             handle = try FileHandle(forWritingTo: url)
             self.channels = channels
@@ -256,12 +276,16 @@ final class ClipCache: @unchecked Sendable {
                 try handle.write(contentsOf: Data(bytes: data(c), count: n * 4))
             }
             written += n
+            if let f = onFirstBlock {
+                onFirstBlock = nil
+                f(self)
+            }
         }
 
         func close() throws { try handle.close() }
     }
 
-    private static func decodeWithAudioFile(_ url: URL, sampleRate: Double, to out: URL) throws -> Int {
+    private static func decodeWithAudioFile(_ url: URL, sampleRate: Double, to out: URL, started: ((PlanarWriter) -> Void)?) throws -> Int {
         let file = try AVAudioFile(forReading: url)
         let inFormat = file.processingFormat
         let channels = Int(inFormat.channelCount)
@@ -269,6 +293,7 @@ final class ClipCache: @unchecked Sendable {
         let ratio = sampleRate / inFormat.sampleRate
         let frames = Int((Double(file.length) * ratio).rounded(.up))
         let writer = try PlanarWriter(url: out, channels: channels, frames: frames)
+        writer.onFirstBlock = started
         defer { try? writer.close() }
         let chunk: AVAudioFrameCount = 65536
         guard let input = AVAudioPCMBuffer(pcmFormat: inFormat, frameCapacity: chunk) else { throw CocoaError(.fileReadCorruptFile) }
@@ -308,7 +333,7 @@ final class ClipCache: @unchecked Sendable {
         return channels
     }
 
-    private static func decodeWithAssetReader(_ url: URL, sampleRate: Double, to out: URL) throws -> Int {
+    private static func decodeWithAssetReader(_ url: URL, sampleRate: Double, to out: URL, started: ((PlanarWriter) -> Void)?) throws -> Int {
         let asset = AVURLAsset(url: url)
         guard let track = asset.tracks(withMediaType: .audio).first else { throw CocoaError(.fileReadCorruptFile) }
         let reader = try AVAssetReader(asset: asset)
@@ -327,6 +352,7 @@ final class ClipCache: @unchecked Sendable {
         let frames = Int(((seconds.isFinite ? seconds : 0) * sampleRate).rounded(.up))
         guard frames > 0 else { throw CocoaError(.fileReadCorruptFile) }
         let writer = try PlanarWriter(url: out, channels: channels, frames: frames)
+        writer.onFirstBlock = started
         defer { try? writer.close() }
         while let sample = output.copyNextSampleBuffer() {
             guard let block = CMSampleBufferGetDataBuffer(sample) else { continue }

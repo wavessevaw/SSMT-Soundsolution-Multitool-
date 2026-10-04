@@ -1,6 +1,6 @@
 import Foundation
 
-/// Console families and how remote apps (Mixing Station, the makers' own editors) reach them.
+/// Console families and how remote-control apps reach them.
 /// Only families marked `implemented` can be driven by the assistant in this version; the others
 /// are listed with their documented transport so the user knows what is coming.
 public enum MixerFamily: String, Codable, Sendable, CaseIterable {

@@ -183,3 +183,17 @@ final class AssistTests: XCTestCase {
         XCTAssertFalse(session.group!.notches.isEmpty)
     }
 }
+
+final class ConsoleDiscoveryTests: XCTestCase {
+    func testParsesX32AndXAirAnswers() {
+        let x32 = OSCMessage("/xinfo", [.string("192.168.1.64"), .string("X32-02-4A-53"), .string("X32"), .string("4.06")])
+        let d = ConsoleDiscovery.parse(x32, sender: "192.168.1.64", family: .x32)
+        XCTAssertEqual(d, DiscoveredConsole(family: .x32, ip: "192.168.1.64", name: "X32-02-4A-53", model: "X32", firmware: "4.06"))
+        let xr = OSCMessage("/xinfo", [.string(""), .string("XR18-5E-91-6A"), .string("XR18"), .string("1.17")])
+        let e = ConsoleDiscovery.parse(xr, sender: "10.0.0.7", family: .x32)
+        XCTAssertEqual(e?.family, .xAir, "the model decides the family")
+        XCTAssertEqual(e?.ip, "10.0.0.7", "empty IP: the sender's address")
+        XCTAssertNil(ConsoleDiscovery.parse(OSCMessage("/info", [.string("a")]), sender: "1.1.1.1", family: .x32))
+        XCTAssertEqual(ConsoleDiscovery.request.encoded().count, 12, "/xinfo + type tag")
+    }
+}

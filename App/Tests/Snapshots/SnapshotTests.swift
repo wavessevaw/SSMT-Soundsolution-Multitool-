@@ -218,22 +218,26 @@ final class SnapshotTests: XCTestCase {
     func testShowPlayer() throws {
         let show = Self.model.show
         prepareShow()
-        show.layout = .simple
+        show.showSidebar = true
+        show.showInspector = true
+        show.showTimeline = false
+        show.sidebarTab = .pads
         show.showMode = false
         try snapshot(ShowWorkspace().padding(16).background(Backdrop()), size: CGSize(width: 1500, height: 900),
-                     name: "show-simple-edit", loc: Self.ru)
+                     name: "show-edit", loc: Self.ru)
+        show.showTimeline = true
+        show.sidebarTab = .active
         show.showMode = true
         try snapshot(ShowWorkspace().padding(16).background(Backdrop()), size: CGSize(width: 1500, height: 900),
-                     name: "show-simple-show", loc: Self.ru)
+                     name: "show-show", loc: Self.ru)
         show.showMode = false
-        show.layout = .expert
-        try snapshot(ShowWorkspace().padding(16).background(Backdrop()), size: CGSize(width: 1700, height: 1000),
-                     name: "show-expert-edit", loc: Self.ru)
-        show.showMode = true
-        try snapshot(ShowWorkspace().padding(16).background(Backdrop()), size: CGSize(width: 1700, height: 1000),
-                     name: "show-expert-show", loc: Self.ru)
-        show.showMode = false
-        show.layout = .simple
+        show.showTimeline = false
+        // A group's own multitrack in its inspector.
+        show.selection = [show.doc.lists[0].cues[3].id]
+        show.inspectorTab = .multitrack
+        try snapshot(ShowWorkspace().padding(16).background(Backdrop()), size: CGSize(width: 1500, height: 900),
+                     name: "show-group-multitrack", loc: Self.ru)
+        show.inspectorTab = .main
     }
 
     func testWaveformEditor() throws {
@@ -276,6 +280,15 @@ final class SnapshotTests: XCTestCase {
 
     func testAssistWorkspace() throws {
         let store = Self.model.assist
+        // Before a console is connected: only the console choice and the consoles found on the network.
+        store.disconnect()
+        store.autoScan = false
+        store.family = .x32
+        store.showDiscovered([
+            DiscoveredConsole(family: .x32, ip: "192.168.1.64", name: "X32-02-4A-53", model: "X32", firmware: "4.06"),
+            DiscoveredConsole(family: .x32, ip: "192.168.1.71", name: "M32R-11-0C-2B", model: "M32R", firmware: "4.06"),
+        ])
+        try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-connect", loc: Self.ru)
         store.family = .simulator
         store.character = .musical
         store.connect()

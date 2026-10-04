@@ -53,24 +53,39 @@ func showTime(_ s: Double?) -> String {
     return m > 0 ? String(format: "%d:%04.1f", m, rest) : String(format: "%.1f", rest)
 }
 
-/// Function #3: Qtrl, the show control center, in two layouts.
-/// Simple: cue list + one side column (inspector while editing, operator panel in show mode).
-/// Expert: library, cue list, one-shot pads, wide multitrack timeline, inspector / operator panel.
+/// Function #3: Qtrl, the show control center, laid out as in QLab:
+/// GO and "standing by" on top, the cue toolbar (editing), the cue list with a sidebar (lists, one-shot, active),
+/// the inspector (and optionally the timeline) at the bottom, and a status bar with Edit / Show.
 struct ShowWorkspace: View {
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
-        VStack(spacing: 10) {
-            ShowTopBar()
+        VStack(spacing: 8) {
+            QtrlGoBar()
             if let e = show.lastError {
                 ErrorBanner(text: e.hasPrefix("error.") ? loc.t(e) : e) { show.lastError = nil }
             }
-            switch show.layout {
-            case .simple: simple
-            case .expert: expert
+            if !show.showMode { QtrlToolbar() }
+            HStack(alignment: .top, spacing: 8) {
+                VStack(spacing: 8) {
+                    CueListView()
+                        .frame(maxHeight: .infinity)
+                    if show.showTimeline {
+                        ShowTimelineView().frame(height: 220)
+                    }
+                    if !show.showMode && show.showInspector {
+                        CueInspector().frame(height: 300)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                if show.showSidebar {
+                    QtrlSidebar().frame(width: 300)
+                }
             }
+            .frame(maxHeight: .infinity)
+            QtrlStatusBar()
         }
         .onAppear {
             show.undo = undoManager
@@ -98,47 +113,12 @@ struct ShowWorkspace: View {
                 .preferredColorScheme(.dark)
         }
     }
-
-    private var simple: some View {
-        HStack(alignment: .top, spacing: 12) {
-            CueListView()
-                .frame(maxWidth: .infinity)
-            Group {
-                if show.showMode { OperatorColumn() } else { CueInspector() }
-            }
-            .frame(width: 320)
-        }
-    }
-
-    private var expert: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(spacing: 12) {
-                HStack(alignment: .top, spacing: 12) {
-                    if !show.showMode {
-                        ShowLibraryPanel().frame(width: 190)
-                    }
-                    CueListView()
-                        .frame(maxWidth: .infinity)
-                    PadGridView(columns: show.showMode ? 3 : 2)
-                        .frame(width: show.showMode ? 360 : 260)
-                }
-                .frame(maxHeight: .infinity)
-                ShowTimelineView()
-                    .frame(height: 250)
-            }
-            .frame(maxWidth: .infinity)
-            Group {
-                if show.showMode { OperatorColumn() } else { CueInspector() }
-            }
-            .frame(width: show.showMode ? 280 : 320)
-        }
-    }
 }
 
-// MARK: - Operator column
+// MARK: - GO and standing by
 
-/// What comes next, what is playing, GO under the hand.
-struct OperatorColumn: View {
+/// The big GO, the cue standing by with its notes, Pause all and Stop all — the same in Edit and Show.
+struct QtrlGoBar: View {
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
 
@@ -147,19 +127,31 @@ struct OperatorColumn: View {
     }
 
     var body: some View {
-        VStack(spacing: 12) {
-            nextCard
-            RunningCuesPanel()
-                .frame(maxHeight: .infinity, alignment: .top)
-            OutputMeters()
-            goButton
-            HStack(spacing: 8) {
-                Button {
-                    show.anyPaused ? show.resumeAll() : show.pauseAll()
-                } label: {
+        let cue = show.doc.cue(playhead)
+        HStack(spacing: 14) {
+            goButton(ready: cue != nil)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(loc.t("show.next").uppercased()).font(Theme.label(10)).tracking(1.2).foregroundStyle(Theme.textSecondary)
+                if let cue {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(cue.number).font(Theme.numeral(30)).foregroundStyle(Theme.accent)
+                        Text(cue.name.isEmpty ? loc.t("cue.kind.\(cue.kind.rawValue)") : cue.name)
+                            .font(.system(size: 22, weight: .semibold)).lineLimit(1)
+                    }
+                } else {
+                    Text(loc.t("show.endOfList")).font(.system(size: 18, weight: .medium)).foregroundStyle(Theme.textMuted)
+                }
+            }
+            .frame(minWidth: 240, alignment: .leading)
+            Rectangle().fill(Theme.hairline).frame(width: 1, height: 56)
+            Text(cue?.notes ?? "")
+                .font(.system(size: 15, weight: .medium)).foregroundStyle(Theme.signalYellow)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: 6) {
+                Button { show.anyPaused ? show.resumeAll() : show.pauseAll() } label: {
                     Label(loc.t(show.anyPaused ? "show.resumeAll" : "show.pauseAll"),
-                          systemImage: show.anyPaused ? "play.fill" : "pause.fill")
-                        .frame(maxWidth: .infinity)
+                          systemImage: show.anyPaused ? "play.fill" : "pause.fill").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SSMTButtonStyle(active: show.anyPaused))
                 .disabled(show.snapshot.running.isEmpty)
@@ -169,57 +161,233 @@ struct OperatorColumn: View {
                 .buttonStyle(SSMTButtonStyle(kind: .danger))
                 .help(loc.t("show.panic.help"))
             }
+            .frame(width: 170)
         }
+        .glassCard(padding: 12)
     }
 
-    private var nextCard: some View {
-        let cue = show.doc.cue(playhead)
-        return VStack(alignment: .leading, spacing: 6) {
-            Text(loc.t("show.next").uppercased())
-                .font(Theme.label(11)).tracking(1.2).foregroundStyle(Theme.textSecondary)
-            if let cue {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(cue.number.isEmpty ? "·" : cue.number)
-                        .font(Theme.numeral(38)).foregroundStyle(Theme.accent)
-                        .lineLimit(1).minimumScaleFactor(0.5)
-                    Image(systemName: cue.kind.icon).foregroundStyle(Theme.textSecondary)
-                }
-                Text(cue.name.isEmpty ? loc.t("cue.kind.\(cue.kind.rawValue)") : cue.name)
-                    .font(.system(size: 18, weight: .semibold)).foregroundStyle(Theme.textPrimary)
-                    .lineLimit(2)
-                if !cue.notes.isEmpty {
-                    Text(cue.notes).font(.system(size: 15, weight: .medium)).foregroundStyle(Theme.signalYellow).lineLimit(4)
-                }
-            } else {
-                Text(loc.t("show.endOfList")).font(.system(size: 16, weight: .medium)).foregroundStyle(Theme.textMuted)
-                    .padding(.vertical, 12)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(padding: 16, highlighted: cue != nil)
-    }
-
-    private var goButton: some View {
-        let ready = playhead != nil
-        return Button { show.go() } label: {
-            VStack(spacing: 2) {
-                Text("GO").font(.system(size: 40, weight: .heavy, design: .rounded)).tracking(4)
-                Text(loc.t(ready ? "show.go.hint" : "show.endOfList")).font(.system(size: 11, weight: .medium)).opacity(0.65)
+    private func goButton(ready: Bool) -> some View {
+        Button { show.go() } label: {
+            VStack(spacing: 0) {
+                Text("GO").font(.system(size: 34, weight: .heavy, design: .rounded)).tracking(4)
+                Text(loc.t("show.go.hint")).font(.system(size: 10, weight: .medium)).opacity(0.65)
             }
             .foregroundStyle(ready ? Color.black : Theme.textSecondary)
-            .frame(maxWidth: .infinity)
-            .frame(height: 118)
+            .frame(width: 170, height: 76)
             .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(ready ? AnyShapeStyle(LinearGradient(colors: [Theme.accent, Theme.accentHot], startPoint: .top, endPoint: .bottom))
                                 : AnyShapeStyle(Color.white.opacity(0.08)))
             )
-            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(0.25)))
-            .shadow(color: Theme.accent.opacity(ready ? 0.35 : 0), radius: 16, y: 4)
-            .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.25)))
+            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
+        .disabled(!ready)
         .help(loc.t("show.go.help"))
+    }
+}
+
+// MARK: - Toolbar (Edit)
+
+/// Every cue type as an icon (as QLab's toolbar), then the selection tools.
+struct QtrlToolbar: View {
+    @EnvironmentObject var show: ShowStore
+    @EnvironmentObject var loc: Localizer
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Button { show.chooseAudioFiles() } label: { Label(loc.t("cue.kind.audio"), systemImage: "plus").fixedSize() }
+                .buttonStyle(SSMTButtonStyle(kind: .primary))
+                .help(loc.t("show.addAudio.help"))
+            ForEach(CueKind.mediaKinds.filter { $0 != .audio } + CueKind.controlKinds, id: \.self) { k in
+                tool(k.icon, k == .group ? loc.t("show.group.help") : loc.t("cue.kind.\(k.rawValue)")) { show.add(k) }
+            }
+            Spacer(minLength: 8)
+            let none = show.selection.isEmpty
+            tool("plus.square.on.square", loc.t("action.duplicate")) { show.duplicateSelection() }.disabled(none)
+            tool("arrow.up", loc.t("show.up")) { show.moveSelection(by: -1) }.disabled(none)
+            tool("arrow.down", loc.t("show.down")) { show.moveSelection(by: 1) }.disabled(none)
+            tool("square.stack.3d.up.slash", loc.t("show.ungroup")) { show.ungroupSelection() }
+                .disabled(!show.selection.contains { show.doc.cue($0)?.kind == .group })
+            tool("list.number", loc.t("show.renumber")) { show.renumberSelection() }
+            tool("trash", loc.t("action.delete")) { show.deleteSelection() }.disabled(none)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(GlassBackground(radius: 12))
+    }
+
+    private func tool(_ icon: String, _ help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: icon).frame(width: 18) }
+            .buttonStyle(ToolButtonStyle())
+            .help(help)
+    }
+}
+
+// MARK: - Sidebar
+
+enum QtrlSidebarTab: String, CaseIterable { case lists, pads, active }
+
+/// Cue lists, one-shot pads and what is playing, as tabs (QLab's "Lists, Carts & Active Cues").
+struct QtrlSidebar: View {
+    @EnvironmentObject var show: ShowStore
+    @EnvironmentObject var loc: Localizer
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("", selection: $show.sidebarTab) {
+                Text(loc.t("show.lists")).tag(QtrlSidebarTab.lists)
+                Text(loc.t("show.oneShot")).tag(QtrlSidebarTab.pads)
+                Text(String(format: loc.t("show.sidebar.active"), show.snapshot.running.count)).tag(QtrlSidebarTab.active)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            switch show.sidebarTab {
+            case .lists: lists
+            case .pads: PadGridView(columns: 2, embedded: true)
+            case .active:
+                RunningCuesPanel(embedded: true).frame(maxHeight: .infinity, alignment: .top)
+                OutputMeters(embedded: true)
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .glassCard(padding: 12)
+    }
+
+    private var lists: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(show.doc.cueLists) { l in
+                let on = l.id == show.listID
+                Button { show.selectList(l.id) } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "list.bullet").font(.system(size: 11)).foregroundStyle(on ? Theme.accent : Theme.textMuted)
+                        Text(l.name).font(.system(size: 13, weight: on ? .semibold : .regular)).lineLimit(1)
+                        Spacer()
+                        Text("\(l.cues.count)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 7)
+                    .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(on ? Theme.accent.opacity(0.16) : Color.clear))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .contextMenu {
+                    if !show.showMode {
+                        Button(loc.t("show.list.rename")) { rename(l.id) }
+                        if show.doc.cueLists.count > 1 {
+                            Button(loc.t("action.delete"), role: .destructive) { show.edit { $0.lists.removeAll { $0.id == l.id } } }
+                        }
+                    }
+                }
+            }
+            if !show.showMode {
+                Button { show.addList() } label: { Label(loc.t("show.list.add"), systemImage: "plus").font(.system(size: 12)) }
+                    .buttonStyle(.borderless)
+                    .padding(.top, 4)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func rename(_ id: UUID) {
+        let alert = NSAlert()
+        alert.messageText = loc.t("show.list.rename")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = show.doc.lists.first { $0.id == id }?.name ?? ""
+        alert.accessoryView = field
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: loc.t("action.cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = field.stringValue
+        show.edit { d in if let i = d.lists.firstIndex(where: { $0.id == id }) { d.lists[i].name = name } }
+    }
+}
+
+// MARK: - Status bar
+
+/// Edit / Show, show name, output and file status, pre-show check, panel toggles, OSC and settings.
+struct QtrlStatusBar: View {
+    @EnvironmentObject var show: ShowStore
+    @EnvironmentObject var loc: Localizer
+    @State private var showIssues = false
+    @State private var showKeys = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Picker("", selection: $show.showMode) {
+                Label(loc.t("show.mode.edit"), systemImage: "pencil").tag(false)
+                Label(loc.t("show.mode.show"), systemImage: "lock.fill").tag(true)
+            }
+            .pickerStyle(.segmented).labelsHidden().frame(width: 190)
+            .help(loc.t("show.mode.help"))
+            TextField(loc.t("show.name.placeholder"), text: Binding(get: { show.doc.name }, set: { v in show.edit { $0.name = v } }))
+                .textFieldStyle(.plain)
+                .font(.system(size: 13, weight: .semibold))
+                .frame(minWidth: 100, maxWidth: 220)
+                .disabled(show.showMode)
+            Spacer(minLength: 8)
+            statusChips
+            Button { showIssues = true } label: { Image(systemName: "checklist") }
+                .buttonStyle(ToolButtonStyle())
+                .help(loc.t("show.check"))
+                .popover(isPresented: $showIssues, arrowEdge: .top) { ShowIssuesView().environmentObject(show).environmentObject(loc) }
+            Rectangle().fill(Theme.hairline).frame(width: 1, height: 20)
+            toggle("timeline.selection", loc.t("show.timeline"), on: show.showTimeline) { show.showTimeline.toggle() }
+            if !show.showMode {
+                toggle("rectangle.bottomthird.inset.filled", loc.t("show.view.inspector"), on: show.showInspector) { show.showInspector.toggle() }
+            }
+            toggle("sidebar.right", loc.t("show.view.sidebar"), on: show.showSidebar) { show.showSidebar.toggle() }
+            Rectangle().fill(Theme.hairline).frame(width: 1, height: 20)
+            Button { showKeys = true } label: { Image(systemName: "keyboard") }
+                .buttonStyle(ToolButtonStyle())
+                .help(loc.t("show.keys.title"))
+                .popover(isPresented: $showKeys, arrowEdge: .top) { QtrlShortcutsView().environmentObject(loc) }
+            Button { show.showOSC = true } label: { Image(systemName: "antenna.radiowaves.left.and.right") }
+                .buttonStyle(ToolButtonStyle())
+                .help(loc.t("osc.title"))
+            Button { show.showSettings = true } label: { Image(systemName: "gearshape") }
+                .buttonStyle(ToolButtonStyle())
+                .help(loc.t("show.settings"))
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(GlassBackground(radius: 12))
+    }
+
+    private func toggle(_ icon: String, _ help: String, on: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: icon).foregroundStyle(on ? Theme.accent : Theme.textSecondary) }
+            .buttonStyle(ToolButtonStyle())
+            .help(help)
+    }
+
+    private var statusChips: some View {
+        HStack(spacing: 8) {
+            chip(icon: show.outputError == nil ? "hifispeaker" : "exclamationmark.triangle.fill",
+                 text: show.outputError == nil ? "\(show.outputName) · \(Int(show.sampleRate / 1000)) kHz" : loc.t("show.output.error"),
+                 tint: show.outputError == nil ? Theme.textSecondary : Theme.statusError)
+                .help(show.outputError ?? "")
+            if show.memoryBytes > 0 {
+                chip(icon: "memorychip", text: "\(show.memoryBytes / 1_048_576) MB", tint: Theme.textSecondary)
+                    .help(loc.t("show.memory.help"))
+            }
+            if !show.missingFiles.isEmpty {
+                Button { show.relinkMissing() } label: {
+                    chip(icon: "questionmark.folder", text: String(format: loc.t("show.missing"), show.missingFiles.count), tint: Theme.statusWarning)
+                }
+                .buttonStyle(.plain)
+                .help(loc.t("show.relink.help"))
+            }
+        }
+    }
+
+    private func chip(icon: String, text: String, tint: Color) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 10))
+            Text(text).font(.system(size: 11)).lineLimit(1)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 9).padding(.vertical, 5)
+        .background(Capsule().fill(Color.white.opacity(0.06)))
     }
 }
 
@@ -227,13 +395,16 @@ struct OperatorColumn: View {
 struct RunningCuesPanel: View {
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
+    var embedded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(loc.t("show.running").uppercased()).font(Theme.label(11)).tracking(1.2).foregroundStyle(Theme.textSecondary)
-                Spacer()
-                Text("\(show.snapshot.running.count)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+            if !embedded {
+                HStack {
+                    Text(loc.t("show.running").uppercased()).font(Theme.label(11)).tracking(1.2).foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                    Text("\(show.snapshot.running.count)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                }
             }
             if show.snapshot.running.isEmpty {
                 Text(loc.t("show.running.none")).font(.system(size: 12)).foregroundStyle(Theme.textMuted)
@@ -244,9 +415,9 @@ struct RunningCuesPanel: View {
                     ForEach(show.snapshot.running) { r in tile(r) }
                 }
             }
-            .frame(maxHeight: 320)
+            .frame(maxHeight: embedded ? .infinity : 320)
         }
-        .glassCard(padding: 14)
+        .glassCard(padding: embedded ? 0 : 14, plain: embedded)
     }
 
     private func tile(_ r: RunningCue) -> some View {
@@ -286,6 +457,7 @@ struct RunningCuesPanel: View {
 struct OutputMeters: View {
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
+    var embedded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -310,166 +482,38 @@ struct OutputMeters: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(padding: 14)
+        .glassCard(padding: embedded ? 0 : 14, plain: embedded)
     }
 }
 
-// MARK: - Top bar
-
-/// Show name, cue lists, status, layout and mode switches; the cue toolbar while editing.
-struct ShowTopBar: View {
-    @EnvironmentObject var show: ShowStore
+/// The keyboard shortcuts (QLab's), for the status bar popover.
+struct QtrlShortcutsView: View {
     @EnvironmentObject var loc: Localizer
-    @State private var showIssues = false
+
+    private let rows: [(String, String)] = [
+        ("Space", "show.keys.go"), ("Esc", "show.keys.panic"), ("[  /  ]", "show.keys.pauseResumeAll"),
+        ("P", "show.keys.pauseSelected"), ("S", "show.keys.stopSelected"), ("L", "show.keys.load"), ("V", "show.keys.preview"),
+        ("↑  /  ↓", "show.keys.cursor"), ("⇧⌘↑  /  ⇧⌘↓", "show.keys.playhead"), ("⌘J", "show.keys.jump"),
+        ("⌘]  /  ⌘[", "show.keys.mode"), ("⌘I  /  ⌘L", "show.keys.panels"),
+        ("⌘1 · ⌘0 · ⌘7 · ⌘8", "show.keys.newCue"), ("N · Q · E · D · W", "show.keys.fields"), ("C", "show.keys.continue"),
+        ("T", "show.keys.target"), ("⌘R", "show.keys.renumber"), ("⌘D", "show.keys.duplicate"),
+        ("⌘C · ⌘X · ⌘V · ⌘A", "show.keys.clipboard"), ("⌫", "show.keys.delete"), ("F1…F12", "show.keys.pads"),
+    ]
 
     var body: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 12) {
-                TextField(loc.t("show.name.placeholder"), text: Binding(get: { show.doc.name }, set: { v in show.edit { $0.name = v } }))
-                    .textFieldStyle(.plain)
-                    .font(Theme.heading(22))
-                    .frame(minWidth: 120, maxWidth: 260)
-                    .disabled(show.showMode)
-                listTabs
-                Spacer(minLength: 8)
-                statusChips
-                Picker("", selection: $show.layout) {
-                    Text(loc.t("show.layout.simple")).tag(ShowLayout.simple)
-                    Text(loc.t("show.layout.expert")).tag(ShowLayout.expert)
-                }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 170)
-                .help(loc.t("show.layout.help"))
-                Picker("", selection: $show.showMode) {
-                    Label(loc.t("show.mode.edit"), systemImage: "pencil").tag(false)
-                    Label(loc.t("show.mode.show"), systemImage: "lock.fill").tag(true)
-                }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 190)
-                .help(loc.t("show.mode.help"))
-                Button { show.showOSC = true } label: { Label("OSC", systemImage: "antenna.radiowaves.left.and.right").font(.system(size: 12)).fixedSize() }
-                    .buttonStyle(ToolButtonStyle())
-                    .help(loc.t("osc.title"))
-                Button { show.showSettings = true } label: { Image(systemName: "gearshape") }
-                    .buttonStyle(ToolButtonStyle())
-                    .help(loc.t("show.settings"))
-            }
-            if !show.showMode { toolbar }
-        }
-        .glassCard(padding: 12)
-    }
-
-    private var listTabs: some View {
-        HStack(spacing: 6) {
-            ForEach(show.doc.cueLists) { l in
-                let on = l.id == show.listID
-                Button { show.selectList(l.id) } label: {
-                    Text(l.name).font(.system(size: 12, weight: on ? .semibold : .regular)).lineLimit(1)
-                        .padding(.horizontal, 12).padding(.vertical, 6)
-                        .background(Capsule().fill(on ? Theme.accent.opacity(0.2) : Color.white.opacity(0.05)))
-                        .foregroundStyle(on ? Theme.textPrimary : Theme.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .contextMenu {
-                    if !show.showMode {
-                        Button(loc.t("show.list.rename")) { rename(l.id) }
-                        if show.doc.cueLists.count > 1 {
-                            Button(loc.t("action.delete"), role: .destructive) { show.edit { $0.lists.removeAll { $0.id == l.id } } }
-                        }
+        VStack(alignment: .leading, spacing: 8) {
+            Text(loc.t("show.keys.title")).font(Theme.heading(15))
+            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 5) {
+                ForEach(rows, id: \.1) { k, key in
+                    GridRow {
+                        Text(k).font(Theme.mono(12, weight: .semibold)).foregroundStyle(Theme.accent)
+                        Text(loc.t(key)).font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
                     }
                 }
             }
-            if !show.showMode {
-                Button { show.addList() } label: { Image(systemName: "plus") }
-                    .buttonStyle(.borderless).help(loc.t("show.list.add"))
-            }
+            Text(loc.t("show.keys.note")).font(.system(size: 11)).foregroundStyle(Theme.textMuted).frame(maxWidth: 420, alignment: .leading)
         }
-    }
-
-    /// Labelled buttons for the common cue types, icons for list operations.
-    private var toolbar: some View {
-        HStack(spacing: 6) {
-            Button { show.chooseAudioFiles() } label: { Label(loc.t("cue.kind.audio"), systemImage: "plus").fixedSize() }
-                .buttonStyle(SSMTButtonStyle(kind: .primary))
-                .help(loc.t("show.addAudio.help"))
-            ForEach([CueKind.fade, .group, .wait, .stop, .memo, .network], id: \.self) { k in
-                Button { show.add(k) } label: {
-                    Label(loc.t("cue.kind.\(k.rawValue)"), systemImage: k.icon).font(.system(size: 12)).fixedSize()
-                }
-                .buttonStyle(ToolButtonStyle())
-            }
-            Menu {
-                ForEach(CueKind.controlKinds, id: \.self) { k in
-                    Button { show.add(k) } label: { Label(loc.t("cue.kind.\(k.rawValue)"), systemImage: k.icon) }
-                }
-            } label: {
-                Text(loc.t("show.add.more"))
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            Rectangle().fill(Theme.hairline).frame(width: 1, height: 22).padding(.horizontal, 2)
-            let none = show.selection.isEmpty
-            tool("plus.square.on.square", loc.t("action.duplicate")) { show.duplicateSelection() }.disabled(none)
-            tool("arrow.up", loc.t("show.up")) { show.moveSelection(by: -1) }.disabled(none)
-            tool("arrow.down", loc.t("show.down")) { show.moveSelection(by: 1) }.disabled(none)
-            tool("square.stack.3d.up.slash", loc.t("show.ungroup")) { show.ungroupSelection() }
-                .disabled(!show.selection.contains { show.doc.cue($0)?.kind == .group })
-            tool("trash", loc.t("action.delete")) { show.deleteSelection() }.disabled(none)
-            tool("list.number", loc.t("show.renumber")) { show.renumberSelection() }
-            Spacer(minLength: 0)
-            Button { showIssues = true } label: {
-                Label(loc.t("show.check"), systemImage: "checklist").font(.system(size: 12)).fixedSize()
-            }
-            .buttonStyle(ToolButtonStyle())
-            .popover(isPresented: $showIssues, arrowEdge: .bottom) { ShowIssuesView().environmentObject(show).environmentObject(loc) }
-        }
-    }
-
-    private func tool(_ icon: String, _ help: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: icon).frame(width: 16) }
-            .buttonStyle(ToolButtonStyle())
-            .help(help)
-    }
-
-    private var statusChips: some View {
-        HStack(spacing: 8) {
-            chip(icon: show.outputError == nil ? "hifispeaker" : "exclamationmark.triangle.fill",
-                 text: show.outputError == nil ? "\(show.outputName) · \(Int(show.sampleRate / 1000)) kHz" : loc.t("show.output.error"),
-                 tint: show.outputError == nil ? Theme.textSecondary : Theme.statusError)
-                .help(show.outputError ?? "")
-            if show.memoryBytes > 0 {
-                chip(icon: "memorychip", text: "\(show.memoryBytes / 1_048_576) MB", tint: Theme.textSecondary)
-                    .help(loc.t("show.memory.help"))
-            }
-            if !show.missingFiles.isEmpty {
-                Button { show.relinkMissing() } label: {
-                    chip(icon: "questionmark.folder", text: String(format: loc.t("show.missing"), show.missingFiles.count), tint: Theme.statusWarning)
-                }
-                .buttonStyle(.plain)
-                .help(loc.t("show.relink.help"))
-            }
-        }
-    }
-
-    private func chip(icon: String, text: String, tint: Color) -> some View {
-        HStack(spacing: 5) {
-            Image(systemName: icon).font(.system(size: 10))
-            Text(text).font(.system(size: 11)).lineLimit(1)
-        }
-        .foregroundStyle(tint)
-        .padding(.horizontal, 9).padding(.vertical, 5)
-        .background(Capsule().fill(Color.white.opacity(0.06)))
-    }
-
-    private func rename(_ id: UUID) {
-        let alert = NSAlert()
-        alert.messageText = loc.t("show.list.rename")
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-        field.stringValue = show.doc.lists.first { $0.id == id }?.name ?? ""
-        alert.accessoryView = field
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: loc.t("action.cancel"))
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let name = field.stringValue
-        show.edit { d in if let i = d.lists.firstIndex(where: { $0.id == id }) { d.lists[i].name = name } }
+        .padding(16)
     }
 }
 

@@ -49,11 +49,20 @@ public enum ShowTimeline {
     }
 
     /// Contents of a group as if it started at 0 (for editing a group on the timeline).
-    public static func planGroup(_ doc: ShowDocument, group: UUID, fileLength: @escaping (Cue) -> Double?) -> [TimelineClip] {
+    /// `lanePerCue`: every audio cue of the group on its own track, in the group's order (a multitrack view);
+    /// otherwise clips are packed into the fewest tracks.
+    public static func planGroup(_ doc: ShowDocument, group: UUID, fileLength: @escaping (Cue) -> Double?,
+                                 lanePerCue: Bool = false) -> [TimelineClip] {
         guard let g = doc.cue(group), g.kind == .group else { return [] }
         var sim = Simulator(doc: doc, fileLength: fileLength, limit: 400)
         _ = sim.groupChildren(g, at: 0)
-        return assignLanes(sim.clips)
+        guard lanePerCue else { return assignLanes(sim.clips) }
+        let order = g.children.flattened().map(\.cue).filter { $0.kind == .audio }.map(\.id)
+        return sim.clips.map { c in
+            var c = c
+            c.lane = c.style == .audio ? (order.firstIndex(of: c.cueID) ?? order.count) : controlLane
+            return c
+        }
     }
 
     /// Packs clips into the fewest tracks so that none overlap; fades and markers go to `controlLane`.

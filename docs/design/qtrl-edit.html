@@ -1,0 +1,76 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>Qtrl — Правка (макет)</title>
+<style>
+:root{--bg:#070908;--panel:#121513;--raised:#1B1F1C;--line:rgba(255,255,255,.08);--line2:rgba(255,255,255,.16);--t1:#F3F6F4;--t2:#939C96;--t3:#5F6862;--acc:#2EE59D;--acc2:#10A86E;--y:#FFD60A;--r:#FF453A;--b:#64D2FF}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--t1);font:13px -apple-system,"SF Pro Text","Helvetica Neue",Arial,sans-serif;width:1500px;height:900px;overflow:hidden}
+.main{display:grid;grid-template-rows:auto 1fr auto;gap:10px;padding:14px;height:100%}
+.top{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px}
+.top h1{font-size:20px;margin:0}
+.tabs{display:flex;gap:6px}.tab{padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.05);color:var(--t2);font-size:12px}.tab.on{background:rgba(46,229,157,.2);color:var(--t1);font-weight:600}
+.add{padding:7px 14px;border-radius:9px;background:linear-gradient(90deg,var(--acc),var(--acc2));color:#000;font-weight:600}
+.ghost{padding:6px 10px;border-radius:8px;border:1px solid var(--line2);color:var(--t2);font-size:12px;white-space:nowrap}
+.seg{display:flex;background:var(--raised);border-radius:9px;padding:3px}.seg div{padding:5px 16px;border-radius:7px;color:var(--t2)}.seg .on{background:#2a302c;color:var(--t1);font-weight:600}
+.chip{display:flex;gap:6px;align-items:center;padding:5px 10px;border:1px solid var(--line2);border-radius:999px;color:var(--t2);font-size:12px;white-space:nowrap}.dot{width:7px;height:7px;border-radius:50%;background:var(--acc)}
+.sp{flex:1}
+.body{display:grid;grid-template-columns:1fr 340px;gap:10px;min-height:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.list .h{display:grid;grid-template-columns:60px 1fr 70px 80px 70px 30px;padding:9px 14px;color:var(--t3);font-size:11px;border-bottom:1px solid var(--line)}
+.row{display:grid;grid-template-columns:60px 1fr 70px 80px 70px 30px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--line)}
+.row b{display:block;font-weight:600}.row small{color:var(--t2);font-size:11px}
+.row .n{font-variant-numeric:tabular-nums;font-weight:600}.row .v{text-align:right;color:var(--t2);font-variant-numeric:tabular-nums}
+.row.ph{box-shadow:inset 3px 0 0 var(--acc);background:rgba(46,229,157,.07)}.row.sel{background:rgba(255,255,255,.06)}
+.row.play .n{color:var(--acc)}.prog{height:3px;background:var(--acc);border-radius:2px;margin-top:4px}
+.sub{padding-left:24px}
+.side{display:grid;grid-template-rows:auto 1fr;gap:10px;min-height:0}
+.tr{padding:12px}.tr .nx{display:flex;gap:6px;align-items:baseline;font-size:12px;color:var(--t3)}.tr .nx b{color:var(--t1)}
+.go{display:flex;gap:8px;margin-top:8px}.gob{flex:1;height:48px;border-radius:12px;background:linear-gradient(180deg,var(--acc),var(--acc2));color:#000;font-weight:900;font-size:22px;letter-spacing:3px;display:grid;place-items:center}
+.sq{width:48px;height:48px;border-radius:12px;border:1px solid var(--line2);display:grid;place-items:center;color:var(--t2)}.sq.r{background:var(--r);border:none;color:#fff}
+.insp{padding:14px}.insp .t{display:flex;gap:8px;align-items:center;font-size:16px;font-weight:600}.insp .t .num{color:var(--acc)}
+.itabs{display:flex;gap:4px;margin:12px 0}.itabs div{flex:1;text-align:center;padding:5px;border-radius:7px;color:var(--t2);font-size:12px;background:rgba(255,255,255,.04)}.itabs .on{background:rgba(46,229,157,.18);color:var(--t1)}
+.f{margin-bottom:10px}.f label{display:block;color:var(--t3);font-size:11px;margin-bottom:4px}.in{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
+.wave{height:70px;border-radius:8px;background:repeating-linear-gradient(90deg,rgba(46,229,157,.5) 0 2px,transparent 2px 4px);opacity:.6}
+.bottom{display:grid;grid-template-columns:1fr 360px;gap:10px;height:190px}
+.lbl{font-size:10px;letter-spacing:1.2px;color:var(--t2);padding:10px 14px}
+.tl{position:relative;height:150px;margin:0 14px}.clip{position:absolute;height:26px;border-radius:5px;background:rgba(46,229,157,.35);border:1px solid rgba(46,229,157,.6);font-size:10px;padding:3px 6px}
+.pads{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:0 12px}.pad{border:1px solid var(--line);border-radius:9px;padding:8px;height:52px;background:var(--raised);font-size:12px}.pad small{display:block;color:var(--t3);margin-top:8px;font-size:10px}
+.note{position:absolute;left:14px;bottom:8px;color:var(--y);font-size:12px}
+</style></head><body><div class="main">
+<div class="top"><h1>Spring gala</h1>
+ <div class="tabs"><div class="tab on">Main</div><div class="tab">Encore</div><div class="tab">+</div></div>
+ <div style="width:10px"></div>
+ <div class="add">+ Аудио</div><div class="ghost">+ Кью ▾</div>
+ <div class="sp"></div>
+ <div class="chip"><span class="dot"></span>MOTU 828 · 48 kHz</div>
+ <div class="chip" style="color:var(--y);border-color:rgba(255,214,10,.5)">⚠ 1 проблема</div>
+ <div class="ghost">Вид ▾</div>
+ <div class="seg"><div class="on">Правка</div><div>Шоу</div></div>
+ <div class="ghost">⚙</div>
+</div>
+<div class="body">
+ <div class="card list">
+  <div class="h"><span>№</span><span>Кью</span><span style="text-align:right">До</span><span style="text-align:right">Длина</span><span style="text-align:right">После</span><span></span></div>
+  <div class="row play"><span class="n">▶ 1</span><span><b>Preshow loop</b><small>Preshow loop.wav · ∞</small><div class="prog" style="width:40%"></div></span><span class="v"></span><span class="v">∞</span><span class="v"></span><span></span></div>
+  <div class="row"><span class="n">2</span><span><b>Fade preshow</b><small>→ 1 · Preshow loop</small></span><span class="v"></span><span class="v">3.0</span><span class="v">2.0</span><span style="color:var(--b)">↓</span></div>
+  <div class="row ph sel"><span class="n">3</span><span><b>Intro</b><small>Intro.wav</small></span><span class="v">1.5</span><span class="v">2:41</span><span class="v"></span><span style="color:var(--acc)">↳</span></div>
+  <div class="row"><span class="n">▾ 4</span><span><b>Scene 1</b><small>Группа · все вместе</small></span><span class="v"></span><span class="v">6.2</span><span class="v"></span><span></span></div>
+  <div class="row sub"><span class="n">4.1</span><span><b>Rain</b><small>Rain.wav</small></span><span class="v"></span><span class="v">∞</span><span class="v"></span><span></span></div>
+  <div class="row sub"><span class="n">4.2</span><span><b>Thunder</b><small>Thunder.wav</small></span><span class="v">3.0</span><span class="v">6.2</span><span class="v"></span><span></span></div>
+  <div class="row"><span class="n">5</span><span><b>Пауза</b></span><span class="v"></span><span class="v">10.0</span><span class="v"></span><span></span></div>
+  <div class="row"><span class="n">6</span><span><b>Stop scene</b><small>→ 4 · Scene 1</small></span><span class="v"></span><span class="v">3.0</span><span class="v"></span><span></span></div>
+ </div>
+ <div class="side">
+  <div class="card tr"><div class="nx">ДАЛЕЕ <b>3 · Intro</b><span class="sp"></span>идёт 1</div>
+   <div class="go"><div class="gob">GO</div><div class="sq">❚❚</div><div class="sq r">■</div></div></div>
+  <div class="card insp"><div class="t"><span class="num">3</span> Intro <span style="color:var(--t3);font-size:12px;font-weight:400">· аудио</span></div>
+   <div class="itabs"><div class="on">Основное</div><div>Время</div><div>Звук</div><div>Выходы</div></div>
+   <div class="f"><label>Файл</label><div class="in">Intro.wav · 2:41 · 2 ch</div></div>
+   <div class="wave"></div>
+   <div class="f" style="margin-top:10px"><label>Заметки</label><div class="in" style="height:54px;color:var(--t3)">Ждать поклон</div></div>
+   <div class="f"><label>Цвет · горячая клавиша</label><div class="in">● ● ● ● ●  ·  —</div></div>
+  </div>
+ </div>
+</div>
+<div class="bottom">
+ <div class="card"><div class="lbl">ТАЙМЛАЙН</div><div class="tl"><div class="clip" style="left:0;width:70%;top:0">3 · Intro</div><div class="clip" style="left:22%;width:12%;top:34px">Phone</div><div class="clip" style="left:30%;width:20%;top:68px;opacity:.5;border-style:dashed">4.2 · Thunder</div><div style="position:absolute;left:25%;top:0;bottom:0;width:2px;background:#fff"></div></div></div>
+ <div class="card"><div class="lbl">ONE-SHOT · Bank 1 ▾ <span style="float:right">+</span></div><div class="pads"><div class="pad">Phone<small>F1</small></div><div class="pad">Door<small>F2</small></div><div class="pad">Applause<small>F3</small></div></div></div>
+</div>
+</div></body></html>

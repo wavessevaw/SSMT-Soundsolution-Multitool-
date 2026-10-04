@@ -9,6 +9,11 @@ struct AssistWorkspace: View {
     @EnvironmentObject var loc: Localizer
 
     var body: some View {
+        // Nothing but the console choice until a console (or the simulator) is connected.
+        if store.isConnected { workspace } else { AssistConnectScreen() }
+    }
+
+    private var workspace: some View {
         VStack(alignment: .leading, spacing: 12) {
             AssistHeader()
             if let m = store.message {
@@ -58,9 +63,11 @@ private struct AssistHeader: View {
         HStack(spacing: 8) {
             Button { store.showSettings = true } label: {
                 HeaderChip {
-                    Circle().fill(dot).frame(width: 7, height: 7)
+                    LinkLamp(on: store.linkAlive)
                     Text(consoleName).fontWeight(.semibold).foregroundStyle(Theme.textPrimary)
                     if full && store.family != .simulator { Text(store.host).monospacedDigit() }
+                    Text(loc.t(store.linkAlive ? "assist.link.ok" : "assist.link.lost"))
+                        .foregroundStyle(store.linkAlive ? Theme.statusGood : Theme.statusError)
                 }
             }
             .buttonStyle(.plain)
@@ -78,11 +85,6 @@ private struct AssistHeader: View {
                     Text(loc.t("assist.char.\(store.character.rawValue)")).fontWeight(.semibold).foregroundStyle(Theme.textPrimary)
                 }
             }
-            if !store.isConnected {
-                Button(loc.t("assist.connect")) { store.connect() }
-                    .buttonStyle(SSMTButtonStyle(kind: .primary))
-                    .disabled(!store.family.implemented)
-            }
             Button { store.showSettings = true } label: {
                 HeaderChip { Image(systemName: "gearshape") }
             }
@@ -97,15 +99,6 @@ private struct AssistHeader: View {
         case .xAir: return "X Air / MR"
         case .simulator: return loc.t("assist.chip.sim")
         default: return loc.t("assist.family.\(store.family.rawValue)")
-        }
-    }
-
-    private var dot: Color {
-        switch store.connection {
-        case .connected: return Theme.statusGood
-        case .connecting: return Theme.statusWarning
-        case .failed: return Theme.statusError
-        case .disconnected: return Theme.textMuted
         }
     }
 
@@ -153,6 +146,161 @@ private struct AssistSettingsSheet: View {
         .frame(width: 860, height: 520)
         .background(Backdrop())
         .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: - Connect screen
+
+/// Link lamp: green while the console answers, red when there is no link.
+private struct LinkLamp: View {
+    var on: Bool
+    var size: CGFloat = 9
+
+    var body: some View {
+        Circle()
+            .fill(on ? Theme.statusGood : Theme.statusError)
+            .frame(width: size, height: size)
+            .shadow(color: (on ? Theme.statusGood : Theme.statusError).opacity(0.8), radius: size / 2)
+    }
+}
+
+/// Shown until a console is connected: choose the console, find it on the Wi-Fi network, connect.
+private struct AssistConnectScreen: View {
+    @EnvironmentObject var store: AssistStore
+    @EnvironmentObject var loc: Localizer
+    @State private var manualIP = ""
+
+    private let families: [MixerFamily] = [.x32, .xAir, .simulator, .wing, .yamaha, .allenHeath]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text("FOH Assist").font(.system(size: 30, weight: .bold))
+                    Spacer()
+                    HStack(spacing: 8) {
+                        LinkLamp(on: false)
+                        Text(statusText).font(.system(size: 13, weight: .medium)).foregroundStyle(statusColor)
+                    }
+                }
+                Text(loc.t("assist.nc.text")).font(.system(size: 13)).foregroundStyle(Theme.textSecondary)
+
+                step(1, loc.t("assist.connect.console"))
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+                    ForEach(families, id: \.self) { f in familyCard(f) }
+                }
+
+                if store.family == .simulator {
+                    step(2, loc.t("assist.connect.sim"))
+                    Button { store.connect() } label: { Label(loc.t("assist.connect.simGo"), systemImage: "play.fill") }
+                        .buttonStyle(SSMTButtonStyle(kind: .primary))
+                } else if store.family.implemented {
+                    HStack {
+                        step(2, loc.t("assist.connect.found"))
+                        Spacer()
+                        if store.scanning { ProgressView().controlSize(.small) }
+                        Button { store.scan() } label: { Label(loc.t("assist.connect.rescan"), systemImage: "arrow.clockwise") }
+                            .buttonStyle(SSMTButtonStyle())
+                            .disabled(store.scanning)
+                    }
+                    found
+                    HStack(spacing: 10) {
+                        Text(loc.t("assist.connect.manual")).font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                        TextField("192.168.1.64", text: $manualIP).textFieldStyle(.roundedBorder).frame(width: 160)
+                        Button(loc.t("assist.connect")) {
+                            store.host = manualIP.trimmingCharacters(in: .whitespaces)
+                            store.connect()
+                        }
+                        .buttonStyle(SSMTButtonStyle())
+                        .disabled(manualIP.trimmingCharacters(in: .whitespaces).isEmpty || store.connection == .connecting)
+                    }
+                }
+                Text(loc.t("assist.connect.after")).font(.system(size: 11)).foregroundStyle(Theme.textMuted)
+            }
+            .padding(24)
+            .frame(maxWidth: 820, alignment: .leading)
+            .background(GlassBackground())
+            .frame(maxWidth: .infinity)
+            .padding(.top, 20)
+        }
+        .onAppear {
+            if manualIP.isEmpty { manualIP = store.host }
+            if store.autoScan && (store.family == .x32 || store.family == .xAir) { store.scan() }
+        }
+    }
+
+    private var statusText: String {
+        switch store.connection {
+        case .connecting: return String(format: loc.t("assist.connect.connecting"), store.host)
+        case let .failed(t): return t == "not supported yet" ? loc.t("assist.soon") : loc.t("assist.connect.failed") + ": " + t
+        default: return loc.t("assist.link.none")
+        }
+    }
+
+    private var statusColor: Color { store.connection == .connecting ? Theme.statusWarning : Theme.statusError }
+
+    private func step(_ n: Int, _ title: String) -> some View {
+        HStack(spacing: 8) {
+            Text("\(n)").font(.system(size: 12, weight: .bold)).foregroundStyle(.black)
+                .frame(width: 20, height: 20).background(Circle().fill(Theme.accent))
+            Text(title).font(Theme.heading(15))
+        }
+    }
+
+    private func familyCard(_ f: MixerFamily) -> some View {
+        let on = store.family == f
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+        return Button {
+            store.family = f
+            if f == .x32 || f == .xAir { store.scan() }
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: f == .simulator ? "desktopcomputer" : "slider.vertical.3")
+                    .font(.system(size: 18)).foregroundStyle(on ? Theme.accent : Theme.textSecondary)
+                Text(loc.t("assist.family.\(f.rawValue)")).font(.system(size: 13, weight: .semibold)).lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                Text(f.implemented ? (f == .simulator ? loc.t("assist.connect.simHint") : loc.t("assist.connect.wifi")) : loc.t("assist.soon"))
+                    .font(.system(size: 11)).foregroundStyle(Theme.textMuted)
+            }
+            .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+            .padding(12)
+            .background(shape.fill(on ? Theme.accent.opacity(0.12) : Color.white.opacity(0.04)))
+            .overlay(shape.strokeBorder(on ? Theme.accent : Theme.hairline, lineWidth: on ? 1.5 : 1))
+            .contentShape(shape)
+        }
+        .buttonStyle(.plain)
+        .disabled(!f.implemented)
+        .opacity(f.implemented ? 1 : 0.45)
+    }
+
+    @ViewBuilder private var found: some View {
+        let list = store.discovered.filter { $0.family == store.family }
+        if list.isEmpty {
+            Text(loc.t(store.scanning ? "assist.connect.searching" : "assist.connect.none"))
+                .font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                .padding(.vertical, 6)
+        }
+        ForEach(list) { c in
+            HStack(spacing: 12) {
+                Image(systemName: "slider.vertical.3").font(.system(size: 16)).foregroundStyle(Theme.accent)
+                    .frame(width: 34, height: 34)
+                    .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Theme.accent.opacity(0.14)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(c.model) · \(c.name)").font(.system(size: 13, weight: .semibold))
+                    Text(c.ip + (c.firmware.isEmpty ? "" : " · " + String(format: loc.t("assist.connect.fw"), c.firmware)))
+                        .font(Theme.mono(12)).foregroundStyle(Theme.textSecondary)
+                }
+                Spacer()
+                if store.connection == .connecting && store.host == c.ip {
+                    ProgressView().controlSize(.small)
+                }
+                Button(loc.t("assist.connect")) { store.connect(to: c) }
+                    .buttonStyle(SSMTButtonStyle(kind: .primary))
+                    .disabled(store.connection == .connecting)
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white.opacity(0.05)))
+        }
     }
 }
 

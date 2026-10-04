@@ -23,14 +23,16 @@ struct CueListView: View {
                                    isPlayhead: row.cue.id == playhead,
                                    isSelected: show.selection.contains(row.cue.id),
                                    running: running[row.cue.id],
-                                   hasProblem: show.snapshot.problems[row.cue.id] != nil || isMissing(row.cue))
+                                   problem: isMissing(row.cue) ? "show.fileMissing"
+                                       : isUnreadable(row.cue) ? "show.fileUnreadable" : show.snapshot.problems[row.cue.id])
                                 .id(row.cue.id)
                                 .onTapGesture(count: 2) { show.setPlayhead(row.cue.id) }
                                 .simultaneousGesture(TapGesture().onEnded { select(row.cue.id, rows: rows) })
                                 .contextMenu { menu(row.cue) }
                                 .onDrag { NSItemProvider(object: row.cue.id.uuidString as NSString) }
-                                .onDrop(of: [.text, .fileURL], isTargeted: nil) { providers in
-                                    drop(providers, before: row.cue)
+                                // As in QLab: dropped on the lower part of a group row, files and cues go into the group.
+                                .onDrop(of: [.text, .fileURL], isTargeted: nil) { providers, at in
+                                    drop(providers, before: row.cue, into: row.cue.kind == .group && at.y > 14 ? row.cue.id : nil)
                                 }
                         }
                         // Drop zone at the end of the list.
@@ -85,6 +87,11 @@ struct CueListView: View {
         .padding(.vertical, 40)
     }
 
+    private func isUnreadable(_ cue: Cue) -> Bool {
+        guard cue.kind == .audio, let p = show.resolvedPath(cue) else { return false }
+        return show.unreadableFiles[p] != nil
+    }
+
     private func isMissing(_ cue: Cue) -> Bool {
         guard cue.kind == .audio else { return false }
         guard let p = show.resolvedPath(cue) else { return true }
@@ -92,6 +99,8 @@ struct CueListView: View {
     }
 
     private func select(_ id: UUID, rows: [(cue: Cue, depth: Int)]) {
+        // Leave any text field of the inspector, so Space is GO again and not a typed space.
+        NSApp.keyWindow?.makeFirstResponder(nil)
         let mods = NSEvent.modifierFlags
         if mods.contains(.command) {
             if show.selection.contains(id) { show.selection.remove(id) } else { show.selection.insert(id) }
@@ -102,6 +111,8 @@ struct CueListView: View {
         } else {
             show.selection = [id]
             anchor = id
+            // As in QLab: the clicked cue is the next one for GO / Space (top-level cues only).
+            if rows.first(where: { $0.cue.id == id })?.depth == 0 { show.setPlayhead(id) }
         }
     }
 
@@ -114,6 +125,9 @@ struct CueListView: View {
             Button(loc.t("action.duplicate")) {
                 if !show.selection.contains(cue.id) { show.selection = [cue.id] }
                 show.duplicateSelection()
+            }
+            if show.selection.count > 1 && show.selection.contains(cue.id) {
+                Button(loc.t("show.groupSelection")) { show.add(.group) }
             }
             if cue.kind == .group {
                 Button(loc.t("show.addAudioToGroup")) {
@@ -131,7 +145,7 @@ struct CueListView: View {
     }
 
     /// Cue ids (reorder) or audio files (new cues) dropped onto a row.
-    private func drop(_ providers: [NSItemProvider], before: Cue?) -> Bool {
+    private func drop(_ providers: [NSItemProvider], before: Cue?, into target: UUID? = nil) -> Bool {
         guard !show.showMode, let lid = show.listID else { return false }
         let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
         if !files.isEmpty {
@@ -153,6 +167,11 @@ struct CueListView: View {
                     let flat = list.cues.flattened().map(\.cue.id)
                     if let i = flat.firstIndex(of: before.id), i > 0 { after = flat[i - 1] }
                 }
+                if let target {
+                    show.addAudioFiles(audio, intoGroup: target)
+                    show.collapsed.remove(target)
+                    return
+                }
                 show.addAudioFiles(audio, after: before == nil ? show.currentList?.cues.last?.id : after)
             }
             return true
@@ -162,6 +181,12 @@ struct CueListView: View {
             guard let s = obj as? String, let id = UUID(uuidString: s) else { return }
             DispatchQueue.main.async {
                 let ids = show.selection.contains(id) ? show.orderedSelection : [id]
+                if let target {
+                    guard !ids.contains(target) else { return }
+                    show.edit(loc.t("show.move")) { $0.move(ids, before: nil, intoGroup: target, list: lid) }
+                    show.collapsed.remove(target)
+                    return
+                }
                 guard before?.id != id else { return }
                 show.edit(loc.t("show.move")) { $0.move(ids, before: before?.id, list: lid) }
             }
@@ -179,7 +204,9 @@ struct CueRow: View {
     var isPlayhead: Bool
     var isSelected: Bool
     var running: RunningCue?
-    var hasProblem: Bool
+    /// Localisation key of what is wrong with the cue (nil = fine).
+    var problem: String?
+    private var hasProblem: Bool { problem != nil && problem != "error.show.notReady" }
 
     var body: some View {
         HStack(spacing: 0) {
@@ -212,7 +239,7 @@ struct CueRow: View {
                         .strikethrough(!cue.armed, color: Theme.textMuted)
                         .lineLimit(1)
                     if let sub = subtitle {
-                        Text(sub).font(.system(size: 11)).foregroundStyle(hasProblem ? Theme.statusWarning : Theme.textSecondary).lineLimit(1)
+                        Text(sub).font(.system(size: 11)).foregroundStyle(hasProblem ? Theme.statusWarning : problem != nil ? Theme.dataBlue : Theme.textSecondary).lineLimit(1)
                     }
                 }
                 if let key = cue.hotkey, !key.isEmpty {
@@ -249,7 +276,7 @@ struct CueRow: View {
 
     private var subtitle: String? {
         if cue.kind == .audio {
-            if hasProblem { return loc.t("show.fileMissing") }
+            if let problem { return loc.t(problem) }
             return cue.audio.map { ($0.file as NSString).lastPathComponent }
         }
         if cue.kind.needsTarget {

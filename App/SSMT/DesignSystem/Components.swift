@@ -35,6 +35,11 @@ extension View {
     func glassCard(padding: CGFloat = 18, radius: CGFloat = Theme.radius, highlighted: Bool = false) -> some View {
         self.padding(padding).background(GlassBackground(radius: radius, highlighted: highlighted))
     }
+
+    /// `plain`: no card at all (the view sits inside another card).
+    @ViewBuilder func glassCard(padding: CGFloat, plain: Bool) -> some View {
+        if plain { self.padding(padding) } else { self.glassCard(padding: padding) }
+    }
 }
 
 /// Glass card with an optional title marked by a short coloured bar.

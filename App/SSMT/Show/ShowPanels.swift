@@ -3,76 +3,6 @@ import SSMTCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - Library
-
-/// Expert layout, left: cue lists, one-shot banks and every cue type.
-struct ShowLibraryPanel: View {
-    @EnvironmentObject var show: ShowStore
-    @EnvironmentObject var loc: Localizer
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
-                heading(loc.t("show.lists")) { show.addList() }
-                ForEach(show.doc.cueLists) { l in
-                    row(l.name, icon: "list.bullet", on: l.id == show.listID) { show.selectList(l.id) }
-                }
-                heading(loc.t("show.banks")) { show.addBank() }
-                    .padding(.top, 8)
-                ForEach(show.doc.banks) { b in
-                    row(b.name, icon: "square.grid.3x3", on: b.id == show.bankID) { show.bankID = b.id }
-                }
-                Text(loc.t("show.add.title").uppercased())
-                    .font(Theme.label(10)).tracking(1.1).foregroundStyle(Theme.textSecondary)
-                    .padding(.top, 10)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 3), spacing: 6) {
-                    ForEach(CueKind.mediaKinds + CueKind.controlKinds, id: \.self) { k in
-                        Button { k == .audio ? show.chooseAudioFiles() : show.add(k) } label: {
-                            VStack(spacing: 4) {
-                                Image(systemName: k.icon).font(.system(size: 14))
-                                Text(loc.t("cue.kind.\(k.rawValue)")).font(.system(size: 9)).lineLimit(1).minimumScaleFactor(0.7)
-                            }
-                            .foregroundStyle(Theme.textPrimary)
-                            .frame(maxWidth: .infinity, minHeight: 46)
-                            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.white.opacity(0.06)))
-                            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.white.opacity(0.08)))
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .help(loc.t("cue.kind.\(k.rawValue)"))
-                    }
-                }
-            }
-        }
-        .frame(maxHeight: .infinity)
-        .glassCard(padding: 12)
-    }
-
-    private func heading(_ title: String, add: @escaping () -> Void) -> some View {
-        HStack {
-            Text(title.uppercased()).font(Theme.label(10)).tracking(1.1).foregroundStyle(Theme.textSecondary)
-            Spacer()
-            Button(action: add) { Image(systemName: "plus").font(.system(size: 10, weight: .semibold)) }
-                .buttonStyle(.borderless)
-        }
-    }
-
-    private func row(_ title: String, icon: String, on: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Image(systemName: icon).font(.system(size: 11)).foregroundStyle(on ? Theme.accent : Theme.textSecondary).frame(width: 14)
-                Text(title).font(.system(size: 12, weight: on ? .semibold : .regular)).lineLimit(1)
-                Spacer()
-            }
-            .foregroundStyle(Theme.textPrimary)
-            .padding(.horizontal, 8).padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(on ? Theme.accent.opacity(0.16) : Color.clear))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 // MARK: - One-shot pads
 
 /// Grid of one-shot pads of the current bank; F-keys and clicks fire them without moving the playhead.
@@ -80,13 +10,17 @@ struct PadGridView: View {
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
     var columns: Int
+    /// Inside the sidebar: no own title and card (the sidebar tab names it).
+    var embedded = false
 
     var body: some View {
         let bank = show.currentBank
         let running = Dictionary(uniqueKeysWithValues: show.snapshot.running.map { ($0.id, $0) })
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
-                Text(loc.t("show.oneShot").uppercased()).font(Theme.label(11)).tracking(1.2).foregroundStyle(Theme.textSecondary)
+                if !embedded {
+                    Text(loc.t("show.oneShot").uppercased()).font(Theme.label(11)).tracking(1.2).foregroundStyle(Theme.textSecondary)
+                }
                 Spacer()
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
@@ -104,8 +38,12 @@ struct PadGridView: View {
                 }
                 .frame(maxWidth: 170)
                 if !show.showMode {
-                    Button { show.choosePads() } label: { Image(systemName: "plus") }
-                        .buttonStyle(.borderless).help(loc.t("show.pad.add"))
+                    Menu {
+                        Button(loc.t("show.pad.add")) { show.choosePads() }
+                        Button(loc.t("show.bank.add")) { show.addBank() }
+                    } label: { Image(systemName: "plus") }
+                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                        .help(loc.t("show.pad.add"))
                 }
             }
             if let bank, !bank.cues.isEmpty {
@@ -126,7 +64,7 @@ struct PadGridView: View {
             }
         }
         .frame(maxHeight: .infinity, alignment: .top)
-        .glassCard(padding: 12)
+        .glassCard(padding: embedded ? 0 : 12, plain: embedded)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             guard !show.showMode else { return false }
             var urls: [URL] = []

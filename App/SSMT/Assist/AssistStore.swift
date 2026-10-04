@@ -5,7 +5,7 @@ import SSMTCore
 import SwiftUI
 
 /// UDP link to a Behringer X32 / Midas M32 or X Air console over the venue network (Wi-Fi router or cable),
-/// the same way Mixing Station and X32-Edit connect: OSC parameters, /xremote updates and meter streams.
+/// as remote-control apps do: OSC parameters, /xremote updates and meter streams.
 final class X32Link: @unchecked Sendable {
     let family: MixerFamily
     let host: String
@@ -113,7 +113,7 @@ final class AssistStore: ObservableObject {
 
     /// Where the assistant hears each channel.
     enum SignalSource: String, CaseIterable {
-        /// Console meters and RTA over the network (Wi-Fi), like Mixing Station. Nothing else to connect.
+        /// Console meters and RTA over the network (Wi-Fi). Nothing else to connect.
         case network
         /// Every console channel as an input of the Mac (USB / Dante card): full audio analysis.
         case interface
@@ -155,6 +155,15 @@ final class AssistStore: ObservableObject {
     @Published var showSettings = false
     /// What the show guard is holding right now.
     @Published private(set) var corrections: [ShowGuard.Correction] = []
+    /// Consoles found on the network (connect screen).
+    @Published private(set) var discovered: [DiscoveredConsole] = []
+    @Published private(set) var scanning = false
+    /// The connect screen searches the network when it opens (off in snapshot tests).
+    var autoScan = true
+    /// The console answers (meters, /xremote updates) — the green / red lamp.
+    @Published private(set) var linkAlive = false
+    private var lastHeard = Date.distantPast
+    private var healthTimer: Timer?
     /// Show time since the guard (or the show simulation) started, seconds.
     @Published private(set) var guardElapsed: Double = 0
     let liveMeters = AssistMeters()
@@ -236,6 +245,7 @@ final class AssistStore: ObservableObject {
             busMap = c.buses
             buses = busMap.values.sorted { $0.id < $1.id }
             connection = .connected("SSMT simulator · \(c.strips.count) ch")
+            linkAlive = true
         case .x32, .xAir:
             connection = .connecting
             setStrips(Dictionary(uniqueKeysWithValues: (1...family.channelCount).map { ($0, ChannelStrip(id: $0)) }))
@@ -256,9 +266,46 @@ final class AssistStore: ObservableObject {
         }
         session = AssistSession(strips: strips, character: character, tap: tap)
         session?.measurementMic = measurementMic
+        startHealthCheck()
+    }
+
+    /// Looks for X32 / M32 and X Air / MR consoles on the Wi-Fi network.
+    func scan() {
+        guard !scanning else { return }
+        scanning = true
+        DispatchQueue.global(qos: .userInitiated).async {
+            let found = ConsoleScanner.scan()
+            Task { @MainActor [weak self] in
+                self?.discovered = found
+                self?.scanning = false
+            }
+        }
+    }
+
+    /// Previews and tests: consoles as if found on the network.
+    func showDiscovered(_ consoles: [DiscoveredConsole]) { discovered = consoles }
+
+    func connect(to console: DiscoveredConsole) {
+        family = console.family
+        host = console.ip
+        connect()
+    }
+
+    private func startHealthCheck() {
+        healthTimer?.invalidate()
+        healthTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                let alive = self.sim != nil || (self.isConnected && Date().timeIntervalSince(self.lastHeard) < 4)
+                if alive != self.linkAlive { self.linkAlive = alive }
+            }
+        }
     }
 
     func disconnect() {
+        healthTimer?.invalidate()
+        healthTimer = nil
+        linkAlive = false
         stopRehearsal()
         stopJob()
         stopGuard()
@@ -285,6 +332,8 @@ final class AssistStore: ObservableObject {
     }
 
     private func received(_ m: OSCMessage) {
+        lastHeard = Date()
+        if !linkAlive && isConnected { linkAlive = true }
         if m.address == "/info" {
             let parts = m.arguments.compactMap { if case let .string(s) = $0 { return s } else { return nil } }
             connection = .connected(parts.dropFirst().joined(separator: " · "))

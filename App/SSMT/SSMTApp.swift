@@ -44,7 +44,7 @@ struct SSMTApp: App {
                         Button(localizer.t("qlab.menu")) { model.show.showQLabImport = true }
                     }
                     Button(localizer.t("show.addAudio")) { model.show.chooseAudioFiles() }
-                        .keyboardShortcut("i", modifiers: [.command])
+                        .keyboardShortcut("1", modifiers: [.command])
                 }
                 if model.section == .inputList {
                     Button(localizer.t("il.saveAs")) { model.inputList.save(as: true) }
@@ -62,21 +62,24 @@ struct SSMTApp: App {
             CommandMenu("SSMT") {
                 Button(localizer.t("action.stop")) { model.emergencyStop() }
                     .keyboardShortcut(.escape, modifiers: [])
-                Button(localizer.t("noise.toggle")) { model.toggleNoise() }
-                    .keyboardShortcut("n", modifiers: [.command])
-                Button(localizer.t("delay.find")) { model.findDelay() }
-                    .keyboardShortcut("d", modifiers: [.command])
-                Divider()
-                Button(localizer.t("mode.wizard")) { model.appMode = .wizard }
-                    .keyboardShortcut("1", modifiers: [.command])
-                Button(localizer.t("mode.expert")) { model.appMode = .expert }
-                    .keyboardShortcut("e", modifiers: [.command])
-                Button(localizer.t("mode.stage")) { model.stageMode.toggle() }
-                    .keyboardShortcut("l", modifiers: [.command])
-                Divider()
-                Button(localizer.t("wizard.begin")) { model.wizardStart() }
-                    .keyboardShortcut("b", modifiers: [.command])
-                Divider()
+                // System setup only: in Qtrl these keys are QLab's (⌘1 audio, ⌘L sidebar, ⌘D duplicate…).
+                if model.section == .setup {
+                    Button(localizer.t("noise.toggle")) { model.toggleNoise() }
+                        .keyboardShortcut("n", modifiers: [.command])
+                    Button(localizer.t("delay.find")) { model.findDelay() }
+                        .keyboardShortcut("d", modifiers: [.command])
+                    Divider()
+                    Button(localizer.t("mode.wizard")) { model.appMode = .wizard }
+                        .keyboardShortcut("1", modifiers: [.command])
+                    Button(localizer.t("mode.expert")) { model.appMode = .expert }
+                        .keyboardShortcut("e", modifiers: [.command])
+                    Button(localizer.t("mode.stage")) { model.stageMode.toggle() }
+                        .keyboardShortcut("l", modifiers: [.command])
+                    Divider()
+                    Button(localizer.t("wizard.begin")) { model.wizardStart() }
+                        .keyboardShortcut("b", modifiers: [.command])
+                    Divider()
+                }
                 Button(localizer.t("mini.toggle")) { MiniPanelController.shared.toggle() }
                     .keyboardShortcut("m", modifiers: [.command, .shift])
                 Button(localizer.t("mini.clickThroughOff")) { MiniPanelController.shared.clickThrough = false }
