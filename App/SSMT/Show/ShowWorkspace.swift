@@ -200,7 +200,9 @@ struct QtrlToolbar: View {
             Button { show.chooseAudioFiles() } label: { Label(loc.t("cue.kind.audio"), systemImage: "plus").fixedSize() }
                 .buttonStyle(SSMTButtonStyle(kind: .primary))
                 .help(loc.t("show.addAudio.help"))
-            ForEach(CueKind.mediaKinds.filter { $0 != .audio } + CueKind.controlKinds, id: \.self) { k in
+            tool("chart.line.uptrend.xyaxis", loc.t("show.fadeIn.help")) { show.addFade(fadeIn: true) }
+            tool("chart.line.downtrend.xyaxis", loc.t("show.fadeOut.help")) { show.addFade(fadeIn: false) }
+            ForEach(CueKind.mediaKinds.filter { $0 != .audio && $0 != .fade } + CueKind.controlKinds, id: \.self) { k in
                 tool(k.icon, k == .group ? loc.t("show.group.help") : loc.t("cue.kind.\(k.rawValue)")) { show.add(k) }
             }
             Spacer(minLength: 8)

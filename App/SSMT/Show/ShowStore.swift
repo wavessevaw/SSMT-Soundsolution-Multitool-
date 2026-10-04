@@ -227,6 +227,18 @@ final class ShowStore: ObservableObject {
         selection = [c.id]
     }
 
+    /// A fade-in or fade-out aimed at the selected cue.
+    func addFade(fadeIn: Bool) {
+        add(.fade)
+        guard let id = selection.first else { return }
+        updateCue(id) { c in
+            var f = FadeCueParams.preset(fadeIn: fadeIn)
+            f.duration = c.fade?.duration ?? 3
+            c.fade = f
+            if c.name.isEmpty { c.name = self.loc(fadeIn ? "show.fadecue.in" : "show.fadecue.out") }
+        }
+    }
+
     /// The last selected cue in show order.
     var lastSelected: UUID? {
         guard let list = currentList else { return nil }
@@ -984,7 +996,7 @@ final class ShowStore: ObservableObject {
         switch event.keyCode {
         case Key.zero: add(.group); return true                             // ⌘0  group (wraps the selection)
         case Key.one: chooseAudioFiles(); return true                       // ⌘1  audio
-        case Key.seven: add(.fade); return true                             // ⌘7  fade
+        case Key.seven: addFade(fadeIn: false); return true                 // ⌘7  fade (out)
         case Key.eight: add(.network); return true                          // ⌘8  network (OSC)
         case Key.r: renumberSelection(); return true                        // ⌘R  renumber
         case Key.d: duplicateSelection(); return true                       // ⌘D  duplicate

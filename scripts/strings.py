@@ -621,6 +621,11 @@ STRINGS = {
     "show.timeline.show": ("Whole show", "Всё шоу"),
     "show.timeline.group": ("Group %@", "Группа %@"),
     "show.trim": ("Trim", "Обрезка"),
+    "show.fadecue.in": ("Fade in", "Фейд-ин"),
+    "show.fadecue.out": ("Fade out", "Фейд-аут"),
+    "show.fadeIn.help": ("Fade in — select the cue to bring up first", "Фейд-ин — сначала выделите кью, которую поднять"),
+    "show.fadeOut.help": ("Fade out (⌘7) — select the cue to fade first", "Фейд-аут (⌘7) — сначала выделите кью, которую увести"),
+    "show.fadeIn.hint": ("If the target is not playing, this cue starts it from silence and brings it up to its own level (or to the level below).", "Если цель не играет, эта кью запустит её из тишины и поднимет до её уровня (или до уровня ниже)."),
     "show.timeline.scroll": ("Move along the timeline (or drag empty space, or scroll)", "Прокрутка таймлайна (или тяните пустое место, или колесо / трекпад)"),
     "show.group.notTimeline": ("The group plays its cues by its mode; the multitrack shows them by pre-wait.", "Группа играет кью по своему режиму; мультитрек показывает их по паузе до."),
     "show.group.makeTimeline": ("Make it a timeline", "Сделать таймлайном"),
@@ -1279,6 +1284,12 @@ def check():
                 used |= set(re.findall(r'\.t\("([a-z0-9.]+)"', text))
                 used |= set(re.findall(r'"((?:noise|ref|graph)\.[a-z.]+)"', text))
     missing = sorted(k for k in used if k not in STRINGS and not k.endswith("."))
+    # A key defined twice silently keeps only the last text.
+    keys = re.findall(r'^\s+"([^"]+)": \(', open(__file__, encoding="utf-8").read(), re.M)
+    dupes = sorted({k for k in keys if keys.count(k) > 1})
+    if dupes:
+        print("Duplicate keys:", dupes)
+        sys.exit(1)
     for keys in DYNAMIC_PREFIXES.values():
         missing += [k for k in keys if k not in STRINGS]
     generated = json.load(open(OUT, encoding="utf-8"))

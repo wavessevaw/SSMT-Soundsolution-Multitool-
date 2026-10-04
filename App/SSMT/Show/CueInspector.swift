@@ -268,6 +268,23 @@ private struct CueInspectorContent: View {
     @ViewBuilder private var fadeSection: some View {
         section(loc.t("cue.kind.fade"), icon: cue.kind.icon) {
             targetPicker(loc.t("show.target"), \.target)
+            // Fade in (start the target from silence and bring it up) or fade out (down, then stop).
+            Picker("", selection: Binding(get: { cue.fade?.fromSilence ?? false }, set: { fadeIn in
+                show.updateCue(cue.id) { c in
+                    var f = FadeCueParams.preset(fadeIn: fadeIn)
+                    f.duration = c.fade?.duration ?? 3
+                    f.curve = c.fade?.curve ?? .sCurve
+                    c.fade = f
+                }
+            })) {
+                Label(loc.t("show.fadecue.out"), systemImage: "chart.line.downtrend.xyaxis").tag(false)
+                Label(loc.t("show.fadecue.in"), systemImage: "chart.line.uptrend.xyaxis").tag(true)
+            }
+            .pickerStyle(.segmented).labelsHidden()
+            if cue.fade?.fromSilence == true {
+                Text(loc.t("show.fadeIn.hint")).font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: 8) {
                 seconds(loc.t("show.duration"), fade(\.duration, 3))
                 VStack(alignment: .leading, spacing: 4) {

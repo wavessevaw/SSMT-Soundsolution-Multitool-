@@ -177,17 +177,28 @@ public final class ShowEngine {
               let index = list.cues.firstIndex(where: { $0.id == ph }) else { return false }
         lastGo = now
         trigger(list.cues[index].id, list: lid, parent: nil, at: now + lookahead)
-        var j = index
-        while j < list.cues.count - 1, list.cues[j].continueMode != .none { j += 1 }
-        playhead = j + 1 < list.cues.count ? list.cues[j + 1].id : nil
+        standByAfter(index, in: list)
         advance(to: now)
         return true
     }
 
-    /// Triggers any cue directly (hotkeys, "play this cue" from the list); the playhead stays.
+    /// The playhead goes to the cue after `index` and the cues it continues into.
+    private func standByAfter(_ index: Int, in list: CueList) {
+        var j = index
+        while j < list.cues.count - 1, list.cues[j].continueMode != .none { j += 1 }
+        listID = list.id
+        playhead = j + 1 < list.cues.count ? list.cues[j + 1].id : nil
+    }
+
+    /// Triggers any cue directly ("play this cue", preview, hotkeys). A top-level cue of a cue list moves the
+    /// playhead past it, as GO does, so the next cue always stands by; one-shot pads and cues inside groups do not.
     public func start(_ id: UUID, now: Int64) {
         guard let (lid, parent) = location(of: id) else { return }
         trigger(id, list: lid, parent: parent, at: now + lookahead)
+        if parent == nil, let list = document.lists.first(where: { $0.id == lid }), !list.isBank,
+           let index = list.cues.firstIndex(where: { $0.id == id }) {
+            standByAfter(index, in: list)
+        }
         advance(to: now)
     }
 
@@ -226,6 +237,9 @@ public final class ShowEngine {
         loadedTime[id] = max(0, seconds)
         preloadTree(c)
     }
+
+    /// Audio cues a fade-in has started: they begin silent and ramp up.
+    private var pendingFadeIn: [UUID: (frames: Int64, curve: FadeCurve, levelDB: Double?)] = [:]
 
     /// Cues loaded to a time, and that time (seconds).
     public private(set) var loadedTime: [UUID: Double] = [:]
@@ -505,13 +519,19 @@ public final class ShowEngine {
             setup.fadeInFrames = 0
             instances[cue.id]?.actionAt = t - skip
         }
+        let fadeIn = pendingFadeIn.removeValue(forKey: cue.id)
+        if fadeIn != nil { setup.levelDB = showSilenceDB; setup.fadeInFrames = 0 }
         send(.start(cue.id, clip: clip, setup: setup, at: t))
+        if let fadeIn {
+            let to = fadeIn.levelDB ?? cue.audio?.level ?? 0
+            send(.fade(cue.id, at: t, frames: fadeIn.frames, curve: fadeIn.curve, levelDB: to, outputsDB: []))
+        }
         instances[cue.id]?.hasVoice = true
         instances[cue.id]?.map = setup.map
         instances[cue.id]?.clip = clip
         instances[cue.id]?.rate = setup.rate
         instances[cue.id]?.actionEnd = setup.outputFrames.map { t + Int64($0) - skip }
-        instances[cue.id]?.levelDB = cue.audio?.level ?? 0
+        instances[cue.id]?.levelDB = fadeIn.map { $0.levelDB ?? cue.audio?.level ?? 0 } ?? cue.audio?.level ?? 0
         if let xf, xf.hasNext, let len = setup.outputFrames {
             instances[cue.id]?.crossfadeAt = t + max(0, Int64(len) - skip - frames(xf.seconds))
         }
@@ -592,6 +612,17 @@ public final class ShowEngine {
     private func startFade(_ cue: Cue, at t: Int64) {
         guard let target = cue.target, let f = cue.fade else { return }
         let len = frames(f.duration)
+        if f.fromSilence, voiceTargets(target).isEmpty, let tc = document.cue(target), let (lid, parent) = location(of: target) {
+            // Fade in: start the target from silence; each of its audio cues ramps up from its own start.
+            func mark(_ c: Cue) {
+                if c.kind == .audio { pendingFadeIn[c.id] = (len, f.curve, f.relative ? nil : f.level) }
+                c.children.forEach(mark)
+            }
+            mark(tc)
+            trigger(target, list: lid, parent: parent, at: t)
+            instances[cue.id]?.actionEnd = t + len
+            return
+        }
         let targets = voiceTargets(target)
         for v in targets {
             // Relative (QLab): the level is a change from where the target is now.

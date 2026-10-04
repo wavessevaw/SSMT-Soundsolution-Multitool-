@@ -131,7 +131,19 @@ public struct FadeCueParams: Codable, Equatable, Sendable {
     public var stopWhenDone: Bool = true
     /// QLab's relative fade: `level` is added to the target's current level (e.g. −6 dB) instead of replacing it.
     public var relative: Bool = false
+    /// Fade in: if the target is not playing, the fade starts it from silence and brings it up (to `level`, or to
+    /// the target's own level when `level` is nil).
+    public var fromSilence: Bool = false
     public init() {}
+
+    /// A fade-out (to silence, then stop) or a fade-in (from silence up to the target's level).
+    public static func preset(fadeIn: Bool) -> FadeCueParams {
+        var f = FadeCueParams()
+        f.fromSilence = fadeIn
+        f.stopWhenDone = !fadeIn
+        f.level = fadeIn ? nil : showSilenceDB
+        return f
+    }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -141,6 +153,7 @@ public struct FadeCueParams: Codable, Equatable, Sendable {
         outputLevels = try c.decodeIfPresent([Double?].self, forKey: .outputLevels) ?? []
         stopWhenDone = try c.decodeIfPresent(Bool.self, forKey: .stopWhenDone) ?? true
         relative = try c.decodeIfPresent(Bool.self, forKey: .relative) ?? false
+        fromSilence = try c.decodeIfPresent(Bool.self, forKey: .fromSilence) ?? false
     }
 }
 

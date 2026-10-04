@@ -14554,6 +14554,40 @@
         }
       }
     },
+    "show.fadeIn.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade in — select the cue to bring up first"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд-ин — сначала выделите кью, которую поднять"
+          }
+        }
+      }
+    },
+    "show.fadeIn.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If the target is not playing, this cue starts it from silence and brings it up to its own level (or to the level below)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Если цель не играет, эта кью запустит её из тишины и поднимет до её уровня (или до уровня ниже)."
+          }
+        }
+      }
+    },
     "show.fadeOut": {
       "extractionState": "manual",
       "localizations": {
@@ -14567,6 +14601,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "Затухание"
+          }
+        }
+      }
+    },
+    "show.fadeOut.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade out (⌘7) — select the cue to fade first"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд-аут (⌘7) — сначала выделите кью, которую увести"
+          }
+        }
+      }
+    },
+    "show.fadecue.in": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade in"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд-ин"
+          }
+        }
+      }
+    },
+    "show.fadecue.out": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fade out"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Фейд-аут"
           }
         }
       }

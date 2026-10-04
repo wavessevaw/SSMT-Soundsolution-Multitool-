@@ -403,6 +403,28 @@ final class ShowTests: XCTestCase {
         XCTAssertNil(rig.engine.loadedTime[a.id], "loading applies to one start")
     }
 
+    func testFadeInStartsTheTargetFromSilenceAndBringsItUp() {
+        var doc = ShowDocument()
+        var a = audioCue("a", "1", plays: 0)
+        a.audio?.level = -4
+        var fin = Cue(kind: .fade, number: "2")
+        fin.target = a.id
+        fin.fade = .preset(fadeIn: true)
+        fin.fade?.duration = 1
+        doc.lists[0].cues = [fin, a]
+        let rig = ShowRig(doc)
+        rig.clips["a"] = constClip(0.5, frames: 48000)
+        rig.engine.go(now: 0)                                // GO on the fade-in only
+        rig.runSeconds(0.5)
+        let setups: [VoiceSetup] = rig.ops.compactMap { if case let .start(_, _, s, _) = $0 { return s } else { return nil } }
+        XCTAssertEqual(setups.first?.levelDB, showSilenceDB, "the target starts silent")
+        let fades: [Double?] = rig.ops.compactMap { if case let .fade(_, _, _, _, l, _) = $0 { return l } else { return nil } }
+        XCTAssertEqual(fades, [-4], "and comes up to its own level")
+        let early = rig.out[0][1000], later = rig.out[0][20000]
+        XCTAssertLessThan(abs(early), abs(later), "the level rises")
+        XCTAssertTrue(rig.engine.isRunning(a.id))
+    }
+
     func testRelativeFadeChangesTheCurrentLevel() {
         var doc = ShowDocument()
         var a = audioCue("a", "1", plays: 0)
@@ -564,6 +586,26 @@ final class ShowTests: XCTestCase {
             rig.engine.document = doc
             XCTAssertEqual(rig.engine.playhead, next.id, "\(mode): an edit does not move the playhead back")
         }
+    }
+
+    func testStartingACueDirectlyAlsoMovesThePlayheadToTheNext() {
+        var doc = ShowDocument()
+        var g = Cue(kind: .group, number: "1")
+        g.groupMode = .simultaneous
+        g.children = [audioCue("a", "1.1")]
+        let b = audioCue("b", "2"), c = audioCue("c", "3")
+        doc.lists[0].cues = [g, b, c]
+        doc.lists[1].cues = [audioCue("p", "")]
+        let rig = ShowRig(doc)
+        rig.clips = ["a": constClip(0.1, frames: 4800), "b": constClip(0.1, frames: 4800), "p": constClip(0.1, frames: 4800)]
+        rig.engine.start(b.id, now: 0)                     // "play this cue" on 2
+        XCTAssertEqual(rig.engine.playhead, c.id)
+        rig.engine.start(g.id, now: rig.now)               // play the group directly
+        XCTAssertEqual(rig.engine.playhead, b.id, "after the group the next cue stands by")
+        rig.engine.start(doc.lists[1].cues[0].id, now: rig.now)   // a one-shot pad
+        XCTAssertEqual(rig.engine.playhead, b.id, "pads do not move the playhead")
+        rig.engine.start(g.children[0].id, now: rig.now)   // a cue inside a group
+        XCTAssertEqual(rig.engine.playhead, b.id)
     }
 
     func testGroupMultitrackShowsEveryKindOnItsOwnTrack() {

@@ -358,7 +358,7 @@ struct ShowTimelineView: View {
                     ctx.fill(Path(roundedRect: past, cornerRadius: 5), with: .color(Color.black.opacity(0.35)))
                 }
             case .fade:
-                let up = (cue?.fade?.level ?? showSilenceDB) > -20
+                let up = cue?.fade?.fromSilence == true || (cue?.fade?.level ?? showSilenceDB) > -20
                 var p = Path()
                 p.move(to: CGPoint(x: r.minX, y: up ? r.maxY : r.minY))
                 p.addLine(to: CGPoint(x: r.maxX, y: up ? r.minY : r.maxY))
