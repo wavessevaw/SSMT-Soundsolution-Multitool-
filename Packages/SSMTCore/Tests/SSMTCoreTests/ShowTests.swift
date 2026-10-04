@@ -347,6 +347,22 @@ final class ShowTests: XCTestCase {
         XCTAssertTrue(rig.out[0].contains { abs($0 - 0.1) < 1e-6 }, "auto-follow continued after it")
     }
 
+    func testFileReadyButUnplayableEndsTheCueAndTheChainGoesOn() {
+        var doc = ShowDocument()
+        var a = audioCue("a", "1"); a.continueMode = .autoFollow
+        let b = audioCue("b", "2")
+        doc.lists[0].cues = [a, b]
+        let rig = ShowRig(doc)
+        rig.engine.clipPending = { _ in true }
+        rig.clips["b"] = constClip(0.1, frames: 480)
+        rig.engine.go(now: 0)
+        rig.run(2400)
+        rig.clips["a"] = AudioClip(sampleRate: 48000, channels: [[]])   // decoded, but empty
+        rig.run(4800 * 2)
+        XCTAssertEqual(rig.engine.problems[a.id], "error.show.missingFile")
+        XCTAssertTrue(rig.out[0].contains { abs($0 - 0.1) < 1e-6 }, "the chain went on to the next cue")
+    }
+
     func testFileThatNeverBecomesReadyIsReportedAfterTimeout() {
         var doc = ShowDocument()
         let a = audioCue("a", "1")
@@ -761,5 +777,26 @@ final class ShowTests: XCTestCase {
         let elapsed = Date().timeIntervalSince(t0)
         XCTAssertLessThan(elapsed, 2.5, "64 voices: \(elapsed) s to render 5 s of audio")
         m.collectGarbage()
+    }
+}
+
+final class ShowMediaTests: XCTestCase {
+    func testCopiesKeepDifferentFilesWithTheSameNameApart() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? fm.removeItem(at: root) }
+        let a = root.appendingPathComponent("a/Intro.wav"), b = root.appendingPathComponent("b/Intro.wav")
+        try fm.createDirectory(at: a.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try fm.createDirectory(at: b.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data([1, 2, 3, 4]).write(to: a)
+        try Data([9, 9, 9, 9]).write(to: b)                 // same name, same size, other contents
+        let media = root.appendingPathComponent("Show Audio")
+        let first = ShowMedia.copy([a, b], into: media)
+        XCTAssertEqual(first.copied.map(\.lastPathComponent), ["Intro.wav", "Intro 2.wav"])
+        XCTAssertEqual(try Data(contentsOf: first.copied[1]), Data([9, 9, 9, 9]))
+        let again = ShowMedia.copy([a, b, first.copied[0]], into: media)
+        XCTAssertEqual(again.copied.map(\.lastPathComponent), ["Intro.wav", "Intro 2.wav", "Intro.wav"], "saving again reuses the copies")
+        XCTAssertEqual(try fm.contentsOfDirectory(atPath: media.path).count, 2)
+        XCTAssertEqual(ShowMedia.copy([root.appendingPathComponent("none.wav")], into: media).errors.count, 1)
     }
 }

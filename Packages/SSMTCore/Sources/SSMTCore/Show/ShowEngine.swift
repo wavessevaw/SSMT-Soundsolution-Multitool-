@@ -467,6 +467,7 @@ public final class ShowEngine {
         }
         guard let setup = Self.voiceSetup(cue, clip: clip, outputs: document.outputs.count) else {
             problems[cue.id] = "error.show.missingFile"
+            instances[cue.id]?.actionEnd = t   // nothing to play: the cue ends now and the chain goes on
             return
         }
         send(.start(cue.id, clip: clip, setup: setup, at: t))

@@ -663,55 +663,27 @@ final class ShowStore: ObservableObject {
         fileURL.map { $0.deletingLastPathComponent().appendingPathComponent($0.deletingPathExtension().lastPathComponent + " Audio", isDirectory: true) }
     }
 
-    /// Copies files into `folder` (APFS clones them: instant on the same disk). A file already there is used as is;
-    /// a file that cannot be copied is reported with the system's reason.
-    nonisolated static func copyMedia(_ urls: [URL], into folder: URL) -> (copied: [URL], errors: [String]) {
-        let fm = FileManager.default
-        var copied: [URL] = []
-        var errors: [String] = []
-        do { try fm.createDirectory(at: folder, withIntermediateDirectories: true) } catch {
-            return ([], ["\(folder.path): \(error.localizedDescription)"])
-        }
-        let base = folder.standardizedFileURL.path
-        for url in urls {
-            let src = url.standardizedFileURL
-            if src.deletingLastPathComponent().path == base { copied.append(src); continue }
-            do {
-                let size = (try fm.attributesOfItem(atPath: src.path)[.size] as? NSNumber)?.int64Value ?? -1
-                let name = src.deletingPathExtension().lastPathComponent, ext = src.pathExtension
-                var dest = folder.appendingPathComponent(src.lastPathComponent)
-                var n = 2
-                // Same name: reuse it if it is the same file (same size), else number the copy.
-                while fm.fileExists(atPath: dest.path) {
-                    let other = (try? fm.attributesOfItem(atPath: dest.path)[.size] as? NSNumber)?.int64Value
-                    if other == size { break }
-                    dest = folder.appendingPathComponent("\(name) \(n)" + (ext.isEmpty ? "" : ".\(ext)"))
-                    n += 1
-                }
-                if !fm.fileExists(atPath: dest.path) { try fm.copyItem(at: src, to: dest) }
-                copied.append(dest)
-            } catch {
-                errors.append("\(src.lastPathComponent): \(error.localizedDescription)")
-            }
-        }
-        return (copied, errors)
-    }
-
     /// On save: every audio file outside the show's media folder is copied into it and stored relative to the
     /// show, so the show folder carries everything it plays. `oldShowURL` resolves the current relative paths.
     private func collectMedia(oldShowURL: URL?) {
         guard let folder = mediaFolder else { return }
-        var moves: [UUID: URL] = [:]
+        var paths: [UUID: String] = [:]
         var failed: [String] = []
         for c in doc.allCues {
             guard let f = c.audio?.file, !f.isEmpty else { continue }
             let src = URL(fileURLWithPath: Self.resolve(f, showURL: oldShowURL))
-            guard FileManager.default.fileExists(atPath: src.path) else { continue }
-            let (copied, errors) = Self.copyMedia([src], into: folder)
-            if let u = copied.first { moves[c.id] = u }
-            failed += errors
+            let copied: URL?
+            if FileManager.default.fileExists(atPath: src.path) {
+                let r = ShowMedia.copy([src], into: folder)
+                copied = r.copied.first
+                failed += r.errors
+            } else {
+                copied = nil
+            }
+            // Copied: relative to the show. Not copied (missing, no access): the full old path, so a relative path
+            // does not end up pointing into the new show's folder.
+            paths[c.id] = copied.map { storedPath(for: $0) } ?? src.path
         }
-        let paths = moves.mapValues { storedPath(for: $0) }
         if paths.contains(where: { doc.cue($0.key)?.audio?.file != $0.value }) {
             edit { d in for (id, p) in paths { d.updateCue(id) { $0.audio?.file = p } } }
         }

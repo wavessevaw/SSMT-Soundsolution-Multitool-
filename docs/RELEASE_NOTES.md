@@ -32,8 +32,7 @@
 а в списке пишется «Файл ещё готовится». Отсутствующий файл по-прежнему сообщается сразу.
 Кнопка GO и пробел больше не «засыпают» после добавления кью: курсор GO переходит на первую добавленную кью
 (и с конца списка), при удалении кью под курсором — на следующую; щелчок по кью ставит на неё курсор GO, как в QLab.
-В режиме «Правка» появилась панель воспроизведения — GO, пауза и «Стоп всё»: треки можно слушать, не переходя
-в режим «Шоу». Пробел больше не теряется в полях (заметки, имя, номер): щелчок в любом месте вне поля или Esc заканчивает
+GO, пауза и «Стоп всё» есть и в режиме «Правка»: треки можно слушать, не переходя в режим «Шоу». Пробел больше не теряется в полях (заметки, имя, номер): щелчок в любом месте вне поля или Esc заканчивает
 ввод, и пробел снова запускает GO.
 
 **Qtrl: экран переделан по образцу QLab, без дублей.** Сверху — GO, «Далее» с заметками, «Пауза» и «Стоп всё»
@@ -138,7 +137,7 @@ Stop all, double-GO guard, pre-show check, automatic output recovery, no sleep w
 
 
 **New (beta): function #4 — FOH Assist.** Connects to Behringer X32 / Midas M32 and X Air / MR over the network
-over the network (levels and RTA over Wi-Fi; USB/Dante optional), measures with any microphone of the setup
+(levels and RTA over Wi-Fi; USB/Dante optional), measures with any microphone of the setup
 library, tunes channels by itself (gain, high-pass, EQ, compressor) and groups with one button (orchestra,
 choir, a channel range) with a feedback-checked ring-out, checks mic polarity automatically, and in Show mode
 guards the engineer's mix (feedback notches, monitor loops, lead intelligibility in mass scenes) without moving

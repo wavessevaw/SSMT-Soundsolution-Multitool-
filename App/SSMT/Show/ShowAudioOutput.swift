@@ -226,7 +226,8 @@ final class ClipCache: @unchecked Sendable {
         defer { try? FileManager.default.removeItem(at: tmp) }
         var published = false
         let early: (PlanarWriter) -> Void = { w in
-            guard let started, let data = try? NSData(contentsOf: w.url, options: .alwaysMapped),
+            // A shared mapping (not a copy): the rest of the file, written after this, is seen by the player.
+            guard let started, let data = sharedMapping(of: w.url),
                   let clip = AudioClip(sampleRate: sampleRate, channelCount: w.channels, mapped: data) else { return }
             published = true
             started(clip)
@@ -246,6 +247,18 @@ final class ClipCache: @unchecked Sendable {
         let data = try NSData(contentsOf: dest, options: .alwaysMapped)
         guard let clip = AudioClip(sampleRate: sampleRate, channelCount: channels, mapped: data) else { throw CocoaError(.fileReadCorruptFile) }
         return clip
+    }
+
+    /// Maps a file with MAP_SHARED (read-only), so later writes to it are visible through the mapping.
+    private static func sharedMapping(of url: URL) -> NSData? {
+        let fd = Darwin.open(url.path, O_RDONLY)   // `open` alone would be ClipCache.open
+        guard fd >= 0 else { return nil }
+        defer { close(fd) }
+        var st = Darwin.stat()
+        guard fstat(fd, &st) == 0, st.st_size > 0 else { return nil }
+        let length = Int(st.st_size)
+        guard let p = mmap(nil, length, PROT_READ, MAP_SHARED, fd, 0), p != MAP_FAILED else { return nil }
+        return NSData(bytesNoCopy: p, length: length, deallocator: { ptr, len in _ = munmap(ptr, len) })
     }
 
     /// Planar writer: channel c of frame f lives at (c × frames + f) × 4 bytes.
