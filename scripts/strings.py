@@ -411,6 +411,7 @@ STRINGS = {
     "action.delete": ("Delete", "Удалить"),
     "action.duplicate": ("Duplicate", "Дублировать"),
     "il.title": ("Ptch", "Ptch"),
+    "il.print.title": ("Input list", "Список каналов"),
     "il.unsaved": ("Not saved to a file yet (autosaved)", "Ещё не сохранён в файл (автосохранение включено)"),
     "il.new": ("New patch", "Новый патч"),
     "il.open": ("Open patch…", "Открыть патч…"),

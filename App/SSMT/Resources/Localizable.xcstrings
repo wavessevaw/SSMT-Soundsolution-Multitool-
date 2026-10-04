@@ -8978,6 +8978,23 @@
         }
       }
     },
+    "il.print.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Input list"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Список каналов"
+          }
+        }
+      }
+    },
     "il.renumber": {
       "extractionState": "manual",
       "localizations": {

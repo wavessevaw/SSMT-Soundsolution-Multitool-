@@ -48,7 +48,7 @@ struct ChannelSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            PrintHeader(doc: doc, title: loc.t("il.title"), page: page)
+            PrintHeader(doc: doc, title: loc.t("il.print.title"), page: page)
             VStack(spacing: 0) {
                 row(header: true, cells: cols.map { $0.0 == "№" || $0.0 == "48V" ? $0.0 : loc.t("il.col.\($0.0)") }, color: nil)
                 ForEach(Array(rows.enumerated()), id: \.element.id) { k, c in
@@ -96,7 +96,7 @@ struct MixesSheet: View {
     var body: some View {
         let s = doc.summary
         VStack(alignment: .leading, spacing: 14) {
-            PrintHeader(doc: doc, title: loc.t("il.title"), page: page)
+            PrintHeader(doc: doc, title: loc.t("il.print.title"), page: page)
             HStack(alignment: .top, spacing: 24) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(loc.t("il.mixes")).font(.system(size: 13, weight: .bold))
