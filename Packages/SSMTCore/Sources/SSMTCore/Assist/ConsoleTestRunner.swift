@@ -33,6 +33,8 @@ public final class ConsoleTestRunner {
     var busBackup: [Int: BusStrip] = [:]
     var sent: [Int: ChannelStrip] = [:]
     var sim: SimulatedConsole
+    /// Which head amp feeds each channel, read from the console before any gain is touched.
+    var routing = X32InputRouting()
 
     public init(scenario: AssistScenario, family: MixerFamily, firstChannel: Int = 1, transport: ConsoleTransport) {
         self.scenario = scenario
@@ -52,11 +54,12 @@ public final class ConsoleTestRunner {
 
     var mainOnAddress: String { family == .xAir ? "/lr/mix/on" : "/main/st/mix/on" }
 
-    /// Reads strips back from the console.
+    /// Reads strips back from the console (the routing first, so the gains are read from the right preamps).
     func readStrips(_ chans: [Int]) async -> [Int: ChannelStrip] {
+        routing = await ConsoleBackup.readRouting(transport, channels: chans, family: family, into: routing)
         var map = Dictionary(uniqueKeysWithValues: chans.map { ($0, ChannelStrip(id: $0)) })
-        let replies = await transport.query(chans.flatMap { X32Codec.queryAddresses($0, family: family) }, timeout: 1.5)
-        for m in replies { X32Codec.apply(m, to: &map, family: family) }
+        let replies = await transport.query(chans.flatMap { X32Codec.queryAddresses($0, family: family, routing: routing) }, timeout: 1.5)
+        for m in replies { X32Codec.apply(m, to: &map, family: family, routing: routing) }
         return map
     }
 
@@ -70,7 +73,7 @@ public final class ConsoleTestRunner {
     /// Sends strips (only what changed against what was sent before).
     func write(_ strips: [ChannelStrip]) {
         for s in strips {
-            transport.send(X32Codec.messages(from: sent[s.id], to: s, family: family))
+            transport.send(X32Codec.messages(from: sent[s.id], to: s, family: family, routing: routing))
             sent[s.id] = s
             sim.setStrip(s)
         }
@@ -214,7 +217,7 @@ public final class ConsoleTestRunner {
 
         // 9. Put the console back exactly as it was.
         report("restore", .running)
-        for ch in channels { if let b = backup[ch] { transport.send(X32Codec.messages(from: nil, to: b, family: family)) } }
+        for ch in channels { if let b = backup[ch] { transport.send(X32Codec.messages(from: nil, to: b, family: family, routing: routing)) } }
         for (_, b) in busBackup { transport.send(X32Codec.busMessages(from: nil, to: b, family: family) + [OSCMessage(X32Codec.busPath(b.id, family: family) + "/config/name", [.string(b.name)])]) }
         if muteMain { transport.send([OSCMessage(mainOnAddress, [.int(1)])]) }
         sent = backup
@@ -233,10 +236,19 @@ public final class ConsoleEmulator: ConsoleTransport {
 
     public init(family: MixerFamily = .x32) {
         self.family = family
+        // Factory routing: local inputs on channels 1…32 (X Air: channel n = head amp n).
+        let routing = X32InputRouting.localInputs
+        if family != .xAir {
+            for (i, a) in X32InputRouting.blockAddresses.enumerated() { values[a] = .int(Int32(i)) }
+        }
         for ch in 1...family.channelCount {
             let p = X32Codec.channelPath(ch)
             values["\(p)/config/name"] = .string("")
-            values[X32Codec.gainAddress(ch, family: family)] = .float(Float(X32Codec.gainValue(20, family: family)))
+            values["\(p)/dyn/mode"] = .int(0)
+            if family != .xAir { values["\(p)/config/source"] = .int(Int32(ch)) }
+            if let control = routing.gainControl(ch, family: family), let a = X32Codec.gainAddress(ch, family: family, routing: routing) {
+                values[a] = .float(Float(X32Codec.gainValue(20, control: control)))
+            }
         }
     }
 
@@ -289,10 +301,21 @@ public final class ConsoleEmulator: ConsoleTransport {
 
 /// Reading a console's channels and monitor buses before the assistant plays on it, and putting them back.
 public enum ConsoleBackup {
-    public static func read(_ t: ConsoleTransport, channels: [Int], buses: [Int], family: MixerFamily) async -> ([Int: ChannelStrip], [Int: BusStrip]) {
+    /// X32 / M32: the input routing and the channels' sources (X Air needs none).
+    public static func readRouting(_ t: ConsoleTransport, channels: [Int], family: MixerFamily,
+                                   into routing: X32InputRouting = X32InputRouting()) async -> X32InputRouting {
+        guard family != .xAir else { return routing }
+        var r = routing
+        let asks = X32InputRouting.blockAddresses + channels.map { X32Codec.channelPath($0) + "/config/source" }
+        for m in await t.query(asks, timeout: 1.5) { r.apply(m) }
+        return r
+    }
+
+    public static func read(_ t: ConsoleTransport, channels: [Int], buses: [Int], family: MixerFamily,
+                            routing: X32InputRouting) async -> ([Int: ChannelStrip], [Int: BusStrip]) {
         var strips = Dictionary(uniqueKeysWithValues: channels.map { ($0, ChannelStrip(id: $0)) })
-        for m in await t.query(channels.flatMap { X32Codec.queryAddresses($0, family: family) }, timeout: 1.5) {
-            X32Codec.apply(m, to: &strips, family: family)
+        for m in await t.query(channels.flatMap { X32Codec.queryAddresses($0, family: family, routing: routing) }, timeout: 1.5) {
+            X32Codec.apply(m, to: &strips, family: family, routing: routing)
         }
         var bs = Dictionary(uniqueKeysWithValues: buses.map { ($0, BusStrip(id: $0)) })
         for m in await t.query(buses.flatMap { X32Codec.busQueryAddresses($0, family: family) }, timeout: 1.5) {
@@ -301,8 +324,9 @@ public enum ConsoleBackup {
         return (strips, bs)
     }
 
-    public static func restore(_ t: ConsoleTransport, strips: [Int: ChannelStrip], buses: [Int: BusStrip], family: MixerFamily) {
-        for s in strips.values.sorted(by: { $0.id < $1.id }) { t.send(X32Codec.messages(from: nil, to: s, family: family)) }
+    public static func restore(_ t: ConsoleTransport, strips: [Int: ChannelStrip], buses: [Int: BusStrip], family: MixerFamily,
+                               routing: X32InputRouting) {
+        for s in strips.values.sorted(by: { $0.id < $1.id }) { t.send(X32Codec.messages(from: nil, to: s, family: family, routing: routing)) }
         for b in buses.values.sorted(by: { $0.id < $1.id }) {
             t.send(X32Codec.busMessages(from: nil, to: b, family: family)
                    + [OSCMessage(X32Codec.busPath(b.id, family: family) + "/config/name", [.string(b.name)])])

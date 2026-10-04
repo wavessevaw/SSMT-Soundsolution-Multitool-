@@ -84,8 +84,12 @@ public struct ConsoleMeterAccumulator: Sendable {
     var rtaFrames: [Int: Int] = [:]
     /// Last complete spectrum per channel (one-third octaves, dB).
     public private(set) var lastBands: [Int: [Double]] = [:]
-    /// Channel the console RTA follows now.
-    public var rtaChannel: Int?
+    /// Channel the console RTA follows now. After a switch the first frames still show the previous source
+    /// (the console needs a moment), so they are skipped.
+    public var rtaChannel: Int? { didSet { if rtaChannel != oldValue { rtaSkip = Self.framesAfterSwitch } } }
+    var rtaSkip = 0
+    /// ≈ 0.3 s of RTA frames (the console sends about 20 a second).
+    static let framesAfterSwitch = 6
     public var gateDB = -65.0
 
     public init() {}
@@ -96,6 +100,7 @@ public struct ConsoleMeterAccumulator: Sendable {
 
     public mutating func add(rtaBands: [Double]) {
         guard let ch = rtaChannel else { return }
+        if rtaSkip > 0 { rtaSkip -= 1; return }
         let b = ConsoleMeters.thirdOctaves(fromRTA: rtaBands)
         if var sum = rta[ch] {
             for k in sum.indices { sum[k] = Decibel.fromPower(pow(10, sum[k] / 10) + pow(10, b[k] / 10)) }

@@ -131,7 +131,9 @@ public enum ConsoleReadback {
     /// The strip a console stores for this one: values snapped to the console's own steps (X32 / X Air).
     public static func quantized(_ s: ChannelStrip, family: MixerFamily) -> ChannelStrip {
         var strips = [s.id: ChannelStrip(id: s.id)]
-        for m in X32Codec.messages(from: nil, to: s, family: family) {
+        // Quantization only: any routing that reaches the gain will do.
+        let routing = X32InputRouting.localInputs
+        for m in X32Codec.messages(from: nil, to: s, family: family, routing: routing) {
             var q = m
             if case let .float(v)? = m.arguments.first {
                 // Floats are stored in fixed steps: 1024 for faders, 201 for frequencies, 72 for Q, 145 for gain…
@@ -144,7 +146,7 @@ public enum ConsoleReadback {
                 else { steps = 1000 }
                 q = OSCMessage(m.address, [.float(Float((Double(v) * steps).rounded() / steps))])
             }
-            X32Codec.apply(q, to: &strips, family: family)
+            X32Codec.apply(q, to: &strips, family: family, routing: routing)
         }
         var r = strips[s.id]!
         r.name = s.name

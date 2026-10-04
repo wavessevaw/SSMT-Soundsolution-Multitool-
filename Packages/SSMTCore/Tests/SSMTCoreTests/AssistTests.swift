@@ -17,14 +17,15 @@ final class AssistTests: XCTestCase {
         s.eq[1] = StripEQBand(type: .peaking, frequency: 315, gainDB: -4.5, q: 2)
         s.eq[3] = StripEQBand(type: .highShelf, frequency: 8000, gainDB: 2)
         s.compressor = StripCompressor(enabled: true, thresholdDB: -22, ratio: 3, attackMS: 6, releaseMS: 150, kneeDB: 2, makeupDB: 3)
-        let msgs = X32Codec.messages(from: nil, to: s, family: .x32)
+        let local = X32InputRouting.localInputs
+        let msgs = X32Codec.messages(from: nil, to: s, family: .x32, routing: local)
         XCTAssertTrue(msgs.contains { $0.address == "/ch/07/eq/2/f" })
         XCTAssertTrue(msgs.contains { $0.address == "/headamp/006/gain" })
         var strips = [7: ChannelStrip(id: 7)]
         for m in msgs {
             // Through the wire format and back.
             let decoded = OSCMessage.decode(m.encoded())!.first!
-            X32Codec.apply(decoded, to: &strips, family: .x32)
+            X32Codec.apply(decoded, to: &strips, family: .x32, routing: local)
         }
         let r = strips[7]!
         XCTAssertEqual(r.gainDB, 32.5, accuracy: 0.01)
@@ -41,6 +42,73 @@ final class AssistTests: XCTestCase {
         var s2 = s
         s2.eq[1].gainDB = -3
         XCTAssertEqual(X32Codec.messages(from: s, to: s2, family: .x32).map(\.address), ["/ch/07/eq/2/g"])
+    }
+
+    /// The gain goes to the preamp that really feeds the channel: local input, an AES50 stage box, or the digital
+    /// trim for a card input; never to a guessed preamp while the routing is unknown.
+    func testGainFollowsTheConsoleInputRouting() {
+        var r = X32InputRouting()
+        let s = ChannelStrip(id: 3, gainDB: 30)
+        XCTAssertNil(X32Codec.gainAddress(3, family: .x32, routing: r), "routing not read yet")
+        XCTAssertFalse(X32Codec.messages(from: nil, to: s, family: .x32, routing: r).contains { $0.address.hasPrefix("/headamp") || $0.address.hasSuffix("/trim") },
+                       "no gain is written then")
+        // Inputs 1-8 from AES50 A 1-8 (an S16 / DL16 stage box), channel 3 takes input 3.
+        r.apply(OSCMessage("/config/routing/IN/1-8", [.int(4)]))
+        r.apply(OSCMessage("/ch/03/config/source", [.int(3)]))
+        XCTAssertEqual(X32Codec.gainAddress(3, family: .x32, routing: r), "/headamp/034/gain", "AES50 A input 3 = head amp 34")
+        // Channel 3 patched to input 10 (still local 9-16), AES50 B for 17-24.
+        r.apply(OSCMessage("/config/routing/IN/9-16", [.int(1)]))
+        r.apply(OSCMessage("/ch/03/config/source", [.int(10)]))
+        XCTAssertEqual(X32Codec.gainAddress(3, family: .x32, routing: r), "/headamp/009/gain")
+        r.apply(OSCMessage("/config/routing/IN/17-24", [.int(10)]))
+        r.apply(OSCMessage("/ch/05/config/source", [.int(20)]))
+        XCTAssertEqual(X32Codec.gainAddress(5, family: .x32, routing: r), "/headamp/083/gain", "AES50 B input 4 = head amp 83")
+        // A card input or an aux return has no preamp: the digital trim.
+        r.apply(OSCMessage("/config/routing/IN/25-32", [.int(16)]))
+        r.apply(OSCMessage("/ch/07/config/source", [.int(25)]))
+        XCTAssertEqual(X32Codec.gainAddress(7, family: .x32, routing: r), "/ch/07/preamp/trim")
+        r.apply(OSCMessage("/ch/08/config/source", [.int(33)]))
+        XCTAssertEqual(X32InputRouting().gainControl(8, family: .xAir), .headamp(8), "X Air: channel n = head amp n")
+        XCTAssertEqual(r.gainControl(8, family: .x32), .trim)
+        let trim = X32Codec.messages(from: nil, to: ChannelStrip(id: 7, gainDB: 6), family: .x32, routing: r).first { $0.address == "/ch/07/preamp/trim" }
+        XCTAssertEqual(trim?.arguments.first, .float(Float(24.0 / 36)), "trim −18…+18 dB")
+        // Replies land on the channel the head amp feeds.
+        var strips = [5: ChannelStrip(id: 5)]
+        X32Codec.apply(OSCMessage("/headamp/083/gain", [.float(Float(X32Codec.gainValue(40, control: .headamp(83))))]), to: &strips, family: .x32, routing: r)
+        XCTAssertEqual(strips[5]!.gainDB, 40, accuracy: 0.01)
+        X32Codec.apply(OSCMessage("/headamp/004/gain", [.float(0.9)]), to: &strips, family: .x32, routing: r)
+        XCTAssertEqual(strips[5]!.gainDB, 40, accuracy: 0.01, "another channel's preamp does not change it")
+    }
+
+    /// An expander on the console's dynamics is read as such; the assistant's compressor switches it to
+    /// compressor mode, and switching its compressor off never touches an expander.
+    func testDynamicsModeIsReadAndSet() {
+        var strips = [2: ChannelStrip(id: 2)]
+        X32Codec.apply(OSCMessage("/ch/02/dyn/mode", [.int(1)]), to: &strips, family: .x32)
+        X32Codec.apply(OSCMessage("/ch/02/dyn/on", [.int(1)]), to: &strips, family: .x32)
+        XCTAssertTrue(strips[2]!.compressor.expander)
+        XCTAssertFalse(strips[2]!.compressor.compressing)
+        var s = strips[2]!
+        s.compressor.expander = false
+        s.compressor.thresholdDB = -20
+        let msgs = X32Codec.messages(from: strips[2], to: s, family: .x32)
+        XCTAssertEqual(msgs.first { $0.address == "/ch/02/dyn/mode" }?.arguments.first, .int(0))
+    }
+
+    /// After the console RTA is switched to another channel, its first frames (still the old source) are skipped.
+    func testRTAFramesRightAfterASwitchAreSkipped() {
+        var acc = ConsoleMeterAccumulator()
+        acc.rtaChannel = 1
+        let loud = [Double](repeating: -10, count: 100), quiet = [Double](repeating: -60, count: 100)
+        for _ in 0..<12 { acc.add(rtaBands: loud) }
+        acc.rtaChannel = 2
+        for _ in 0..<ConsoleMeterAccumulator.framesAfterSwitch { acc.add(rtaBands: loud) }   // still channel 1's sound
+        for _ in 0..<6 { acc.add(rtaBands: quiet) }
+        acc.add(channelLevels: [-20, -20])
+        _ = acc.takeWindow()
+        let b2 = acc.lastBands[2] ?? []
+        XCTAssertFalse(b2.isEmpty)
+        XCTAssertLessThan(b2.max() ?? 0, -40, "only channel 2's own frames")
     }
 
     func testOSCBlobRoundTrip() {

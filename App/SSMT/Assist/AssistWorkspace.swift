@@ -34,6 +34,16 @@ struct AssistWorkspace: View {
     }
 }
 
+/// Why the console did not connect, in the interface language.
+@MainActor
+func assistFailure(_ reason: String, store: AssistStore, loc: Localizer) -> String {
+    switch reason {
+    case "not supported yet": return loc.t("assist.soon")
+    case "noAnswer": return String(format: loc.t("assist.noAnswer"), "\(store.host):\(store.family.defaultPort)")
+    default: return reason
+    }
+}
+
 // MARK: - Header
 
 private struct AssistHeader: View {
@@ -107,7 +117,7 @@ private struct AssistHeader: View {
         case .disconnected: return loc.t("assist.offline")
         case .connecting: return loc.t("assist.connecting")
         case let .connected(t): return t
-        case let .failed(t): return t == "not supported yet" ? loc.t("assist.soon") : t
+        case let .failed(t): return assistFailure(t, store: store, loc: loc)
         }
     }
 }
@@ -232,7 +242,7 @@ private struct AssistConnectScreen: View {
     private var statusText: String {
         switch store.connection {
         case .connecting: return String(format: loc.t("assist.connect.connecting"), store.host)
-        case let .failed(t): return t == "not supported yet" ? loc.t("assist.soon") : loc.t("assist.connect.failed") + ": " + t
+        case let .failed(t): return loc.t("assist.connect.failed") + ": " + assistFailure(t, store: store, loc: loc)
         default: return loc.t("assist.link.none")
         }
     }
@@ -1315,7 +1325,7 @@ private struct ConnectionPanel: View {
         case .disconnected: StatusBadge(level: .idle, text: loc.t("assist.offline"))
         case .connecting: StatusBadge(level: .warning, text: loc.t("assist.connecting"))
         case let .connected(t): StatusBadge(level: .good, text: t)
-        case let .failed(t): StatusBadge(level: .error, text: t == "not supported yet" ? loc.t("assist.soon") : t)
+        case let .failed(t): StatusBadge(level: .error, text: assistFailure(t, store: store, loc: loc))
         }
     }
 }

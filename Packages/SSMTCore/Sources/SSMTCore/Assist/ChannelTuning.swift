@@ -172,7 +172,8 @@ public struct ChannelTuning: Sendable {
             let l95 = avg.level95DB + s.gainDB
             let gr = p.gainReductionDB
             if gr < 1 {
-                if s.compressor.enabled { s.compressor.enabled = false; notes.append(.compressorOff); change = max(change, 1) }
+                // Only the assistant's compressor is switched off; an expander the engineer set stays.
+                if s.compressor.compressing { s.compressor.enabled = false; notes.append(.compressorOff); change = max(change, 1) }
             } else {
                 let ratio = X32Codec.ratios[X32Codec.ratioIndex(p.ratio)]
                 let thr = (min(max(l95 - gr / (1 - 1 / ratio), -60), 0) * 2).rounded() / 2
@@ -181,12 +182,12 @@ public struct ChannelTuning: Sendable {
                 if avg.onsetRate > 0.5 { rel = min(max(rel, 1000 * 0.35 / avg.onsetRate), rel * 2) }
                 rel = min(max(rel, 40), 600).rounded()
                 var c = s.compressor
-                c.enabled = true; c.ratio = ratio; c.attackMS = p.attackMS; c.releaseMS = rel; c.kneeDB = 2
+                c.enabled = true; c.expander = false; c.ratio = ratio; c.attackMS = p.attackMS; c.releaseMS = rel; c.kneeDB = 2
                 c.makeupDB = ((gr * 0.5) * 2).rounded() / 2
                 let dThr = thr - c.thresholdDB
-                c.thresholdDB = s.compressor.enabled ? c.thresholdDB + min(max(dThr, -3), 3) : thr
+                c.thresholdDB = s.compressor.compressing ? c.thresholdDB + min(max(dThr, -3), 3) : thr
                 if c != s.compressor {
-                    change = max(change, abs(c.thresholdDB - s.compressor.thresholdDB), s.compressor.enabled ? 0 : 1)
+                    change = max(change, abs(c.thresholdDB - s.compressor.thresholdDB), s.compressor.compressing ? 0 : 1)
                     notes.append(.compressor(thresholdDB: c.thresholdDB, ratio: c.ratio, attackMS: c.attackMS, releaseMS: c.releaseMS, gainReductionDB: gr))
                     s.compressor = c
                 }
