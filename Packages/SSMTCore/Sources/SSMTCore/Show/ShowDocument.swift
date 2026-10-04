@@ -28,9 +28,13 @@ public enum ContinueMode: String, Codable, CaseIterable, Sendable {
     case autoFollow
 }
 
-/// How a group plays its children.
+/// How a group plays its children (QLab 5's group modes, in its order).
 public enum GroupMode: String, Codable, CaseIterable, Sendable {
-    /// The first child starts; the others follow through their own continue modes.
+    /// Start First And Enter: the first child starts and the GO playhead moves into the group, onto the next child;
+    /// after the last child it leaves the group.
+    case enter
+    /// Start First: the first child starts; the others follow through their own continue modes; the playhead
+    /// goes past the group.
     case sequence
     /// All children start together (each after its own pre-wait).
     case simultaneous
@@ -38,6 +42,13 @@ public enum GroupMode: String, Codable, CaseIterable, Sendable {
     case playlist
     /// One random child plays.
     case random
+}
+
+/// What a cue does when it is told to start while it is already running (QLab's second trigger).
+public enum SecondTrigger: String, Codable, CaseIterable, Sendable {
+    case nothing, panic, stop, hardStop, restart, devamp
+    /// Playlist groups: the next entry plays (crossfading if set).
+    case playNext
 }
 
 /// How a one-shot pad reacts to a press.
@@ -192,6 +203,8 @@ public struct Cue: Codable, Equatable, Identifiable, Sendable {
     public var devampStartsNext: Bool
     /// One-shot pads only: reaction to a press.
     public var padMode: PadMode
+    /// Started again while running.
+    public var secondTrigger: SecondTrigger
     public var children: [Cue]
 
     public init(kind: CueKind, id: UUID = UUID(), number: String = "", name: String = "") {
@@ -219,6 +232,7 @@ public struct Cue: Codable, Equatable, Identifiable, Sendable {
         stopFade = 0
         devampStartsNext = false
         padMode = .toggle
+        secondTrigger = .nothing
         children = []
     }
 
@@ -248,6 +262,7 @@ public struct Cue: Codable, Equatable, Identifiable, Sendable {
         stopFade = try c.decodeIfPresent(Double.self, forKey: .stopFade) ?? 0
         devampStartsNext = try c.decodeIfPresent(Bool.self, forKey: .devampStartsNext) ?? false
         padMode = try c.decodeIfPresent(PadMode.self, forKey: .padMode) ?? .toggle
+        secondTrigger = try c.decodeIfPresent(SecondTrigger.self, forKey: .secondTrigger) ?? .nothing
         children = try c.decodeIfPresent([Cue].self, forKey: .children) ?? []
     }
 }

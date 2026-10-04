@@ -8179,6 +8179,23 @@
         }
       }
     },
+    "group.mode.enter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start first and enter (GO steps through the cues inside)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Первая и войти (GO идёт по кью внутри)"
+          }
+        }
+      }
+    },
     "group.mode.playlist": {
       "extractionState": "manual",
       "localizations": {
@@ -8202,7 +8219,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "One random cue"
+            "value": "Start random"
           }
         },
         "ru": {
@@ -8219,13 +8236,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "One after another (by their settings)"
+            "value": "Start first, then go to the next cue"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "По очереди (по их настройкам)"
+            "value": "Первая, затем следующая кью списка"
           }
         }
       }
@@ -13415,6 +13432,125 @@
         }
       }
     },
+    "secondTrigger.devamp": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leaves its loop"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выйти из петли"
+          }
+        }
+      }
+    },
+    "secondTrigger.hardStop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stops at once"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить сразу"
+          }
+        }
+      }
+    },
+    "secondTrigger.nothing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ничего"
+          }
+        }
+      }
+    },
+    "secondTrigger.panic": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fades out and stops"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Плавно остановить"
+          }
+        }
+      }
+    },
+    "secondTrigger.playNext": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plays the next entry"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Играть следующий трек"
+          }
+        }
+      }
+    },
+    "secondTrigger.restart": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restarts from the beginning"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Начать заново"
+          }
+        }
+      }
+    },
+    "secondTrigger.stop": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stops"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить"
+          }
+        }
+      }
+    },
     "section.assist": {
       "extractionState": "manual",
       "localizations": {
@@ -14934,13 +15070,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "One track per cue. Drag a clip to move its start (pre-wait), its edges to trim; clips snap to each other, ⌘ while dragging turns snapping off."
+            "value": "One track per cue. Drag a clip to move its start (pre-wait), its edges to trim, ⌥-drag to slip the sound inside it; ⌥← / ⌥→ nudge by 0.1 s. Clips snap to each other and to the yellow playback line (⌘ while dragging: no snapping); click the ruler to play from there."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Каждая кью — своя дорожка. Перетащите клип, чтобы сдвинуть старт (паузу до), края — чтобы обрезать; клипы прилипают друг к другу, ⌘ при перетаскивании отключает прилипание."
+            "value": "Каждая кью — своя дорожка. Перетащите клип — сдвиг старта (паузы до), края — обрезка, с ⌥ — сдвиг звука внутри клипа; ⌥← / ⌥→ — на 0,1 с. Клипы прилипают друг к другу и к жёлтой линии воспроизведения (⌘ — без прилипания); щелчок по линейке — играть оттуда."
           }
         }
       }
@@ -15444,13 +15580,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Load the selected audio cue to a time: the next start begins there"
+            "value": "Load the selected audio cue or timeline group to a time: the next start begins there"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Загрузить выделенную аудио-кью до времени: следующий старт — с этого места"
+            "value": "Загрузить выделенную аудио-кью или группу-таймлайн до времени: следующий старт — с этого места"
           }
         }
       }
@@ -15502,6 +15638,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Буквенные клавиши работают в любой раскладке. Горячие клавиши, назначенные кью, важнее. В режиме «Шоу» работают только клавиши воспроизведения."
+          }
+        }
+      }
+    },
+    "show.keys.nudge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pre-wait of the selected cues −/+ 0.1 s (moves them on a group timeline)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пауза до выделенных кью −/+ 0,1 с (сдвиг на таймлайне группы)"
           }
         }
       }
@@ -15689,6 +15842,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Сочетания клавиш (как в QLab)"
+          }
+        }
+      }
+    },
+    "show.keys.zoom": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zoom the timeline in / out"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Масштаб таймлайна: крупнее / мельче"
           }
         }
       }
@@ -16509,6 +16679,40 @@
         }
       }
     },
+    "show.secondTrigger": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If started again while running"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Если запустить, пока играет"
+          }
+        }
+      }
+    },
+    "show.secondTrigger.help": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What the cue does when GO, a hotkey or another cue starts it while it is still running (QLab's second trigger)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Что делает кью, если GO, клавиша или другая кью запускает её, пока она ещё играет (second trigger в QLab)."
+          }
+        }
+      }
+    },
     "show.setPlayhead": {
       "extractionState": "manual",
       "localizations": {
@@ -16845,6 +17049,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Прокрутка таймлайна (или тяните пустое место, или колесо / трекпад)"
+          }
+        }
+      }
+    },
+    "show.timeline.seekHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click or drag in the ruler to move playback there (a group that is not running starts from there next time)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Щёлкните или протяните по линейке, чтобы перейти туда (группа, которая не играет, в следующий раз начнёт оттуда)"
           }
         }
       }

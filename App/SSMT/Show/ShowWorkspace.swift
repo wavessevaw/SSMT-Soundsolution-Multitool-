@@ -179,7 +179,10 @@ struct QtrlGoBar: View {
                     .fill(ready ? AnyShapeStyle(LinearGradient(colors: [Theme.accent, Theme.accentHot], startPoint: .top, endPoint: .bottom))
                                 : AnyShapeStyle(Color.white.opacity(0.08)))
             )
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.25)))
+            // QLab: green border = GO will start the standing-by cue; red = double-GO protection holds it.
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(show.goGuarded ? Theme.statusError : (ready ? Color.white.opacity(0.55) : Color.white.opacity(0.25)),
+                              lineWidth: show.goGuarded ? 3 : 1.5))
             .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -496,7 +499,7 @@ struct QtrlShortcutsView: View {
         ("Space", "show.keys.go"), ("Esc", "show.keys.panic"), ("[  /  ]", "show.keys.pauseResumeAll"),
         ("P", "show.keys.pauseSelected"), ("S", "show.keys.stopSelected"), ("L", "show.keys.load"), ("V", "show.keys.preview"),
         ("↑  /  ↓", "show.keys.cursor"), ("⇧⌘↑  /  ⇧⌘↓", "show.keys.playhead"), ("⌘J", "show.keys.jump"),
-        ("⌘T", "show.keys.loadToTime"),
+        ("⌘T", "show.keys.loadToTime"), ("⌥←  /  ⌥→", "show.keys.nudge"), ("⌘=  /  ⌘−", "show.keys.zoom"),
         ("⌘]  /  ⌘[", "show.keys.mode"), ("⌘I  /  ⌘L", "show.keys.panels"),
         ("⌘1 · ⌘0 · ⌘7 · ⌘8", "show.keys.newCue"), ("N · Q · E · D · W", "show.keys.fields"), ("C", "show.keys.continue"),
         ("T", "show.keys.target"), ("⌘R", "show.keys.renumber"), ("⌘D", "show.keys.duplicate"),

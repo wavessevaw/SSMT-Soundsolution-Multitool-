@@ -71,6 +71,8 @@ final class ShowStore: ObservableObject {
     var oscWizardKind: OSCDeviceKind?
     let osc = OSCHub()
     @Published private(set) var snapshot = ShowSnapshot.empty
+    /// When `snapshot` was taken: views move playback cursors on smoothly between snapshots.
+    private(set) var snapshotDate = Date()
     @Published private(set) var meters: [Float] = []
     @Published private(set) var outputName = ""
     @Published private(set) var outputError: String?
@@ -546,7 +548,19 @@ final class ShowStore: ObservableObject {
 
     // MARK: Transport
 
-    func go() { run { e, now in e.go(now: now) } }
+    func go() {
+        // QLab: a red border on GO while double-GO protection holds it.
+        if doc.doubleGoGuard > 0, goGuarded == false {
+            goGuarded = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + doc.doubleGoGuard) { [weak self] in self?.goGuarded = false }
+        }
+        run { e, now in e.go(now: now) }
+    }
+
+    /// Double-GO protection is holding GO right now.
+    @Published private(set) var goGuarded = false
+    /// Seconds across the width of the timelines (⌘= / ⌘− zoom them, as in QLab).
+    @Published var timelineSpan: Double = 40
     func panic() { run { e, now in e.panic(now: now) } }
     func pauseAll() { run { e, now in e.pauseAll(now: now) } }
     func resumeAll() { run { e, now in e.resumeAll(now: now) } }
@@ -557,6 +571,8 @@ final class ShowStore: ObservableObject {
         run { e, now in paused ? e.resume(id, now: now) : e.pause(id, now: now) }
     }
     func setPlayhead(_ id: UUID?) { run { e, _ in e.setPlayhead(id) } }
+    /// Timeline group: playback carries on from `seconds` (or starts there next time when it is not running).
+    func seekGroup(_ id: UUID, to seconds: Double) { run { e, now in e.seek(id, to: seconds, now: now) } }
 
     var anyPaused: Bool { snapshot.running.contains { $0.paused } }
 
@@ -649,7 +665,7 @@ final class ShowStore: ObservableObject {
     }
 
     private func apply(_ snap: ShowSnapshot, peaks: [Float]) {
-        if snap != snapshot { snapshot = snap }
+        if snap != snapshot { snapshotDate = Date(); snapshot = snap }
         let used = Array(peaks.prefix(doc.outputs.count))
         if used != meters { meters = used }
         if let lid = snap.listID, lid != listID, doc.lists.contains(where: { $0.id == lid }) { listID = lid }
@@ -918,6 +934,11 @@ final class ShowStore: ObservableObject {
         }
         let mods = event.modifierFlags.intersection([.command, .control, .option])
         if mods == [.command], event.type == .keyDown { return commandKey(event) }
+        // ⌥← / ⌥→ (QLab): pre-wait of the selected cues −/+ 0.1 s, which moves them on a group timeline.
+        if mods == [.option], event.type == .keyDown, !showMode, event.keyCode == 123 || event.keyCode == 124 {
+            nudgePreWait(event.keyCode == 124 ? 0.1 : -0.1)
+            return true
+        }
         guard mods.isEmpty else { return false }
         // One-shot pads on F-keys: press and release (for "hold" pads).
         if let fkey = Self.functionKeyCodes[event.keyCode] {
@@ -991,6 +1012,8 @@ final class ShowStore: ObservableObject {
         case Key.l: showSidebar.toggle(); return true                       // ⌘L  lists, one-shot, active
         case Key.j: jumpToCue(); return true                                // ⌘J  jump to cue
         case Key.t: loadSelectedToTime(); return true                       // ⌘T  load to time
+        case 24: timelineSpan = max(5, timelineSpan / 1.5); return true     // ⌘=  zoom the timeline in
+        case 27: timelineSpan = min(600, timelineSpan * 1.5); return true   // ⌘−  zoom out
         case Key.up where shift: movePlayhead(by: -1); return true          // ⇧⌘↑ / ⇧⌘↓  playhead
         case Key.down where shift: movePlayhead(by: 1); return true
         default: break
@@ -1013,6 +1036,14 @@ final class ShowStore: ObservableObject {
 
     private var selectedCues: [UUID] { orderedSelection.isEmpty ? Array(selection) : orderedSelection }
 
+    private func nudgePreWait(_ delta: Double) {
+        let ids = selectedCues
+        guard !ids.isEmpty else { return }
+        edit(loc("show.preWait")) { d in
+            for id in ids { d.updateCue(id) { $0.preWait = max(0, (($0.preWait + delta) * 100).rounded() / 100) } }
+        }
+    }
+
     func load(_ id: UUID) { run { e, _ in e.load(id) } }
 
     private var lastStop: Date?
@@ -1025,14 +1056,14 @@ final class ShowStore: ObservableObject {
         for id in selectedCues { run { e, now in e.stop(id, now: now, fade: fade) } }
     }
 
-    /// ↑ / ↓: the previous / next row is selected; a top-level cue also gets the playhead (as a click does).
+    /// ↑ / ↓: the previous / next row is selected and gets the playhead where it can stand (as a click does).
     private func moveCursor(by delta: Int) {
         let rows = currentList?.cues.flattened(collapsed: collapsed) ?? []
         guard !rows.isEmpty else { return }
         let current = rows.lastIndex { selection.contains($0.cue.id) } ?? (delta > 0 ? -1 : rows.count)
         let i = max(0, min(rows.count - 1, current + delta))
         selection = [rows[i].cue.id]
-        if rows[i].depth == 0 { setPlayhead(rows[i].cue.id) }
+        setPlayhead(rows[i].cue.id)
     }
 
     /// ⇧⌘↑ / ⇧⌘↓: the playhead to the previous / next top-level cue.
@@ -1055,7 +1086,8 @@ final class ShowStore: ObservableObject {
 
     /// ⌘T: the selected audio cue's next start begins this many seconds in.
     private func loadSelectedToTime() {
-        guard selection.count == 1, let id = selection.first, doc.cue(id)?.kind == .audio else { NSSound.beep(); return }
+        guard selection.count == 1, let id = selection.first, let c = doc.cue(id),
+              c.kind == .audio || (c.kind == .group && c.groupMode == .simultaneous) else { NSSound.beep(); return }
         guard let v = prompt(loc("show.key.loadToTime"), value: "0"),
               let s = Double(v.replacingOccurrences(of: ",", with: ".")) else { return }
         run { e, _ in e.loadToTime(id, seconds: s) }

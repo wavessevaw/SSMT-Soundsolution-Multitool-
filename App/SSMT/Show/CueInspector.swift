@@ -131,6 +131,15 @@ private struct CueInspectorContent: View {
                 }))
                 .textFieldStyle(.roundedBorder).frame(width: 44).multilineTextAlignment(.center)
             }
+            VStack(alignment: .leading, spacing: 4) {
+                caption(loc.t("show.secondTrigger"))
+                Picker("", selection: bind(\.secondTrigger)) {
+                    ForEach(SecondTrigger.allCases.filter { $0 != .playNext || (cue.kind == .group && cue.groupMode == .playlist) },
+                            id: \.self) { Text(loc.t("secondTrigger.\($0.rawValue)")).tag($0) }
+                }
+                .labelsHidden()
+                .help(loc.t("show.secondTrigger.help"))
+            }
             if cue.kind == .wait { seconds(loc.t("show.duration"), bind(\.duration)) }
         }
     }

@@ -251,6 +251,10 @@ struct LevelRamp {
         curve = c
     }
 
+    /// Pause from `pausedAt`: a ramp that had begun continues `frames` later (it was frozen meanwhile). A ramp set
+    /// during the pause (a fade resumed at the same moment) is already timed from the resume.
+    mutating func shift(by frames: Int64, pausedAt: Int64) { if start <= pausedAt { start += frames } }
+
     mutating func hold(at f: Int64) {
         let d = dB(at: f)
         fromDB = d; toDB = d; length = 0
@@ -268,6 +272,8 @@ final class Voice {
     var played: Double = 0
     var map = PlayMap(regionStart: 0, length: 1, plays: 1)
     var paused = false
+    /// Frame at which the voice was paused (its level ramps are frozen from there until resume).
+    var pausedFrame: Int64 = 0
     var pauseAt: Int64 = .max
     var resumeAt: Int64 = .max
     var devampAt: Int64 = .max
@@ -491,8 +497,16 @@ public final class ShowMixer: @unchecked Sendable {
                 v.map = v.map.devamped(at: v.played)
                 v.devampAt = .max
             }
-            if v.pauseAt <= f { v.paused = true; v.pauseAt = .max }
-            if v.resumeAt <= f { v.paused = false; v.resumeAt = .max }
+            if v.pauseAt <= f { v.paused = true; v.pausedFrame = v.pauseAt; v.pauseAt = .max }
+            if v.resumeAt <= f {
+                if v.paused {
+                    // A fade in progress picks up where it was paused instead of jumping to its end (as in QLab).
+                    let d = max(0, v.resumeAt - v.pausedFrame)
+                    v.main.shift(by: d, pausedAt: v.pausedFrame)
+                    for o in 0..<maxOutputs { v.outputs[o].shift(by: d, pausedAt: v.pausedFrame) }
+                }
+                v.paused = false; v.resumeAt = .max
+            }
             if v.stopAt <= f && v.stopEnv.length == 0 && v.stopEnv.toDB == 0 {
                 if v.paused { free(v); return }
                 v.stopEnv.set(to: showSilenceDB, at: v.stopAt, frames: v.stopFade, curve: .sCurve)

@@ -180,7 +180,7 @@ public enum ShowTimeline {
             switch g.groupMode {
             case .simultaneous:
                 for k in kids { trigger(k, at: start + max(0, k.preWait)) }
-            case .sequence:
+            case .sequence, .enter:
                 chain(kids, from: 0, at: start)
             case .random:
                 trigger(kids[0], at: start + max(0, kids[0].preWait))

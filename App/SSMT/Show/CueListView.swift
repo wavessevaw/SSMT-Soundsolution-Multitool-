@@ -111,10 +111,11 @@ struct CueListView: View {
         } else {
             show.selection = [id]
             anchor = id
-            // As in QLab: the clicked cue is the next one for GO / Space (top-level cues only). A cue that is
-            // playing is only selected (e.g. to look into a running group): the playhead stays on what comes next.
+            // As in QLab: the clicked cue is the next one for GO / Space (a cue of the list, or inside a Start First And
+            // Enter group; the engine ignores others). A cue that is playing is only selected (e.g. to look into a
+            // running group): the playhead stays on what comes next.
             let playing = show.snapshot.running.contains { $0.id == id }
-            if rows.first(where: { $0.cue.id == id })?.depth == 0 && !playing { show.setPlayhead(id) }
+            if !playing { show.setPlayhead(id) }
         }
     }
 
