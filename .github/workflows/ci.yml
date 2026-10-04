@@ -136,5 +136,8 @@ jobs:
         run: |
           TAG="${RELEASE_TAG:-$GITHUB_REF_NAME}"
           case "$TAG" in v[0-9]*) ;; *) echo "Bad release tag: $TAG"; exit 1;; esac
-          gh release create "$TAG" "build/SSMT-${VERSION}.pkg" --target "$GITHUB_SHA" \
+          # A tag with a suffix (v1.3.0-beta.1) is published as a pre-release.
+          PRE=""
+          case "$TAG" in *-*) PRE="--prerelease";; esac
+          gh release create "$TAG" "build/SSMT-${VERSION}.pkg" --target "$GITHUB_SHA" $PRE \
             --title "SSMT $TAG" --notes-file docs/RELEASE_NOTES.md
