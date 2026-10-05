@@ -80,9 +80,19 @@ async function main() {
     }, { lang: sc.lang || 'ru' });
     if (engine) engine.on((ev) => { events.push(ev); page.evaluate((e) => window.__ssmtListeners.forEach((fn) => fn(e)), ev).catch(() => {}); });
     await page.goto('file://' + path.join(root, 'src', 'renderer', 'index.html') + (sc.query || ''));
+    // Without an engine, a screen can replay recorded engine events (scripts/fixtures/<name>.json, an array) so the
+    // interface can be checked where Swift is not available. CI always uses the real engine.
+    const fixture = path.join(__dirname, 'fixtures', (sc.fixture || sc.name) + '.json');
+    if (!engine && fs.existsSync(fixture)) {
+      for (const ev of JSON.parse(fs.readFileSync(fixture, 'utf8'))) {
+        events.push(ev);
+        await page.evaluate((e) => window.__ssmtListeners.forEach((fn) => fn(e)), ev);
+      }
+    }
     const h = {
       page, events, engine,
       send: (cmd) => engine && engine.send(cmd),
+      hasEngine: !!engine,
       waitFor: async (test, ms = 10000) => {
         const t0 = Date.now();
         while (Date.now() - t0 < ms) { const e = events.find(test); if (e) return e; await page.waitForTimeout(50); }
