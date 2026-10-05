@@ -1,0 +1,1 @@
+[{"event":"state","family":"","host":"","status":"disconnected","strips":[],"buses":[]},{"event":"found","family":"x32","ip":"192.168.1.64","name":"X32-02-4A-53","model":"X32","firmware":"4.06"},{"event":"found","family":"x32","ip":"192.168.1.71","name":"M32R-11-0C-2B","model":"M32R","firmware":"4.06"}]

@@ -15,7 +15,7 @@ const MAP = {
   'arrowtriangle.right.fill': 'play', 'bolt': 'zap', 'bolt.horizontal': 'cable', 'book': 'book-open',
   'chart.line.downtrend.xyaxis': 'trending-down', 'chart.line.uptrend.xyaxis': 'trending-up', 'checklist': 'list-checks',
   'checkmark': 'check', 'checkmark.circle': 'circle-check', 'checkmark.circle.fill': 'circle-check-big',
-  'checkmark.shield': 'shield-check', 'chevron.down': 'chevron-down', 'chevron.left': 'chevron-left',
+  'checkmark.shield': 'shield-check', 'chevron.down': 'chevron-down', 'chevron.up': 'chevron-up', 'chevron.left': 'chevron-left',
   'chevron.right': 'chevron-right', 'clock': 'clock', 'cursorarrow.click': 'mouse-pointer-click', 'dial.medium': 'gauge',
   'doc': 'file', 'doc.on.doc': 'copy', 'doc.richtext': 'file-text', 'doc.text': 'file-text',
   'dot.radiowaves.left.and.right': 'radio', 'ellipsis': 'ellipsis', 'exclamationmark': 'circle-alert',
@@ -40,6 +40,8 @@ const MAP = {
   'trophy': 'trophy', 'tuningfork': 'audio-lines', 'wand.and.stars': 'wand-sparkles', 'waveform': 'audio-waveform',
   'waveform.badge.plus': 'file-audio', 'waveform.path.ecg': 'activity', 'waveform.path.ecg.rectangle': 'square-activity',
   'wifi': 'wifi', 'xmark': 'x', 'xmark.circle.fill': 'circle-x', 'xmark.octagon.fill': 'octagon-x', 'xmark.shield': 'shield-x',
+  'desktopcomputer': 'monitor', 'speaker.wave.3.fill': 'volume-2', 'waveform.path.badge.minus': 'audio-waveform',
+  'person.wave.2.fill': 'speech', 'dial.low': 'gauge', 'water.waves': 'waves',
   'folder.badge.plus': 'folder-plus', 'person.crop.circle': 'circle-user', 'questionmark.circle': 'circle-help',
 };
 
