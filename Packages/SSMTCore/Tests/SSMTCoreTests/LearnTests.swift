@@ -237,4 +237,46 @@ final class LearnTests: XCTestCase {
         XCTAssertEqual(o?.frames.count, 1)
         XCTAssertNil(o?.frames.first?.p)
     }
+
+    func testLostSecondsAreMarkedAndTheDatasetHasSoundAndSettings() {
+        var rec = LearningRecorder(header: LearnHeader(title: "Show", console: "x32"))
+        var c = ConsoleCapture(family: .x32)
+        let strips = [1: ChannelStrip(id: 1, name: "Kick", gainDB: 30, faderDB: -10), 2: ChannelStrip(id: 2, name: "Vox", faderDB: -5)]
+        c.absorb(strips: strips, buses: [:])
+        var data = rec.headerLine()
+        var flushes = 0
+        for t in 0..<30 {
+            var m = LearnMeters()
+            m.levels = [-12, -90]
+            m.dyn = [-4, 0]
+            m.rta = [Double](repeating: -40, count: 30)
+            data += rec.record(t: Double(t), strips: strips, buses: [:], channelLevels: [:], busLevels: [:],
+                               params: c.params, meters: m, lost: (12...15).contains(t))
+            if rec.shouldFlush { flushes += 1 }
+        }
+        XCTAssertEqual(rec.lostFrames, 4)
+        XCTAssertEqual(flushes, 1, "on disk every 30 s")
+        // The computer went off in the middle of a line: everything before it still reads.
+        let r = LearnRecording.parse(data + Data(#"{"levels":[-1"#.utf8))!
+        XCTAssertEqual(r.frames.count, 30)
+        XCTAssertEqual(r.frames[12].lost, true)
+        XCTAssertNil(r.frames[11].lost)
+
+        let rows = LearnDataset.rows(r)
+        XCTAssertEqual(rows.map(\.t), [0, 10, 20], "one row per window, only the playing channel")
+        let row = rows[0]
+        XCTAssertEqual(row.ch, 1)
+        XCTAssertEqual(row.name, "Kick")
+        XCTAssertEqual(row.kind, "kick")
+        XCTAssertEqual(row.peak, -12)
+        XCTAssertEqual(row.dyn, -4)
+        XCTAssertEqual(row.rta?.count, 30)
+        XCTAssertEqual(row.rta?.first, -40)
+        XCTAssertNotNil(row.settings["mix/fader"])
+        XCTAssertEqual(row.settings["config/name"], .text("Kick"))
+        XCTAssertFalse(row.settings.keys.contains { $0.hasPrefix("/") }, "addresses below the channel")
+        let lines = LearnDataset.jsonLines([r]).split(separator: 0x0A)
+        XCTAssertEqual(lines.count, 3)
+        XCTAssertNotNil(try? JSONDecoder().decode(LearnDataset.Row.self, from: Data(lines[1])))
+    }
 }

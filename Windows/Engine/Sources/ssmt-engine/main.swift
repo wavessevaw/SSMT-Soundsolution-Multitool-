@@ -164,6 +164,8 @@ final class Engine {
                 try? FileManager.default.removeItem(at: learnDir.appendingPathComponent(f))
             }
             emitRecordings()
+        case "exportDataset":
+            exportDataset()
         case "patterns":
             let p = patterns()
             Out.emit("patterns", ["patterns": Out.json(p), "summary": p.summary(russian: str("lang") != "en")])
@@ -374,9 +376,11 @@ final class Engine {
         }
         learnParams = params?.count ?? 0
         let line = rec.record(t: t, strips: strips, buses: buses, channelLevels: channelLevels, busLevels: busLevels,
-                              params: params, meters: meters)
+                              params: params, meters: meters, lost: isReal && Date().timeIntervalSince(lastHeard) > 4)
         recorder = rec
         recordFile?.write(line)
+        // On disk every 30 s: a crash or a power cut loses at most that.
+        if rec.shouldFlush { recordFile?.synchronizeFile() }
         emitLearn()
     }
 
@@ -396,6 +400,7 @@ final class Engine {
             f["seconds"] = Date().timeIntervalSince(learnStartedAt)
             f["frames"] = r.frames
             f["changes"] = r.changes
+            f["lost"] = r.lostFrames
             f["params"] = learnParams
             f["title"] = r.header.title
             f["file"] = recordURL?.lastPathComponent ?? ""
@@ -409,6 +414,21 @@ final class Engine {
             guard let d = try? Data(contentsOf: u), let r = LearnRecording.parse(d) else { return nil }
             return (u.lastPathComponent, r)
         }.sorted { $0.rec.header.startedAt > $1.rec.header.startedAt }
+    }
+
+    /// All recordings as one training file (`LearnDataset`), next to them.
+    func exportDataset() {
+        let recs = loadRecordings().map(\.rec)
+        let data = LearnDataset.jsonLines(recs)
+        let url = learnDir.appendingPathComponent(LearnDataset.fileName)
+        do {
+            try FileManager.default.createDirectory(at: learnDir, withIntermediateDirectories: true)
+            try data.write(to: url, options: .atomic)
+            let rows = data.reduce(0) { $1 == 0x0A ? $0 + 1 : $0 }
+            Out.emit("dataset", ["path": url.path, "rows": rows, "recordings": recs.count, "bytes": data.count])
+        } catch {
+            Out.emit("error", ["key": "cannotWrite", "detail": "\(error)"])
+        }
     }
 
     func emitRecordings() {

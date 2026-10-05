@@ -142,6 +142,8 @@ public enum PatternLearner {
             seconds += rec.duration
             var acc: [Int: ChannelAccumulator] = [:]
             rec.replay { frame, strips, _ in
+                // Seconds without the console (Wi-Fi lost) hold stale values.
+                if frame.lost == true { return }
                 for (ch, s) in strips {
                     var a = acc[ch] ?? ChannelAccumulator()
                     if !s.name.isEmpty { a.name = s.name }

@@ -116,6 +116,16 @@ private struct ProgressPanel: View {
                         .help(loc.t("assist.learn.delete"))
                 }
             }
+            if !store.recordings.isEmpty {
+                Button { store.exportDataset() } label: { Label(loc.t("assist.learn.dataset"), systemImage: "tray.and.arrow.down") }
+                    .buttonStyle(SSMTButtonStyle()).disabled(store.learning)
+                    .help(loc.t("assist.learn.datasetHint"))
+                if let d = store.datasetResult {
+                    Text(String(format: loc.t("assist.learn.datasetDone"), d.rows, d.recordings, d.url.lastPathComponent))
+                        .font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 }

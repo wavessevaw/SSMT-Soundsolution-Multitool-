@@ -20,6 +20,7 @@ public enum ParamValue: Codable, Equatable, Sendable {
     }
 
     public var number: Double? { if case let .number(d) = self { return d } else { return nil } }
+    public var text: String? { if case let .text(s) = self { return s } else { return nil } }
 }
 
 /// What the meters showed during one second of a recording.

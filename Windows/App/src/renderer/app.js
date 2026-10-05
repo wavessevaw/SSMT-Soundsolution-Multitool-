@@ -64,6 +64,7 @@ function onEvent(ev) {
     case 'learn': S.learn = ev; break;
     case 'recordings': S.recordings = ev; send({ cmd: 'patterns', lang: S.lang }); break;
     case 'patterns': S.summary = ev.summary; break;
+    case 'dataset': S.dataset = ev; break;
     case 'log': S.log = ev.entries || []; break;
     case 'found':
       if (!S.found.some((c) => c.ip === ev.ip)) S.found.push(ev);
@@ -129,6 +130,7 @@ const actions = {
     if (r && confirm(t('learn.delete.confirm', r.title))) send({ cmd: 'deleteRecording', file });
   },
   refreshPatterns() { send({ cmd: 'recordings' }); },
+  exportDataset() { S.dataset = null; send({ cmd: 'exportDataset' }); },
   async checkModel() {
     if (!api) return;
     S.llm.status = '…';
@@ -322,7 +324,9 @@ function learnScreen() {
   const progress = `
     <div class="progress-head"><b>${esc(t('learn.events', events, target))}</b></div>
     <div class="bar"><i style="width:${Math.min(100, (events / target) * 100)}%"></i></div>
-    <p class="muted">${esc(t('learn.progress.hint'))}</p>${list}`;
+    <p class="muted">${esc(t('learn.progress.hint'))}</p>${list}
+    <button class="ghost" data-act="exportDataset" ${isRec || !R.items.length ? 'disabled' : ''}>${esc(t('learn.dataset'))}</button>
+    ${S.dataset ? `<p class="muted">${esc(t('learn.dataset.done', S.dataset.rows, S.dataset.recordings, S.dataset.path))}</p>` : ''}`;
   const patterns = S.summary && R.items.length ? `<pre class="summary">${esc(S.summary)}</pre>` : `<p class="muted">${esc(t('learn.patterns.empty'))}</p>`;
   const llm = `
     <p class="muted">${esc(t('llm.hint'))}</p>

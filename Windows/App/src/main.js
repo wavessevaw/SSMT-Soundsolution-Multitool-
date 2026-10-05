@@ -2,7 +2,7 @@
 // SSMT for Windows: Electron shell. Starts the engine, owns the UDP sockets (engine-link.js) and the local language
 // model calls (Ollama), and shows the interface in src/renderer.
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, powerSaveBlocker, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { EngineLink } = require('./engine-link');
@@ -27,9 +27,19 @@ function dataDir() {
   return dir;
 }
 
+// The computer must not sleep while a show is being recorded (hours, nobody touching it).
+let awake = null;
+function keepAwake(on) {
+  if (on && awake === null) awake = powerSaveBlocker.start('prevent-app-suspension');
+  if (!on && awake !== null) { powerSaveBlocker.stop(awake); awake = null; }
+}
+
 function startEngine() {
   link = new EngineLink(engineCommand());
-  link.on('event', (ev) => { if (win && !win.isDestroyed()) win.webContents.send('engine', ev); });
+  link.on('event', (ev) => {
+    if (ev.event === 'learn') keepAwake(!!ev.recording);
+    if (win && !win.isDestroyed()) win.webContents.send('engine', ev);
+  });
   link.on('stderr', (s) => process.stderr.write(s));
   link.start();
   link.send({ cmd: 'hello', dataDir: dataDir() });

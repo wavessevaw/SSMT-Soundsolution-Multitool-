@@ -316,6 +316,10 @@ final class AssistStore: ObservableObject {
     private var learnFile: FileHandle?
     private var learnStart = Date()
     private var learnTimer: Timer?
+    /// Keeps the Mac awake while recording (a show runs for hours with nobody at the computer).
+    private var learnActivity: NSObjectProtocol?
+    /// Where the last training dataset was written, and how many rows it has.
+    @Published private(set) var datasetResult: (url: URL, rows: Int, recordings: Int)?
     private var simLevels: [Int: Double] = [:]
     /// Every parameter and meter of a real console while connected (read-only).
     private var consoleCapture: ConsoleCapture?
@@ -1108,6 +1112,8 @@ final class AssistStore: ObservableObject {
         learnChanges = 0
         learnParams = 0
         learning = true
+        learnActivity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled],
+                                                              reason: "Recording the console for learning")
         learnFrame()
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in Task { @MainActor in self?.learnFrame() } }
         RunLoop.main.add(t, forMode: .common)
@@ -1122,6 +1128,7 @@ final class AssistStore: ObservableObject {
         learnFile = nil
         recorder = nil
         learning = false
+        if let a = learnActivity { ProcessInfo.processInfo.endActivity(a); learnActivity = nil }
         refreshRecordings()
     }
 
@@ -1153,7 +1160,9 @@ final class AssistStore: ObservableObject {
         }
         let t = Date().timeIntervalSince(learnStart)
         learnFile?.write(rec.record(t: t, strips: stripMap, buses: busMap, channelLevels: levels, busLevels: busLevels,
-                                    params: params, meters: meters))
+                                    params: params, meters: meters, lost: sim == nil && !linkAlive))
+        // On disk every 30 s: a crash or a power cut loses at most that.
+        if rec.shouldFlush { learnFile?.synchronizeFile() }
         learnParams = params?.count ?? 0
         recorder = rec
         learnSeconds = t
@@ -1178,6 +1187,25 @@ final class AssistStore: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.recordings = infos
                 self?.patterns = learned
+            }
+        }
+    }
+
+    /// All recordings as one training file (`LearnDataset`) next to them, built off the main thread.
+    func exportDataset() {
+        let dir = learnDirectory
+        datasetResult = nil
+        DispatchQueue.global(qos: .userInitiated).async {
+            let urls = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+            let recs = urls.filter { $0.pathExtension == "ssmtlearn" }.compactMap { u in
+                (try? Data(contentsOf: u)).flatMap(LearnRecording.parse)
+            }
+            let data = LearnDataset.jsonLines(recs)
+            let url = dir.appendingPathComponent(LearnDataset.fileName)
+            let rows = data.reduce(0) { $1 == 0x0A ? $0 + 1 : $0 }
+            let ok = (try? data.write(to: url, options: .atomic)) != nil
+            Task { @MainActor [weak self] in
+                if ok { self?.datasetResult = (url, rows, recs.count) } else { self?.message = url.path }
             }
         }
     }

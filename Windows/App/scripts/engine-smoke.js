@@ -120,7 +120,7 @@ function fakeConsole() {
   link.send({ cmd: 'tune', channel: 1 });
   await waitFor((e) => e.event === 'message' && e.key === 'simulatorOnly', 3000, 'soundcheck refused');
   link.send({ cmd: 'learnStart', title: 'Real console' });
-  const realLearn = await waitFor((e) => e.event === 'learn' && e.recording && e.frames >= 3, 8000, 'recording the console');
+  const realLearn = await waitFor((e) => e.event === 'learn' && e.recording && e.title === 'Real console' && e.frames >= 3, 8000, 'recording the console');
   assert.ok(realLearn.params >= 150, 'console parameters read: ' + realLearn.params);
   link.send({ cmd: 'learnStop' });
   await sleep(500);
@@ -132,6 +132,13 @@ function fakeConsole() {
   assert.ok(Object.keys(allParams).some((a) => a.startsWith('/ch/01/gate/')), 'gate parameters recorded');
   assert.ok(lines.slice(1).some((f) => f.m && f.m.rta && f.m.rta.length === 30), 'RTA recorded');
   step(`recording of the console: ${Object.keys(allParams).length} parameters, RTA and meters`);
+  link.send({ cmd: 'exportDataset' });
+  const ds = await waitFor((e) => e.event === 'dataset' && e.recordings === 2, 10000, 'training dataset');
+  const rows = fs.readFileSync(ds.path, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const vox = rows.find((r) => r.ch === 1 && r.name === 'Vox Lead');
+  assert.ok(vox, 'dataset row of channel 1');
+  assert.ok(vox.settings['mix/fader'] !== undefined && vox.rta && vox.rta.length === 30, 'dataset row has settings and RTA');
+  step(`training dataset: ${ds.rows} rows from ${ds.recordings} recordings`);
   assert.deepStrictEqual(fake.writes, [], 'the engine sent writes to the console: ' + fake.writes.join(', '));
   step('no write reached the console');
   fake.sock.close();

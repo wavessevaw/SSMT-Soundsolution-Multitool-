@@ -6,6 +6,9 @@ FOH Assist: обучение записывает все параметры пу
 шины, матрицы, главный выход, DCA, эффекты, хедампы), подавление гейта и компрессора, уровни выходов и RTA, раз в
 секунду и только чтением (`ConsoleTree`, `ConsoleCapture`, формат записи 2). / Learning records every console
 parameter by OSC address, gain reduction, output levels and the RTA, read-only (recording format 2).
+Долгая запись: сброс на диск каждые 30 с, компьютер не засыпает, секунды без связи помечаются (`lost`) и не идут в
+обучение. «Собрать данные для обучения» (`LearnDataset`): все записи в один `SSMT-dataset.jsonl`. / Long recordings:
+flushed every 30 s, no sleep, lost-link seconds marked and skipped; one training dataset file from all recordings.
 
 # Не выпущено
 

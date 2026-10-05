@@ -46,6 +46,8 @@ public struct LearnFrame: Codable, Equatable, Sendable {
     public var pkey: Bool?
     /// Gain reduction, output levels and RTA of the second (`LearnMeters`).
     public var m: LearnMeters?
+    /// Nothing was heard from the console for a few seconds (Wi-Fi lost): the values are the last ones known.
+    public var lost: Bool?
 
     public init(t: Double, levels: [Double], busLevels: [Double], strips: [ChannelStrip]? = nil, buses: [BusStrip]? = nil, key: Bool? = nil) {
         self.t = t; self.levels = levels; self.busLevels = busLevels; self.strips = strips; self.buses = buses; self.key = key
@@ -60,6 +62,11 @@ public struct LearningRecorder: Sendable {
     public private(set) var frames = 0
     /// Parameter changes seen so far (a strip or bus that changed in a second counts once).
     public private(set) var changes = 0
+    /// Seconds recorded without the console (link lost).
+    public private(set) var lostFrames = 0
+    /// The file is flushed to disk this often, frames (a crash or power cut loses at most this much).
+    public static let flushEvery = 30
+    public var shouldFlush: Bool { frames % Self.flushEvery == 0 }
     private var last: [Int: ChannelStrip] = [:]
     private var lastBuses: [Int: BusStrip] = [:]
     private var lastKey = -Double.infinity
@@ -75,9 +82,10 @@ public struct LearningRecorder: Sendable {
     /// The frame for second `t` of the recording, as one JSON line (with the newline).
     public mutating func record(t: Double, strips: [Int: ChannelStrip], buses: [Int: BusStrip],
                                 channelLevels: [Int: Double], busLevels: [Int: Double],
-                                params: [String: ParamValue]? = nil, meters: LearnMeters? = nil) -> Data {
-        let frame = makeFrame(t: t, strips: strips, buses: buses, channelLevels: channelLevels, busLevels: busLevels,
+                                params: [String: ParamValue]? = nil, meters: LearnMeters? = nil, lost: Bool = false) -> Data {
+        var frame = makeFrame(t: t, strips: strips, buses: buses, channelLevels: channelLevels, busLevels: busLevels,
                               params: params, meters: meters)
+        if lost { frame.lost = true; lostFrames += 1 }
         return Self.line(frame)
     }
 

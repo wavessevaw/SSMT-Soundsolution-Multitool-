@@ -3963,6 +3963,57 @@
         }
       }
     },
+    "assist.learn.dataset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build the training dataset"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Собрать данные для обучения"
+          }
+        }
+      }
+    },
+    "assist.learn.datasetDone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done: %d rows from %d recordings, %@ in the recordings folder."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово: %d строк из %d записей, файл %@ в папке с записями."
+          }
+        }
+      }
+    },
+    "assist.learn.datasetHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All recordings in one file for training: per channel every 10 s, the sound (level, gain reduction, RTA) and every setting of the channel."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все записи в один файл для обучения: по каждому каналу раз в 10 с звук (уровень, подавление, RTA) и все настройки канала."
+          }
+        }
+      }
+    },
     "assist.learn.delete": {
       "extractionState": "manual",
       "localizations": {

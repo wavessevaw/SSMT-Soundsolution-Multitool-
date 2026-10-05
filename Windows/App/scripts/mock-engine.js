@@ -53,6 +53,7 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
       learn = null; out('learn', { recording: false }); list();
       break;
     case 'recordings': list(); break;
+    case 'exportDataset': out('dataset', { path: '/tmp/SSMT/Learning/SSMT-dataset.jsonl', rows: 1240, recordings: recordings.length, bytes: 2400000 }); break;
     case 'patterns': out('patterns', { summary: c.lang === 'en' ? 'Events recorded: 3 of 20, 7.5 h in total.' : 'Записано мероприятий: 3 из 20, всего 7,5 ч.\n• Вокал (муж.) (3): гейн 34 дБ, фейдер -3.0 дБ, обрезной фильтр 120 Гц (100%), EQ3 +2.5 дБ на 3000 Гц, компрессор -20 дБ, 3.0:1, движений фейдера 5.8 в мин\n• Бочка (3): гейн 25 дБ, фейдер -6.0 дБ, движений фейдера 0.2 в мин' }); break;
     case 'prompt': out('prompt', { id: c.id || '', text: 'PROMPT ' + c.question }); break;
     case 'tune': out('log', { entries: [{ step: 1, channel: c.channel, note: { recognised: { _0: kinds[c.channel] || 'unknown', confidence: 0.9 } } }, { step: 2, channel: c.channel, note: { gain: { fromDB: 20, toDB: 31.5 } } }] }); break;
