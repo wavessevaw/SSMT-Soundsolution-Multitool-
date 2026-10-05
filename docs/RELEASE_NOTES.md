@@ -1,3 +1,36 @@
+# SSMT 1.5.0 — Windows и обучение FOH Assist
+
+## Русский
+
+**SSMT для Windows (новое)**
+- Установщик `SSMT-Setup-1.5.0.exe` для Windows 10 / 11 (64 бит). В первой версии для Windows есть FOH Assist:
+  симулятор и обучение. Остальные функции появятся позже.
+- Ядро то же, что на Mac: симулятор, протокол X32 / X Air и обучение работают одинаково на обеих системах.
+- При первом подключении к пульту Windows спросит разрешение для сети: разрешите доступ в частных сетях.
+
+**FOH Assist после полевого теста (Mac и Windows)**
+- **Настоящий пульт подключается только на чтение.** Саундчек, страховка шоу и тест пульта на настоящем пульте
+  показывают «Скоро будет доступно». В симуляторе всё работает, как раньше.
+- **Новая вкладка «Обучение».** Пульт подключается по Wi-Fi и ничего на нём не меняется. Раз в секунду
+  записывается состояние пульта: фейдеры, гейн, эквалайзер, динамика и уровни каналов. Запись ведётся
+  на всём мероприятии, счётчик показывает «Мероприятий: N из 20».
+- **Закономерности.** По записям программа считает, как вы обычно настраиваете каждый тип источника: гейн,
+  фейдер, срез, эквалайзер, компрессор и как часто двигаете фейдер.
+- **Локальная модель.** Небольшая языковая модель (Qwen 2.5 через Ollama, на этом компьютере) отвечает на вопросы
+  по закономерностям. Установите Ollama с ollama.com и выполните `ollama pull qwen2.5:1.5b`.
+- Записи лежат в папке «Документы / SSMT / Learning».
+
+## English
+
+**SSMT 1.5.0.** New Windows app (`SSMT-Setup-1.5.0.exe`, Windows 10 / 11, 64-bit) with FOH Assist: simulator and
+learning, on the same core as the Mac app. After the field test a real console is read-only on both systems:
+soundcheck, show guard and console test are "coming soon" there and keep working in the simulator. The new
+Learning tab records the console once a second during an event (faders, gain, EQ, dynamics, levels) without
+changing anything, counts events towards 20, finds per-source patterns and lets a small local model (Qwen 2.5
+through Ollama) answer questions about them. Recordings are kept in Documents / SSMT / Learning.
+
+---
+
 # SSMT 1.4.0 — Справочник и профиль звукорежиссёра
 
 ## Русский

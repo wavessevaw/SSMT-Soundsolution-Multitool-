@@ -198,20 +198,32 @@ public enum PatternLearner {
                 kinds[kind] = k
             }
         }
-        let sources = kinds.map { kind, k -> SourcePattern in
-            SourcePattern(
-                kind: kind, channels: k.channels, activeMinutes: k.activeSeconds / 60,
-                gainDB: median(k.gain), faderDB: median(k.fader), levelDB: median(k.level),
-                highPassShare: mean(k.hpfShare), highPassHz: median(k.hpfHz),
-                eq: (0..<4).compactMap { i in
-                    guard let f = median(k.eqFreq[i]), let g = median(k.eqGain[i]) else { return nil }
-                    return SourcePattern.Band(band: i + 1, share: mean(k.eqShare[i]), frequency: f, gainDB: g)
-                },
-                compressorShare: mean(k.compShare), thresholdDB: median(k.threshold), ratio: median(k.ratio),
-                ridesPerMinute: k.rideMinutes > 0 ? Double(k.rides) / k.rideMinutes : 0)
-        }
-        .sorted { ($0.kind == .unknown ? 1 : 0, -$0.channels, $0.kind.rawValue) < ($1.kind == .unknown ? 1 : 0, -$1.channels, $1.kind.rawValue) }
+        var sources: [SourcePattern] = []
+        for (kind, k) in kinds { sources.append(pattern(kind, k)) }
+        sources.sort(by: order)
         return LearnedPatterns(events: events, hours: seconds / 3600, sources: sources)
+    }
+
+    static func pattern(_ kind: SourceKind, _ k: KindAccumulator) -> SourcePattern {
+        var bands: [SourcePattern.Band] = []
+        for i in 0..<4 {
+            guard let f = median(k.eqFreq[i]), let g = median(k.eqGain[i]) else { continue }
+            bands.append(SourcePattern.Band(band: i + 1, share: mean(k.eqShare[i]), frequency: f, gainDB: g))
+        }
+        let rides: Double = k.rideMinutes > 0 ? Double(k.rides) / k.rideMinutes : 0
+        return SourcePattern(kind: kind, channels: k.channels, activeMinutes: k.activeSeconds / 60,
+                             gainDB: median(k.gain), faderDB: median(k.fader), levelDB: median(k.level),
+                             highPassShare: mean(k.hpfShare), highPassHz: median(k.hpfHz), eq: bands,
+                             compressorShare: mean(k.compShare), thresholdDB: median(k.threshold), ratio: median(k.ratio),
+                             ridesPerMinute: rides)
+    }
+
+    /// Most used kinds first, "other channels" last.
+    static func order(_ a: SourcePattern, _ b: SourcePattern) -> Bool {
+        let au = a.kind == .unknown, bu = b.kind == .unknown
+        if au != bu { return bu }
+        if a.channels != b.channels { return a.channels > b.channels }
+        return a.kind.rawValue < b.kind.rawValue
     }
 
     static func median(_ v: [Double]) -> Double? {

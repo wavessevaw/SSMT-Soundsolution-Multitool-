@@ -350,9 +350,45 @@ final class SnapshotTests: XCTestCase {
         // Console test with the fader wave panel.
         store.mode = .test
         try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-test", loc: Self.ru)
+        // Learning: recordings and the patterns found in them (simulator, so no network).
+        store.mode = .learn
+        store.learnTitle = "Мюзикл «Чикаго»"
+        store.showRecordings(Self.sampleRecordings.infos, patterns: PatternLearner.learn(Self.sampleRecordings.recs))
+        try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-learn", loc: Self.ru)
+        // A real console is read-only: soundcheck is "coming soon".
+        store.previewReadOnly = true
+        store.mode = .soundcheck
+        try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-locked", loc: Self.ru)
+        store.previewReadOnly = false
         store.mode = .soundcheck
         store.selectedChannel = nil
         store.disconnect()
+    }
+
+    /// Three made-up events: a ridden vocal with a filter and a compressor, a kick, a bass.
+    static var sampleRecordings: (infos: [AssistStore.RecordingInfo], recs: [LearnRecording]) {
+        var infos: [AssistStore.RecordingInfo] = []
+        var recs: [LearnRecording] = []
+        for (n, title) in ["Мюзикл «Чикаго»", "Концерт группы", "Корпоратив"].enumerated() {
+            var rec = LearningRecorder(header: LearnHeader(title: title, startedAt: 1_790_000_000 + Double(n) * 86400, console: "x32", model: "X32 · 4.06"))
+            var vox = ChannelStrip(id: 1, name: "Vox Lead", gainDB: 34 + Double(n), highPassOn: true, highPassHz: 120, faderDB: -4)
+            vox.eq[2] = StripEQBand(type: .peaking, frequency: 3000, gainDB: 2.5, q: 1.4)
+            vox.compressor = StripCompressor(enabled: true, thresholdDB: -20, ratio: 3)
+            let kick = ChannelStrip(id: 2, name: "Kick In", gainDB: 25, highPassOn: true, highPassHz: 40, faderDB: -6)
+            let bass = ChannelStrip(id: 3, name: "Bass DI", gainDB: 18, faderDB: -8)
+            var frames: [LearnFrame] = []
+            for t in 0..<400 {
+                var v = vox
+                v.faderDB = -4 + (t / 10 % 2 == 0 ? 0 : 1.5)
+                frames.append(rec.makeFrame(t: Double(t), strips: [1: v, 2: kick, 3: bass], buses: [:],
+                                            channelLevels: [1: -18, 2: -12, 3: -15], busLevels: [:]))
+            }
+            let r = LearnRecording(header: rec.header, frames: frames)
+            recs.append(r)
+            infos.append(AssistStore.RecordingInfo(file: "\(n).ssmtlearn", title: title, started: Date(timeIntervalSince1970: r.header.startedAt),
+                                                   duration: r.duration, model: r.header.model, event: true))
+        }
+        return (infos, recs)
     }
 
     func testInputListPrintSheets() throws {

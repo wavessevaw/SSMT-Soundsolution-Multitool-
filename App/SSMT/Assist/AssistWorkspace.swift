@@ -19,10 +19,15 @@ struct AssistWorkspace: View {
             if let m = store.message {
                 ErrorBanner(text: m == "nothing found" ? loc.t("assist.nothingFound") : m.hasPrefix("assist.") ? loc.t(m) : m) { store.message = nil }
             }
-            switch store.mode {
-            case .soundcheck: SoundcheckScreen()
-            case .show: ShowScreen()
-            case .test: ConsoleTestScreen()
+            if store.locked(store.mode) {
+                ComingSoonScreen(mode: store.mode)
+            } else {
+                switch store.mode {
+                case .soundcheck: SoundcheckScreen()
+                case .show: ShowScreen()
+                case .test: ConsoleTestScreen()
+                case .learn: LearnScreen()
+                }
             }
         }
         .padding(.horizontal, 4)
@@ -57,10 +62,11 @@ private struct AssistHeader: View {
                 Text(loc.t("assist.mode.soundcheck")).tag(AssistStore.Mode.soundcheck)
                 Text(loc.t("assist.mode.show")).tag(AssistStore.Mode.show)
                 Text(loc.t("assist.mode.test")).tag(AssistStore.Mode.test)
+                Text(loc.t("assist.mode.learn")).tag(AssistStore.Mode.learn)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(width: 340)
+            .frame(width: 440)
             Spacer(minLength: 8)
             ViewThatFits(in: .horizontal) {
                 chips(full: true)
