@@ -87,22 +87,24 @@ struct ShowWorkspace: View {
             .frame(maxHeight: .infinity)
             QtrlStatusBar()
         }
+        // Qtrl is active (audio output, no sleep, keyboard) while its function is shown — MainView sets
+        // `isActive`; this screen stays built when another function is open.
         .onAppear {
             show.undo = undoManager
             show.localizer = loc
-            show.isActive = true
             show.installKeyMonitor()
         }
-        .onDisappear { show.isActive = false }
         .sheet(isPresented: $show.showOSC) {
             OSCDevicesView()
                 .environmentObject(show)
+                .environmentObject(show.live)
                 .environmentObject(loc)
                 .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $show.showSettings) {
             ShowSettingsView()
                 .environmentObject(show)
+                .environmentObject(show.live)
                 .environmentObject(loc)
                 .preferredColorScheme(.dark)
         }
@@ -113,11 +115,13 @@ struct ShowWorkspace: View {
 
 /// The big GO, the cue standing by with its notes, Pause all and Stop all — the same in Edit and Show.
 struct QtrlGoBar: View {
+    /// Playback state (redraws this view only while something plays).
+    @EnvironmentObject var live: ShowLive
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
 
     private var playhead: UUID? {
-        show.snapshot == .empty ? show.currentList?.cues.first?.id : show.snapshot.playhead
+        live.snapshot == .empty ? show.currentList?.cues.first?.id : live.snapshot.playhead
     }
 
     var body: some View {
@@ -148,7 +152,7 @@ struct QtrlGoBar: View {
                           systemImage: show.anyPaused ? "play.fill" : "pause.fill").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(SSMTButtonStyle(active: show.anyPaused))
-                .disabled(show.snapshot.running.isEmpty)
+                .disabled(live.snapshot.running.isEmpty)
                 Button { show.panic() } label: {
                     Label(loc.t("show.panic"), systemImage: "stop.fill").frame(maxWidth: .infinity)
                 }
@@ -230,6 +234,8 @@ enum QtrlSidebarTab: String, CaseIterable { case lists, pads, active }
 
 /// Cue lists, one-shot pads and what is playing, as tabs ("Lists, Carts & Active Cues").
 struct QtrlSidebar: View {
+    /// Playback state (redraws this view only while something plays).
+    @EnvironmentObject var live: ShowLive
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
 
@@ -238,7 +244,7 @@ struct QtrlSidebar: View {
             Picker("", selection: $show.sidebarTab) {
                 Text(loc.t("show.lists")).tag(QtrlSidebarTab.lists)
                 Text(loc.t("show.oneShot")).tag(QtrlSidebarTab.pads)
-                Text(String(format: loc.t("show.sidebar.active"), show.snapshot.running.count)).tag(QtrlSidebarTab.active)
+                Text(String(format: loc.t("show.sidebar.active"), live.snapshot.running.count)).tag(QtrlSidebarTab.active)
             }
             .pickerStyle(.segmented)
             .labelsHidden()
@@ -329,7 +335,7 @@ struct QtrlStatusBar: View {
             Button { showIssues = true } label: { Image(systemName: "checklist") }
                 .buttonStyle(ToolButtonStyle())
                 .help(loc.t("show.check"))
-                .popover(isPresented: $showIssues, arrowEdge: .top) { ShowIssuesView().environmentObject(show).environmentObject(loc) }
+                .popover(isPresented: $showIssues, arrowEdge: .top) { ShowIssuesView().environmentObject(show).environmentObject(show.live).environmentObject(loc) }
             Rectangle().fill(Theme.hairline).frame(width: 1, height: 20)
             toggle("timeline.selection", loc.t("show.timeline"), on: show.showTimeline) { show.showTimeline.toggle() }
             if !show.showMode {
@@ -392,6 +398,8 @@ struct QtrlStatusBar: View {
 
 /// Cues waiting or playing, with progress and per-cue pause / stop.
 struct RunningCuesPanel: View {
+    /// Playback state (redraws this view only while something plays).
+    @EnvironmentObject var live: ShowLive
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
     var embedded = false
@@ -402,16 +410,16 @@ struct RunningCuesPanel: View {
                 HStack {
                     Text(loc.t("show.running").uppercased()).font(Theme.label(11)).tracking(1.2).foregroundStyle(Theme.textSecondary)
                     Spacer()
-                    Text("\(show.snapshot.running.count)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
+                    Text("\(live.snapshot.running.count)").font(Theme.mono(11)).foregroundStyle(Theme.textMuted)
                 }
             }
-            if show.snapshot.running.isEmpty {
+            if live.snapshot.running.isEmpty {
                 Text(loc.t("show.running.none")).font(.system(size: 12)).foregroundStyle(Theme.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 6)
             }
             ScrollView {
                 VStack(spacing: 6) {
-                    ForEach(show.snapshot.running) { r in tile(r) }
+                    ForEach(live.snapshot.running) { r in tile(r) }
                 }
             }
             .frame(maxHeight: embedded ? .infinity : 320)
@@ -454,6 +462,8 @@ struct RunningCuesPanel: View {
 
 /// Peak meters of the show outputs.
 struct OutputMeters: View {
+    /// Playback state (redraws this view only while something plays).
+    @EnvironmentObject var live: ShowLive
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
     var embedded = false
@@ -463,10 +473,10 @@ struct OutputMeters: View {
             Text(loc.t("show.outputs").uppercased()).font(Theme.label(11)).tracking(1.2).foregroundStyle(Theme.textSecondary)
             HStack(alignment: .bottom, spacing: 4) {
                 ForEach(Array(show.doc.outputs.prefix(16).enumerated()), id: \.offset) { i, o in
-                    let peak = i < show.meters.count ? Double(show.meters[i]) : 0
+                    let peak = i < live.meters.count ? Double(live.meters[i]) : 0
                     let db = peak > 0 ? 20 * log10(peak) : -100
                     let fill = max(0, min(1, (db + 60) / 60))
-                    let clip = i < show.clipping.count && show.clipping[i]
+                    let clip = i < live.clipping.count && live.clipping[i]
                     VStack(spacing: 3) {
                         // Clip lamp: lit only when the output really overloads (≥ 0 dBFS).
                         RoundedRectangle(cornerRadius: 1.5).fill(clip ? Theme.statusError : Color.white.opacity(0.07)).frame(height: 4)

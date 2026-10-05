@@ -153,6 +153,7 @@ struct ChannelToolbar: View {
             }
             tool("plus.square.on.square", "action.duplicate", enabled: !sel.isEmpty) {
                 store.edit(loc.t("action.duplicate")) { $0.duplicate(sel) }
+                ProfileCenter.shared.record("ptch.duplicated", count: sel.count)
             }
             tool("arrow.up", "il.moveUp", enabled: !sel.isEmpty) { store.edit(loc.t("il.moveUp")) { $0.move(sel, by: -1) } }
             tool("arrow.down", "il.moveDown", enabled: !sel.isEmpty) { store.edit(loc.t("il.moveDown")) { $0.move(sel, by: 1) } }
@@ -200,6 +201,7 @@ struct ChannelToolbar: View {
             Toggle(loc.t("il.stagebox.onlyEmpty"), isOn: $stageboxOnlyEmpty)
             Button(loc.t("il.stagebox.apply")) {
                 store.edit(loc.t("il.stagebox.fill")) { $0.assignStagebox(prefix: stageboxPrefix, start: stageboxStart, onlyEmpty: stageboxOnlyEmpty) }
+                ProfileCenter.shared.record("ptch.stagebox")
                 editingStagebox = false
             }
             .buttonStyle(SSMTButtonStyle(kind: .primary))

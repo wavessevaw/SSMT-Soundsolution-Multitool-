@@ -63,6 +63,21 @@ Sidebar → "Qtrl". Drop audio files onto the list or use "+ Audio" (⌘I). **GO
 
 Sidebar → "FOH Assist". Consoles: Behringer X32 / Midas M32, Behringer X Air / Midas MR; "Simulator" works without one. Put the Mac and the console on the same router (Wi-Fi or cable). Until a console is connected the tab shows only the console choice: X32 / M32 and X Air / MR consoles are found on the network (model, IP, firmware) → Connect; if none is found, enter its IP. The assistant opens once connected; the lamp in the header is green while the console answers and red when the link is lost. Channel signal comes from the console over the network (levels and RTA) or as audio over USB / Dante; the measurement mic (any microphone of the calibration library) goes into the Mac's interface. **Soundcheck:** "Tune" a channel (gain, high-pass, EQ, compressor every 2 s until "Ready"), "Orchestra" (every musical instrument: drums, band, strings, winds, brass) / "Choir" by channel names or a channel range, "Check polarity" for mic pairs, characters Musical / Rock / Classical / Speech, "Undo all changes". **Show:** "Guard the show" — you mix, the assistant notches hall feedback, pulls a ringing monitor down and brings it back, keeps the lead clear in mass scenes and removes proximity boom, a few dB at most, and leaves alone whatever you touch; "Show simulation" demonstrates it. **Console test:** run it first on your console — it plays a made-up show, writes every parameter, reads it back and reports, muting the main output and restoring everything at the end (save a scene first, no musicians on stage). Beta: the X32 protocol comes from public documentation and is not yet verified on a live console.
 
+## Profile, levels and achievements
+
+On first launch create a profile (name and password) — progress belongs to it. Profiles stay on this Mac; "Stay
+signed in" skips the sign-in window next time. The badge under the logo shows rank, level and the XP bar; click it
+for the profile, achievements and the level table. XP comes from hours of active work, clicks and real work: a
+delay found, a finished setup, a show in Qtrl, a FOH Assist soundcheck, achievements. Level 40 needs at least 500
+hours and 5,000 clicks. Achievements stay hidden until you earn them.
+
+## Handbook (function #5)
+
+Calculators, connector pinouts, how-to guides for sound tasks, console cheat sheets and a glossary. Categories on the
+left, pages in the middle, the page on the right. Search on top (⌘F) looks through everything in English and Russian.
+Calculators update as you type (comma or point), remember their values, and every result has a copy button. The star
+adds a page to Favourites.
+
 ## Microphone correction
 
 Choose your microphone in the list (Prepare step or "Audio and calibration"); its response is removed from the measurement.

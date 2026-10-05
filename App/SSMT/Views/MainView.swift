@@ -1,11 +1,26 @@
 import SSMTCore
 import SwiftUI
 
+private struct WorkspaceVisibleKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    /// False while a function's screen is kept built but hidden behind another one.
+    var workspaceVisible: Bool {
+        get { self[WorkspaceVisibleKey.self] }
+        set { self[WorkspaceVisibleKey.self] = newValue }
+    }
+}
+
 struct MainView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var loc: Localizer
     var brandNamespace: Namespace.ID? = nil
     var showBrand = true
+    /// Functions whose screens are built. A screen is built once and then only hidden and shown: switching
+    /// functions does not rebuild the whole view tree (slow on Intel Macs).
+    @State private var mounted: Set<AppSection> = []
 
     var body: some View {
         ZStack {
@@ -15,27 +30,41 @@ struct MainView: View {
                     AppSidebar(brandNamespace: brandNamespace, showBrand: showBrand)
                 }
                 VStack(spacing: 8) {
-                    if model.section != .show && model.section != .assist { TopBar() }
+                    if model.section != .show && model.section != .assist && model.section != .handbook { TopBar() }
                     if let e = model.lastError { ErrorBanner(text: e.hasPrefix("error.") ? loc.t(e) : e) { model.lastError = nil } }
-                    if model.section == .show {
-                        ShowWorkspace()
-                    } else if model.section == .assist {
-                        AssistWorkspace()
-                    } else if model.section == .inputList {
-                        InputListWorkspace()
-                    } else if model.appMode == .wizard {
-                        WizardView()
-                    } else {
-                        VStack(spacing: 14) {
-                            MeterPanel()
-                            ExpertGraphs()
+                    ZStack {
+                        ForEach(AppSection.allCases) { s in
+                            if mounted.contains(s) || s == model.section {
+                                let on = s == model.section
+                                workspace(s)
+                                    .opacity(on ? 1 : 0)
+                                    .allowsHitTesting(on)
+                                    .accessibilityHidden(!on)
+                                    // Hidden screens keep their state but take no clicks or keyboard shortcuts.
+                                    .disabled(!on)
+                                    .environment(\.workspaceVisible, on)
+                                    .zIndex(on ? 1 : 0)
+                            }
                         }
-                        .padding(.bottom, 4)
                     }
                 }
             }
             .padding(14)
         }
+        // Profile toasts, level-up and the profile sheet watch the profile themselves: progress updates never
+        // redraw the whole window.
+        .overlay { ProfileOverlays() }
+        .onChange(of: model.section) { s in
+            mounted.insert(s)
+            model.show.isActive = s == .show
+            ProfileCenter.shared.sectionOpened(s.rawValue)
+        }
+        .onAppear {
+            mounted.insert(model.section)
+            model.show.isActive = model.section == .show
+            ProfileCenter.shared.sectionOpened(model.section.rawValue)
+        }
+        .task { await warmUp() }
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
         .environment(\.reducedEffects, model.reducedEffects)
@@ -91,6 +120,50 @@ struct ExpertGraphs: View {
 }
 
 /// Visible error message on every screen (device problems, permissions, file imports).
+extension MainView {
+    @ViewBuilder func workspace(_ s: AppSection) -> some View {
+        switch s {
+        case .show:
+            // Playing in the background: the hidden Qtrl screen does not redraw meters and cursors.
+            ShowWorkspace().environmentObject(model.section == .show ? model.show.live : Self.idleShowLive)
+        case .assist: AssistWorkspace()
+        case .inputList: InputListWorkspace()
+        case .handbook: HandbookWorkspace()
+        case .setup:
+            let on = model.section == .setup
+            Group {
+                if model.appMode == .wizard {
+                    WizardView()
+                } else {
+                    VStack(spacing: 14) {
+                        MeterPanel()
+                        ExpertGraphs()
+                    }
+                    .padding(.bottom, 4)
+                }
+            }
+            // Hidden behind another function, the setup screen reads still copies: live measurements (10–20 a
+            // second) do not redraw graphs nobody sees.
+            .environmentObject(on ? model.live : Self.idleLive)
+            .environmentObject(on ? model.tuning : Self.idleTuning)
+        }
+    }
+
+    static let idleLive = LiveData()
+    static let idleShowLive = ShowLive()
+    static let idleTuning = TuningData()
+
+    /// Shortly after launch the other functions are built in the background, one at a time, so even the first
+    /// switch to them is instant.
+    func warmUp() async {
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        for s in AppSection.allCases where !mounted.contains(s) {
+            mounted.insert(s)
+            try? await Task.sleep(nanoseconds: 700_000_000)
+        }
+    }
+}
+
 struct ErrorBanner: View {
     @EnvironmentObject var loc: Localizer
     var text: String

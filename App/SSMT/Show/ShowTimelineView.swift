@@ -5,6 +5,8 @@ import SwiftUI
 /// right to left; what the next GO would start is drawn dashed from "now". "Group": the contents
 /// of the selected group, editable with the mouse (drag a clip = change its pre-wait).
 struct ShowTimelineView: View {
+    /// Playback state (redraws this view only while something plays).
+    @EnvironmentObject var live: ShowLive
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
     /// A group's own multitrack (inside its inspector): one track per cue, drag to set its start.
@@ -45,7 +47,7 @@ struct ShowTimelineView: View {
                 ZStack(alignment: .topLeading) {
                     // Redrawn every display frame while something plays, so the cursor and the live clips glide.
                     TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !isPlaying)) { tl in
-                        let dt = isPlaying ? min(0.15, max(0, tl.date.timeIntervalSince(show.snapshotDate))) : 0
+                        let dt = isPlaying ? min(0.15, max(0, tl.date.timeIntervalSince(live.snapshotDate))) : 0
                         let moving = groupMode == nil ? currentClips(dt) : clips
                         Canvas { ctx, size in draw(&ctx, size: size, clips: moving, layout: layout, cursor: cursor(dt, clips: clips)) }
                     }
@@ -112,7 +114,7 @@ struct ShowTimelineView: View {
             if let m = wheelMonitor { NSEvent.removeMonitor(m) }
             wheelMonitor = nil
         }
-        .onChange(of: show.snapshot) { _ in followCursor() }
+        .onChange(of: live.snapshot) { _ in followCursor() }
         .glassCard(padding: group == nil ? 10 : 0, plain: group != nil)
     }
 
@@ -175,14 +177,14 @@ struct ShowTimelineView: View {
     // MARK: Data
 
     /// Something is playing (not paused): the timeline animates.
-    private var isPlaying: Bool { show.snapshot.running.contains { !$0.paused } || scrub != nil }
+    private var isPlaying: Bool { live.snapshot.running.contains { !$0.paused } || scrub != nil }
 
     /// Playback position on a group timeline (seconds from the group start) and whether the group is under way.
     /// Like a DAW's play cursor: the group's own clock, smoothed between engine snapshots by `dt`.
     private func cursor(_ dt: Double, clips: [TimelineClip]) -> (time: Double, active: Bool)? {
         guard let g = groupMode else { return nil }
         if let s = scrub { return (s, true) }
-        let running = show.snapshot.running
+        let running = live.snapshot.running
         if let r = running.first(where: { $0.id == g.id }) {
             let d = r.paused ? 0 : dt
             if r.phase == .preWait { return (-max(0, (r.remaining ?? 0) - d), true) }
@@ -194,7 +196,7 @@ struct ShowTimelineView: View {
                 return (c.start + r.elapsed + (r.paused ? 0 : dt), true)
             }
         }
-        return (show.snapshot.loaded[g.id] ?? 0, false)
+        return (live.snapshot.loaded[g.id] ?? 0, false)
     }
 
     /// While a group plays, its timeline scrolls to keep the cursor in view.
@@ -209,7 +211,7 @@ struct ShowTimelineView: View {
             return ShowTimeline.planGroup(show.doc, group: g.id, fileLength: show.fileLength, lanePerCue: group != nil)
         }
         var clips: [TimelineClip] = []
-        for r in show.snapshot.running {
+        for r in live.snapshot.running {
             guard let cue = show.doc.cue(r.id) else { continue }
             let style: TimelineClip.Style
             switch cue.kind {
@@ -229,9 +231,9 @@ struct ShowTimelineView: View {
             }
         }
         // What the next GO starts, if pressed now.
-        let playhead = show.snapshot == .empty ? show.currentList?.cues.first?.id : show.snapshot.playhead
+        let playhead = live.snapshot == .empty ? show.currentList?.cues.first?.id : live.snapshot.playhead
         if let ph = playhead {
-            let runningIDs = Set(show.snapshot.running.map(\.id))
+            let runningIDs = Set(live.snapshot.running.map(\.id))
             clips += ShowTimeline.plan(show.doc, from: ph, fileLength: show.fileLength, limit: 60)
                 .filter { !runningIDs.contains($0.cueID) }
         }

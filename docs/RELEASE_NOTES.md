@@ -1,3 +1,70 @@
+# SSMT 1.5.0 — Windows и обучение FOH Assist
+
+## Русский
+
+**SSMT для Windows (новое)**
+- Установщик `SSMT-Setup-1.5.0.exe` для Windows 10 / 11 (64 бит). В первой версии для Windows есть FOH Assist:
+  симулятор и обучение. Остальные функции появятся позже.
+- Ядро то же, что на Mac: симулятор, протокол X32 / X Air и обучение работают одинаково на обеих системах.
+- При первом подключении к пульту Windows спросит разрешение для сети: разрешите доступ в частных сетях.
+
+**FOH Assist после полевого теста (Mac и Windows)**
+- **Настоящий пульт подключается только на чтение.** Саундчек, страховка шоу и тест пульта на настоящем пульте
+  показывают «Скоро будет доступно». В симуляторе всё работает, как раньше.
+- **Новая вкладка «Обучение».** Пульт подключается по Wi-Fi и ничего на нём не меняется. Раз в секунду
+  записывается состояние пульта: фейдеры, гейн, эквалайзер, динамика и уровни каналов. Запись ведётся
+  на всём мероприятии, счётчик показывает «Мероприятий: N из 20».
+- **Закономерности.** По записям программа считает, как вы обычно настраиваете каждый тип источника: гейн,
+  фейдер, срез, эквалайзер, компрессор и как часто двигаете фейдер.
+- **Локальная модель.** Небольшая языковая модель (Qwen 2.5 через Ollama, на этом компьютере) отвечает на вопросы
+  по закономерностям. Установите Ollama с ollama.com и выполните `ollama pull qwen2.5:1.5b`.
+- Записи лежат в папке «Документы / SSMT / Learning».
+
+## English
+
+**SSMT 1.5.0.** New Windows app (`SSMT-Setup-1.5.0.exe`, Windows 10 / 11, 64-bit) with FOH Assist: simulator and
+learning, on the same core as the Mac app. After the field test a real console is read-only on both systems:
+soundcheck, show guard and console test are "coming soon" there and keep working in the simulator. The new
+Learning tab records the console once a second during an event (faders, gain, EQ, dynamics, levels) without
+changing anything, counts events towards 20, finds per-source patterns and lets a small local model (Qwen 2.5
+through Ollama) answer questions about them. Recordings are kept in Documents / SSMT / Learning.
+
+---
+
+# SSMT 1.4.0 — Справочник и профиль звукорежиссёра
+
+## Русский
+
+**Функция №5 — Справочник**
+- **18 калькуляторов:** задержка и расстояние, длина волны, уровень на расстоянии, SPL колонки, dBu / dBV / вольты,
+  децибелы, сложение уровней, мощность / напряжение / ток, импеданс, потери в кабеле и демпинг-фактор, линия 100 В,
+  кардиоидный саб, комнатные моды, RT60 и радиус гулкости, темп → дилей, сэмплы ↔ мс, частота ↔ нота. Считают сразу
+  при вводе, значения запоминаются, результат копируется кнопкой.
+- **Распайки** с рисунком контактов: XLR, TRS, TS, Insert, mini-jack, RCA, Speakon, powerCON, RJ45 / etherCON, DMX,
+  MIDI, Socapex, BNC, DI.
+- **Инструкции:** гейн-стейджинг, прозвонка мониторов, лайн-чек, полярность, саб и топ, дилей-линии, EQ, компрессор,
+  in-ear, радиосистемы, фон, микрофоны.
+- **20 пультов** — шпаргалки со ссылками на официальные руководства; **65 терминов**.
+- Поиск по всему (⌘F) на русском и английском, избранное.
+
+**Профиль звукорежиссёра**
+- Перед работой — вход в профиль на этом Mac (имя и пароль), минималистичное окно с логотипом.
+- **Уровни 1–40** и ранги **Медь, Бронза, Серебро, Золото**. Опыт — за часы активной работы, щелчки и реальные
+  дела в пяти функциях; уровень 40 — не меньше 500 часов и 5 000 щелчков.
+- **100 скрытых ачивок** — появляются, когда вы их получаете. Бейдж в боковой панели, окно нового уровня.
+
+**Ptch:** вылеты при удалении канала и «Новый патч» исправлены (1.3.3).
+
+## English
+
+**SSMT 1.4.0.** Function #5 Handbook: 18 live calculators, connector pinouts with drawings, how-to guides, cheat
+sheets for 20 consoles with links to official manuals, a 65-term glossary, search in English and Russian, favourites.
+Engineer profile: sign in to a local profile on this Mac before work; levels 1–40 with Copper, Bronze, Silver and Gold
+ranks, XP for active hours, clicks and real work in the five functions (level 40 needs 500 hours and 5,000 clicks);
+100 hidden achievements, a sidebar badge and a level-up window.
+
+---
+
 # SSMT 1.3.3 — Ptch без вылетов
 
 ## Русский

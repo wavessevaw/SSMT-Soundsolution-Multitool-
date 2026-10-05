@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Network
 import SSMTAudio
@@ -16,6 +17,8 @@ final class X32Link: @unchecked Sendable {
     var meterBanks: [ConsoleMeters.Bank] = [.channels, .buses, .rta]
     /// Every message received from the console (called on the link's queue).
     var onMessage: ((OSCMessage) -> Void)?
+    /// Learning mode: only queries, the update subscription and meter requests leave; nothing is set on the console.
+    var readOnly = true
 
     init(family: MixerFamily, host: String) {
         self.family = family
@@ -92,7 +95,9 @@ final class X32Link: @unchecked Sendable {
     func send(_ messages: [OSCMessage]) { queue.async { [weak self] in self?.sendNow(messages) } }
 
     private func sendNow(_ messages: [OSCMessage]) {
-        for m in messages { connection?.send(content: m.encoded(), completion: .contentProcessed { _ in }) }
+        for m in messages where !readOnly || ConsoleReadOnly.allows(m) {
+            connection?.send(content: m.encoded(), completion: .contentProcessed { _ in })
+        }
     }
 
     private func receive(_ c: NWConnection) {
@@ -151,7 +156,14 @@ final class AssistStore: ObservableObject {
         case interface
     }
 
-    enum Mode: String, CaseIterable { case soundcheck, show, test }
+    enum Mode: String, CaseIterable { case soundcheck, show, test, learn }
+
+    /// A real console is read-only in this version (after the field test): soundcheck, show guard and console test
+    /// are "coming soon" there, only learning (which reads the console) works. The simulator keeps everything.
+    var readOnly: Bool { link != nil || previewReadOnly }
+    /// Snapshot tests: the simulator shown as a real (read-only) console.
+    var previewReadOnly = false
+    func locked(_ m: Mode) -> Bool { readOnly && m != .learn }
 
     @Published var family: MixerFamily = .simulator
     @Published var host = UserDefaults.standard.string(forKey: "assist.host") ?? "192.168.1.64" {
@@ -269,6 +281,49 @@ final class AssistStore: ObservableObject {
 
     var isConnected: Bool { if case .connected = connection { return true } else { return false } }
 
+    // MARK: learning state (mode .learn)
+
+    /// A recording on disk (Documents/SSMT/Learning).
+    struct RecordingInfo: Identifiable, Equatable {
+        var id: String { file }
+        let file: String
+        let title: String
+        let started: Date
+        let duration: Double
+        let model: String
+        /// Long enough to count as an event.
+        let event: Bool
+    }
+
+    @Published private(set) var learning = false
+    @Published private(set) var learnSeconds: Double = 0
+    @Published private(set) var learnFrames = 0
+    @Published private(set) var learnChanges = 0
+    @Published var learnTitle = ""
+    @Published private(set) var recordings: [RecordingInfo] = []
+    @Published private(set) var patterns: LearnedPatterns?
+    @Published var llmURL = UserDefaults.standard.string(forKey: "ssmt.llm.url") ?? "http://localhost:11434" {
+        didSet { UserDefaults.standard.set(llmURL, forKey: "ssmt.llm.url") }
+    }
+    @Published var llmModel = UserDefaults.standard.string(forKey: "ssmt.llm.model") ?? "qwen2.5:1.5b" {
+        didSet { UserDefaults.standard.set(llmModel, forKey: "ssmt.llm.model") }
+    }
+    @Published var llmQuestion = ""
+    @Published private(set) var llmAnswer = ""
+    @Published private(set) var llmStatus = ""
+    @Published private(set) var llmAsking = false
+    private var recorder: LearningRecorder?
+    private var learnFile: FileHandle?
+    private var learnStart = Date()
+    private var learnTimer: Timer?
+    private var simLevels: [Int: Double] = [:]
+
+    /// Where recordings are kept (the Windows app uses the same folder name).
+    var learnDirectory: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("SSMT/Learning", isDirectory: true)
+    }
+
     // MARK: measurement microphone (any microphone of the function #1 library)
 
     struct MicChoice: Identifiable, Hashable {
@@ -303,12 +358,15 @@ final class AssistStore: ObservableObject {
             buses = busMap.values.sorted { $0.id < $1.id }
             connection = .connected("SSMT simulator · \(c.strips.count) ch")
             linkAlive = true
+            ProfileCenter.shared.record("foh.simulator")
         case .x32, .xAir:
             connection = .connecting
             setStrips(Dictionary(uniqueKeysWithValues: (1...family.channelCount).map { ($0, ChannelStrip(id: $0)) }))
             busMap = Dictionary(uniqueKeysWithValues: (1...X32Codec.busCount(family)).map { ($0, BusStrip(id: $0)) })
             buses = busMap.values.sorted { $0.id < $1.id }
             let l = X32Link(family: family, host: host)
+            l.readOnly = true
+            mode = .learn
             l.onMessage = { [weak self] m in Task { @MainActor in self?.received(m) } }
             link = l
             l.start()
@@ -363,6 +421,7 @@ final class AssistStore: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 let alive = self.sim != nil || (self.isConnected && Date().timeIntervalSince(self.lastHeard) < 4)
+                if alive && !self.linkAlive && self.isConnected { ProfileCenter.shared.record("foh.reconnect") }
                 if alive != self.linkAlive { self.linkAlive = alive }
                 self.updateLinkStats()
             }
@@ -386,6 +445,7 @@ final class AssistStore: ObservableObject {
     }
 
     func disconnect() {
+        stopLearning()
         stopWave()
         healthTimer?.invalidate()
         healthTimer = nil
@@ -454,6 +514,7 @@ final class AssistStore: ObservableObject {
         if m.address == "/info" {
             let parts = m.arguments.compactMap { if case let .string(s) = $0 { return s } else { return nil } }
             linkStats.model = parts.dropFirst().joined(separator: " · ")
+            if connection == .connecting { ProfileCenter.shared.record("foh.connect") }
             connection = .connected(parts.dropFirst().joined(separator: " · "))
             return
         }
@@ -477,7 +538,7 @@ final class AssistStore: ObservableObject {
         }
         let t = Date().timeIntervalSince(guardStart)
         if let ch = X32Codec.apply(m, to: &stripMap, family: family, routing: routing) {
-            if connection == .connecting { connection = .connected(host) }
+            if connection == .connecting { connection = .connected(host); ProfileCenter.shared.record("foh.connect") }
             strips = stripMap.values.sorted { $0.id < $1.id }
             if let s = stripMap[ch] { session?.updateFromConsole(s); guardian?.consoleChanged(s, time: t) }
         } else if let id = X32Codec.apply(m, toBuses: &busMap) {
@@ -494,26 +555,28 @@ final class AssistStore: ObservableObject {
     // MARK: soundcheck jobs
 
     func tune(channel: Int) {
-        guard let session else { return }
+        guard let session, !readOnly else { return }
         session.measurementMic = measurementMic
         session.startChannel(channel)
         begin()
     }
 
     func tune(_ selection: AssistGroupSelection) {
-        guard let session else { return }
+        guard let session, !readOnly else { return }
         session.measurementMic = measurementMic
         if session.startGroup(selection).isEmpty {
             message = "nothing found"
             return
         }
+        if selection == .orchestra { ProfileCenter.shared.record("foh.orchestra") }
+        if selection == .choir { ProfileCenter.shared.record("foh.choir") }
         begin()
     }
 
     /// Automatic polarity check of the mic pairs found from the console names (kick in/out, snare top/bottom,
     /// bass DI/mic, guitar L/R, overheads against the snare).
     func checkPolarity() {
-        guard let session else { return }
+        guard let session, !readOnly else { return }
         session.measurementMic = measurementMic
         if session.startPolarity().isEmpty {
             message = "nothing found"
@@ -543,6 +606,7 @@ final class AssistStore: ObservableObject {
 
     func undoAll() {
         guard let session else { return }
+        ProfileCenter.shared.record("foh.revert")
         apply(session.undo())
         stopJob()
     }
@@ -612,12 +676,26 @@ final class AssistStore: ObservableObject {
             let done = session.single?.channel == ch ? session.single?.state == .done : session.group?.tunings[ch]?.state == .done
             if done, let f = session.features[ch], f.bandsDB.contains(where: { $0 > -119 }) { references[ch] = f.bandsDB }
         }
-        if !session.isRunning { running = false; timer?.invalidate(); timer = nil } else { followRTA() }
+        if !session.isRunning {
+            running = false
+            timer?.invalidate()
+            timer = nil
+            // A finished soundcheck job.
+            ProfileCenter.shared.record("foh.soundcheck")
+            if character == .rock { ProfileCenter.shared.record("foh.rock") }
+            if character == .classical { ProfileCenter.shared.record("foh.classic") }
+        } else {
+            followRTA()
+        }
     }
 
     private func apply(_ changed: [ChannelStrip]) {
         for var s in changed {
             let old = stripMap[s.id]
+            if let o = old {
+                if o.gainDB != s.gainDB { ProfileCenter.shared.record("foh.gainChanges") }
+                if !o.polarityInverted && s.polarityInverted { ProfileCenter.shared.record("foh.polarity") }
+            }
             // A gain the console cannot take yet (routing still unknown): it stays as it is, and the assistant
             // learns so instead of believing it changed.
             if link != nil, let o = old, o.gainDB != s.gainDB, X32Codec.gainAddress(s.id, family: family, routing: routing) == nil {
@@ -646,7 +724,7 @@ final class AssistStore: ObservableObject {
     /// Runs the whole assistant on the real console with made-up musicians and reads every value back
     /// (in the simulator: against the built-in X32 emulator). The console is restored at the end.
     func runConsoleTest() {
-        guard !testing else { return }
+        guard !testing, !readOnly else { return }
         stopWave()
         stopJob()
         stopGuard()
@@ -675,6 +753,7 @@ final class AssistStore: ObservableObject {
             await MainActor.run {
                 self?.testChecks = result
                 self?.testing = false
+                if !result.isEmpty, !result.contains(where: { $0.status == .failed }) { ProfileCenter.shared.record("foh.testPassed") }
                 // Show the console as it is now (restored).
                 if let self, let link = self.link { link.queryAll(channels: self.family.channelCount, routing: self.routing) }
             }
@@ -687,7 +766,7 @@ final class AssistStore: ObservableObject {
     /// engineer riding faders (motor faders move on a real X32), and the show guard reacting. On a real console
     /// the channels and monitors used are backed up first and restored when the simulation stops.
     func startRehearsal() {
-        guard !rehearsing else { return }
+        guard !rehearsing, !readOnly else { return }
         stopJob()
         stopGuard()
         let scenario = AssistScenario.all.first { $0.id == testScenario } ?? .musical
@@ -834,7 +913,7 @@ final class AssistStore: ObservableObject {
     var waveChannels: Int { family == .simulator ? stripMap.count : family.channelCount }
 
     func startWave() {
-        guard isConnected, !waving else { return }
+        guard isConnected, !waving, !readOnly else { return }
         stopJob()
         stopGuard()
         stopRehearsal()
@@ -844,6 +923,7 @@ final class AssistStore: ObservableObject {
         link?.send([OSCMessage(X32Codec.mainOnAddress(family), [.int(0)])])
         waveStart = Date()
         waving = true
+        ProfileCenter.shared.record("foh.wave")
         let t = Timer(timeInterval: 1 / Self.waveRate, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.waveTick() }
         }
@@ -885,7 +965,7 @@ final class AssistStore: ObservableObject {
     // MARK: show guard
 
     func startGuard() {
-        guard isConnected else { return }
+        guard isConnected, !readOnly else { return }
         stopJob()
         let g = ShowGuard(strips: strips, buses: buses, character: character)
         g.references = references
@@ -913,6 +993,11 @@ final class AssistStore: ObservableObject {
         guarding = false
         timer?.invalidate()
         timer = nil
+    }
+
+    /// Every 5 s: show-guard time for the achievements.
+    func sampleProgress() {
+        if guarding && rehearsal == nil { ProfileCenter.shared.record("foh.guardSeconds", count: 5) }
     }
 
     func setMonitor(_ bus: Int, _ on: Bool) {
@@ -971,6 +1056,11 @@ final class AssistStore: ObservableObject {
         let hall = mic.map { hallDetector.process($0) } ?? []
         let onStage = stage.map { stageDetector.process($0) } ?? []
         let r = g.step(time: t, channels: feats, busLevels: busLevels, hallFeedback: hall, stageFeedback: onStage)
+        let before = Set(corrections.map(\.id))
+        for c in g.corrections(at: t) where !before.contains(c.id) {
+            if c.kind == .notch { ProfileCenter.shared.record("foh.feedbackCut") }
+            if c.kind == .monitorDip { ProfileCenter.shared.record("foh.monitorDip") }
+        }
         apply(r.strips)
         apply(buses: r.buses)
         features.merge(feats) { $1 }
@@ -979,5 +1069,159 @@ final class AssistStore: ObservableObject {
         guardElapsed = t
         liveMeters.set(channels: feats.filter { $0.value.hasSignal }.mapValues(\.rmsDB))
         liveMeters.buses = busLevels
+    }
+
+    // MARK: learning (reads the console once a second, changes nothing)
+
+    func startLearning() {
+        guard isConnected, !learning else { return }
+        let model: String
+        if case let .connected(t) = connection { model = t } else { model = "" }
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
+        let header = LearnHeader(title: learnTitle.trimmingCharacters(in: .whitespaces).isEmpty ? "Event" : learnTitle,
+                                 console: family.rawValue, model: model, app: "SSMT \(version) macOS")
+        let rec = LearningRecorder(header: header)
+        do {
+            try FileManager.default.createDirectory(at: learnDirectory, withIntermediateDirectories: true)
+            let url = learnDirectory.appendingPathComponent(LearningRecorder.fileName(for: header))
+            guard FileManager.default.createFile(atPath: url.path, contents: rec.headerLine()) else {
+                message = url.path
+                return
+            }
+            let h = try FileHandle(forWritingTo: url)
+            h.seekToEndOfFile()
+            learnFile = h
+        } catch {
+            message = "\(error)"
+            return
+        }
+        recorder = rec
+        learnStart = Date()
+        learnSeconds = 0
+        learnFrames = 0
+        learnChanges = 0
+        learning = true
+        learnFrame()
+        let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in Task { @MainActor in self?.learnFrame() } }
+        RunLoop.main.add(t, forMode: .common)
+        learnTimer = t
+    }
+
+    func stopLearning() {
+        guard learning else { return }
+        learnTimer?.invalidate()
+        learnTimer = nil
+        try? learnFile?.close()
+        learnFile = nil
+        recorder = nil
+        learning = false
+        refreshRecordings()
+    }
+
+    private func learnFrame() {
+        guard var rec = recorder else { return }
+        if let sim {
+            // The simulator has no meter stream: a quarter second of each audible channel.
+            let chans = stripMap.values.filter { !$0.muted && $0.faderDB > -90 }.map(\.id)
+            if !chans.isEmpty {
+                for (ch, x) in sim.render(seconds: 0.25, channels: chans).taps {
+                    let p = x.reduce(0.0) { $0 + Double($1) * Double($1) } / Double(max(1, x.count))
+                    simLevels[ch] = Decibel.fromPower(p + 1e-15)
+                }
+            }
+        }
+        let levels = sim != nil ? simLevels : liveMeters.channels
+        let t = Date().timeIntervalSince(learnStart)
+        learnFile?.write(rec.record(t: t, strips: stripMap, buses: busMap, channelLevels: levels, busLevels: busLevels))
+        recorder = rec
+        learnSeconds = t
+        learnFrames = rec.frames
+        learnChanges = rec.changes
+    }
+
+    /// Reads the recordings and learns the patterns again (off the main thread: recordings can be large).
+    func refreshRecordings() {
+        let dir = learnDirectory
+        DispatchQueue.global(qos: .userInitiated).async {
+            let urls = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+            let recs: [(String, LearnRecording)] = urls.filter { $0.pathExtension == "ssmtlearn" }.compactMap { u in
+                guard let d = try? Data(contentsOf: u), let r = LearnRecording.parse(d) else { return nil }
+                return (u.lastPathComponent, r)
+            }
+            let infos = recs.map { f, r in
+                RecordingInfo(file: f, title: r.header.title, started: Date(timeIntervalSince1970: r.header.startedAt),
+                              duration: r.duration, model: r.header.model, event: r.duration >= PatternLearner.minEventSeconds)
+            }.sorted { $0.started > $1.started }
+            let learned = PatternLearner.learn(recs.map(\.1))
+            Task { @MainActor [weak self] in
+                self?.recordings = infos
+                self?.patterns = learned
+            }
+        }
+    }
+
+    func deleteRecording(_ file: String) {
+        guard !file.contains("/") else { return }
+        try? FileManager.default.removeItem(at: learnDirectory.appendingPathComponent(file))
+        refreshRecordings()
+    }
+
+    func openLearnFolder() {
+        try? FileManager.default.createDirectory(at: learnDirectory, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(learnDirectory)
+    }
+
+    /// Previews and tests: recordings and patterns as if read from disk.
+    func showRecordings(_ infos: [RecordingInfo], patterns p: LearnedPatterns) {
+        recordings = infos
+        patterns = p
+    }
+
+    // MARK: local language model (Ollama on this Mac)
+
+    private func ollama(_ path: String, body: [String: Any]?, timeout: Double) async throws -> [String: Any] {
+        guard let url = URL(string: llmURL.trimmingCharacters(in: CharacterSet(charactersIn: "/ ")) + path) else { throw URLError(.badURL) }
+        var req = URLRequest(url: url, timeoutInterval: timeout)
+        if let body {
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        if let h = resp as? HTTPURLResponse, h.statusCode != 200 { throw URLError(.badServerResponse) }
+        return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+    }
+
+    func checkModel(_ loc: Localizer) {
+        llmStatus = "…"
+        Task { @MainActor in
+            do {
+                let r = try await ollama("/api/tags", body: nil, timeout: 3)
+                let names = ((r["models"] as? [[String: Any]]) ?? []).compactMap { $0["name"] as? String }
+                llmStatus = names.contains(llmModel) || names.contains(llmModel + ":latest")
+                    ? String(format: loc.t("assist.llm.ok"), names.joined(separator: ", "))
+                    : String(format: loc.t("assist.llm.noModel"), llmModel, llmModel)
+            } catch {
+                llmStatus = String(format: loc.t("assist.llm.fail"), error.localizedDescription)
+            }
+        }
+    }
+
+    func ask(_ loc: Localizer, russian: Bool) {
+        let q = llmQuestion.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty, !llmAsking else { return }
+        let prompt = (patterns ?? PatternLearner.learn([])).prompt(question: q, russian: russian)
+        llmAsking = true
+        llmAnswer = ""
+        Task { @MainActor in
+            do {
+                let r = try await ollama("/api/generate", body: ["model": llmModel, "prompt": prompt, "stream": false,
+                                                                 "options": ["temperature": 0.2]], timeout: 180)
+                llmAnswer = ((r["response"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            } catch {
+                llmAnswer = String(format: loc.t("assist.llm.fail"), error.localizedDescription)
+            }
+            llmAsking = false
+        }
     }
 }

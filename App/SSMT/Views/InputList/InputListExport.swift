@@ -209,6 +209,8 @@ enum InputListExporter {
             case .csvMixes:
                 try doc.mixesCSV.write(to: url, atomically: true, encoding: .utf8)
             }
+            ProfileCenter.shared.record("ptch.export")
+            if doc.channels.isEmpty { ProfileCenter.shared.record("ptch.emptyExport") }
         } catch {
             store.lastError = "\(url.lastPathComponent): \(error)"
         }

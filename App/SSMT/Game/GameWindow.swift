@@ -30,6 +30,7 @@ enum GameROM {
 
     static func play() {
         guard let app = openEmu, let rom = try? exported() else { return }
+        MainActor.assumeIsolated { ProfileCenter.shared.record("secret.gamePlayed") }
         NSWorkspace.shared.open([rom], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
     }
 
@@ -138,6 +139,7 @@ final class GameWindow {
     private static var window: NSWindow?
 
     static func show(localizer: Localizer) {
+        ProfileCenter.shared.record("secret.game")
         if let w = window { w.makeKeyAndOrderFront(nil); return }
         let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1030, height: 540),
                          styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)

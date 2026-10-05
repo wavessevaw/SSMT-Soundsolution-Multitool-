@@ -44,6 +44,8 @@ enum AppSection: String, CaseIterable, Identifiable {
     case show
     /// Function #4: FOH Assist, automatic channel and group tuning on the console.
     case assist
+    /// Function #5: handbook — calculators, pinouts, how-to guides, consoles, glossary.
+    case handbook
     var id: String { rawValue }
 }
 
@@ -68,7 +70,12 @@ final class AppModel: ObservableObject {
     @Published var referenceChannel = 1
     @Published var outputChannel = 0
     @Published var referenceMode: ReferenceMode = .internalSignal
-    @Published var temperatureCelsius: Double = 20
+    @Published var temperatureCelsius: Double = 20 {
+        didSet {
+            if temperatureCelsius < 5 { ProfileCenter.shared.record("setup.cold") }
+            if temperatureCelsius > 35 { ProfileCenter.shared.record("setup.hot") }
+        }
+    }
 
     // Generator
     @Published var noise: NoiseChoice = .pink
@@ -366,8 +373,24 @@ final class AppModel: ObservableObject {
         engine?.backend.generatorControl.kindIndex.value = UInt64(noise.rawValue)
     }
 
+    /// Every 5 s while signed in: time-based setup achievements read the live state.
+    func sampleProgress() {
+        let center = ProfileCenter.shared
+        guard noiseOn else { return }
+        center.record("setup.noiseSeconds", count: 5)
+        if levelDBFS <= -79.5 { center.record("secret.quietSeconds", count: 5) }
+        if let s = snapshot {
+            if s.microphone.rmsDBFS > -6 { center.record("setup.micHot") }
+            if let c = s.transfer?.coherence, c.count > 8 {
+                let mean = c.reduce(0, +) / Double(c.count)
+                if mean < 0.5 { center.record("setup.lowCoherence") }
+            }
+        }
+    }
+
     /// STOP: mutes the output on the next audio buffer, from any state.
     func emergencyStop() {
+        if noiseOn { ProfileCenter.shared.record("setup.stop") }
         engine?.emergencyStop()
         noiseOn = false
     }
@@ -381,6 +404,7 @@ final class AppModel: ObservableObject {
             Task { @MainActor in
                 self?.delay = estimate
                 self?.delaySearchRunning = false
+                if estimate?.isReliable == true { ProfileCenter.shared.record("setup.delayFound") }
             }
         }
     }
@@ -425,6 +449,7 @@ final class AppModel: ObservableObject {
             calibration.microphones.append(mic)
             calibration.selectedMicrophoneID = mic.id
             calibration.save()
+            ProfileCenter.shared.record("setup.calibration")
         } catch {
             lastError = "\(url.lastPathComponent): \(error)"
         }
@@ -479,7 +504,10 @@ final class AppModel: ObservableObject {
                 guard let self else { return }
                 self.wizardDelaySearch = false
                 self.delay = estimate
-                if let e = estimate, e.isReliable { self.wizard.lockDelay(e, epoch: epoch) }
+                if let e = estimate, e.isReliable {
+                    self.wizard.lockDelay(e, epoch: epoch)
+                    ProfileCenter.shared.record("setup.delayFound")
+                }
             }
         }
     }
@@ -505,7 +533,12 @@ final class AppModel: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.wizardCaptureRunning = false
+                let hadAlignment = self.wizard.alignment != nil
                 self.lastAcceptance = self.wizard.submit(capture)
+                if !hadAlignment, let a = self.wizard.alignment {
+                    ProfileCenter.shared.record("setup.aligned")
+                    if a.best.invertPolarity { ProfileCenter.shared.record("setup.polarityFixed") }
+                }
                 if case .accepted = self.lastAcceptance, self.isSimulation {
                     self.simulateGroupsForStep()
                     if step == .eqPoints || step == .eqVerification { self.simulateMoveToNextPoint() }
@@ -607,6 +640,7 @@ final class AppModel: ObservableObject {
         lastAcceptance = nil
         wizard.computeEQ(microphone: calibration.selectedMicrophone)
         eqSelectedBand = 0
+        ProfileCenter.shared.record("setup.eqBands", count: wizard.eqResult?.filters.count ?? 0)
         if isSimulation { simulationBackend?.moveMicrophone(toPoint: 0) }
     }
 
@@ -654,6 +688,8 @@ final class AppModel: ObservableObject {
     func wizardFinish() {
         stopEQTuner()
         wizard.finish()
+        ProfileCenter.shared.record("setup.finished")
+        if isSimulation { ProfileCenter.shared.record("setup.simFinished") }
     }
 
     /// Simulation only: enter (or remove) one planned EQ band on the virtual processor, exactly.
@@ -695,7 +731,10 @@ final class AppModel: ObservableObject {
 
     func exportReport(pdf: Bool, localizer: Localizer) {
         let view = ReportView(report: setupReport, wizard: wizard).ssmtEnvironment(self, localizer)
-        do { try ReportExporter.export(view, pdf: pdf) } catch { lastError = error.localizedDescription }
+        do {
+            try ReportExporter.export(view, pdf: pdf)
+            ProfileCenter.shared.record("setup.reportExport")
+        } catch { lastError = error.localizedDescription }
     }
 
     func copyReportText() {

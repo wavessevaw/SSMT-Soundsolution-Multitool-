@@ -15,13 +15,78 @@ permissions:
 
 jobs:
   core-linux:
-    name: SSMTCore tests (Linux, portable FFT)
+    name: SSMTCore tests + engine (Linux, portable FFT)
     runs-on: ubuntu-latest
     container: swift:6.0-noble
     steps:
       - uses: actions/checkout@v4
       - name: Test
         run: swift test -c release --package-path Packages/SSMTCore
+      - name: Windows engine from the same sources
+        run: swift build -c release --package-path Windows/Engine
+      - name: Engine smoke test (simulator, learning, read-only link to a fake X32)
+        run: |
+          apt-get update -qq && apt-get install -y -qq nodejs > /dev/null
+          node Windows/App/scripts/engine-smoke.js "$(swift build -c release --package-path Windows/Engine --show-bin-path)/ssmt-engine"
+
+  windows:
+    name: Windows app (engine + installer)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: compnerd/gha-setup-swift@main
+        with:
+          # 6.0 cannot build the ucrt module of the runner's Windows SDK 10.0.26100 (cyclic module dependency).
+          branch: swift-6.2-release
+          tag: 6.2-RELEASE
+      - name: Build the engine (SSMTCore for Windows)
+        run: swift build -c release --package-path Windows/Engine
+      - name: Collect the engine with the Swift and MSVC runtimes
+        shell: pwsh
+        run: |
+          $bin = (swift build -c release --package-path Windows/Engine --show-bin-path | Select-Object -Last 1).Trim()
+          $dest = "Windows/App/engine"
+          New-Item -ItemType Directory -Force $dest | Out-Null
+          Copy-Item "$bin/ssmt-engine.exe" $dest
+          $core = (Get-Command swiftCore.dll -ErrorAction SilentlyContinue | Select-Object -First 1).Source
+          if (-not $core) {
+            $core = (Get-ChildItem -Path "C:\Program Files\Swift", "$env:LOCALAPPDATA\Programs\Swift" -Recurse -Filter swiftCore.dll -ErrorAction SilentlyContinue |
+              Where-Object { $_.FullName -match 'Runtimes' } | Select-Object -First 1).FullName
+          }
+          if (-not $core) { throw "Swift runtime (swiftCore.dll) not found" }
+          $rt = Split-Path $core
+          Write-Host "Swift runtime: $rt"
+          Copy-Item "$rt\*.dll" $dest
+          # App-local Visual C++ runtime, for computers without the redistributable.
+          foreach ($d in "vcruntime140.dll", "vcruntime140_1.dll", "msvcp140.dll") {
+            $p = Join-Path "$env:SystemRoot\System32" $d
+            if (Test-Path $p) { Copy-Item $p $dest }
+          }
+          Get-ChildItem $dest | Format-Table Name, Length
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Interface tests
+        working-directory: Windows/App
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+      - name: Engine smoke test with only the bundled runtime on PATH
+        shell: pwsh
+        working-directory: Windows/App
+        run: |
+          $node = (Get-Command node).Source
+          $env:Path = "$env:SystemRoot\System32;$env:SystemRoot"
+          & $node scripts/engine-smoke.js engine/ssmt-engine.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build the installer
+        working-directory: Windows/App
+        run: npx electron-builder --win nsis --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SSMT-Windows
+          path: Windows/App/dist/SSMT-Setup-*.exe
+          retention-days: 30
 
   macos:
     name: macOS build + tests (Accelerate, universal app)
@@ -128,8 +193,23 @@ jobs:
           name: SSMT-app
           path: build/DerivedData/Build/Products/Release/SSMT-app.zip
           retention-days: 14
-      - name: Publish GitHub Release (tags v*, or manual run with release_tag)
-        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+
+  release:
+    name: Publish GitHub Release (macOS + Windows)
+    needs: [macos, windows]
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: SSMT-installer
+          path: release
+      - uses: actions/download-artifact@v4
+        with:
+          name: SSMT-Windows
+          path: release
+      - name: Publish (tags v*, or manual run with release_tag)
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.release_tag }}
@@ -139,5 +219,6 @@ jobs:
           # A tag with a suffix (v1.3.0-beta.1) is published as a pre-release.
           PRE=""
           case "$TAG" in *-*) PRE="--prerelease";; esac
-          gh release create "$TAG" "build/SSMT-${VERSION}.pkg" --target "$GITHUB_SHA" $PRE \
+          ls -la release
+          gh release create "$TAG" release/SSMT-*.pkg release/SSMT-Setup-*.exe --target "$GITHUB_SHA" $PRE \
             --title "SSMT $TAG" --notes-file docs/RELEASE_NOTES.md

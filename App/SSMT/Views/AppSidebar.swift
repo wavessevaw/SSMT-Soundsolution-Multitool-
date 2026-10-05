@@ -42,6 +42,9 @@ struct AppSidebar: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 20)
                 .padding(.bottom, 14)
+            ProfileBadge()
+                .padding(.horizontal, 10)
+                .padding(.bottom, 10)
             sectionSwitch
                 .padding(.horizontal, 10)
                 .padding(.bottom, 16)
@@ -52,6 +55,9 @@ struct AppSidebar: View {
                 inputListItems
                 Spacer(minLength: 16)
             } else if model.section == .assist {
+                Spacer(minLength: 16)
+            } else if model.section == .handbook {
+                HandbookSidebarItems()
                 Spacer(minLength: 16)
             } else if model.appMode == .wizard {
                 stages
@@ -67,13 +73,14 @@ struct AppSidebar: View {
         .background(GlassBackground(radius: 22))
     }
 
-    /// Function #1 / function #2.
+    /// Switch between the five functions.
     private var sectionSwitch: some View {
         VStack(spacing: 4) {
             sectionRow(.setup, icon: "dial.medium", title: loc.t("section.setup"))
             sectionRow(.inputList, icon: "list.bullet.rectangle", title: loc.t("section.inputList"), subtitle: loc.t("section.inputList.subtitle"))
             sectionRow(.show, icon: "play.rectangle.on.rectangle", title: loc.t("section.show"), subtitle: "Show Control Center")
             sectionRow(.assist, icon: "slider.vertical.3", title: loc.t("section.assist"), subtitle: loc.t("section.assist.subtitle"))
+            sectionRow(.handbook, icon: "book", title: loc.t("section.handbook"), subtitle: loc.t("section.handbook.subtitle"))
         }
         .padding(4)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.black.opacity(0.18)))

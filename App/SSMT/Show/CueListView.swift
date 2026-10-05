@@ -5,14 +5,16 @@ import UniformTypeIdentifiers
 
 /// The cue list: nested rows with playhead, live progress, drag-to-reorder and file drop.
 struct CueListView: View {
+    /// Playback state (redraws this view only while something plays).
+    @EnvironmentObject var live: ShowLive
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
     @State private var anchor: UUID?
 
     var body: some View {
         let rows = show.currentList?.cues.flattened(collapsed: show.collapsed) ?? []
-        let running = Dictionary(uniqueKeysWithValues: show.snapshot.running.map { ($0.id, $0) })
-        let playhead = show.snapshot == .empty ? show.currentList?.cues.first?.id : show.snapshot.playhead
+        let running = Dictionary(uniqueKeysWithValues: live.snapshot.running.map { ($0.id, $0) })
+        let playhead = live.snapshot == .empty ? show.currentList?.cues.first?.id : live.snapshot.playhead
         VStack(spacing: 0) {
             header
             ScrollViewReader { proxy in
@@ -24,7 +26,7 @@ struct CueListView: View {
                                    isSelected: show.selection.contains(row.cue.id),
                                    running: running[row.cue.id],
                                    problem: isMissing(row.cue) ? "show.fileMissing"
-                                       : isUnreadable(row.cue) ? "show.fileUnreadable" : show.snapshot.problems[row.cue.id])
+                                       : isUnreadable(row.cue) ? "show.fileUnreadable" : live.snapshot.problems[row.cue.id])
                                 .id(row.cue.id)
                                 // Double click: the cue's settings (inspector on its own tab); a single click selects.
                                 .onTapGesture(count: 2) { show.openSettings(row.cue.id) }
@@ -115,7 +117,7 @@ struct CueListView: View {
             // The clicked cue is the next one for GO / Space (a cue of the list, or inside a Start First And
             // Enter group; the engine ignores others). A cue that is playing is only selected (e.g. to look into a
             // running group): the playhead stays on what comes next.
-            let playing = show.snapshot.running.contains { $0.id == id }
+            let playing = live.snapshot.running.contains { $0.id == id }
             if !playing { show.setPlayhead(id) }
         }
     }

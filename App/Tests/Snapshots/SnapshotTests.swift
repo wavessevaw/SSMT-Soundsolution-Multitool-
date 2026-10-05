@@ -155,6 +155,54 @@ final class SnapshotTests: XCTestCase {
                      name: "input-list", loc: Self.ru)
     }
 
+    static var sampleProfile: LocalProfile {
+        var p = LocalProfile(name: "Никита Г.", email: "", role: "foh", color: 0x2A4B3E, salt: "s", passwordHash: "")
+        var pr = PlayerProgress()
+        pr.activeSeconds = 162.4 * 3600
+        pr.clicks = 2410
+        pr.clickXP = 2410
+        pr.bonusXP = 3200
+        pr.counters = ["qtrl.go": 640, "setup.finished": 12, "time.night": 1, "app.launch": 30, "foh.wave": 1,
+                       "qtrl.doubleGo": 1, "ptch.maxPhantom": 24, "setup.noiseSeconds": 2000]
+        let d = Date(timeIntervalSince1970: 1_790_000_000)
+        for (i, id) in ["firstSound", "nightOwl", "doubleGo", "phantomPain", "stadiumWave", "go", "secretRoom"].enumerated() {
+            pr.unlocked[id] = d.addingTimeInterval(Double(i) * 3600)
+        }
+        pr.level = pr.computedLevel
+        p.progress = pr
+        return p
+    }
+
+    func testAccountAndProfile() throws {
+        let center = ProfileCenter.shared
+        center.preview(nil)
+        try snapshot(AccountGate(), size: CGSize(width: 1200, height: 760), name: "account-register", loc: Self.ru)
+        center.preview(Self.sampleProfile)
+        try snapshot(ScrollView { ProfileOverview().padding(28) }.background(Backdrop()), size: CGSize(width: 1100, height: 760),
+                     name: "profile-overview", loc: Self.ru)
+        try snapshot(ScrollView { AchievementWall().padding(28) }.background(Backdrop()), size: CGSize(width: 1100, height: 900),
+                     name: "profile-achievements", loc: Self.ru)
+        try snapshot(VStack { ProfileBadge() }.frame(width: 272).padding(16).background(Backdrop()), size: CGSize(width: 304, height: 140),
+                     name: "profile-badge", loc: Self.ru)
+        center.toasts = ["nightOwl"]
+        try snapshot(AchievementToast().padding(20).background(Backdrop()), size: CGSize(width: 520, height: 140),
+                     name: "achievement-toast", loc: Self.ru)
+        center.preview(nil)
+    }
+
+    func testHandbook() throws {
+        let d = UserDefaults.standard
+        d.removeObject(forKey: "ssmt.handbook.calc.cable")
+        d.set(HandbookCategory.calculators.rawValue, forKey: HandbookPrefs.category)
+        d.set("calc.cable", forKey: HandbookPrefs.item)
+        try snapshot(HandbookWorkspace().padding(16).background(Backdrop()), size: CGSize(width: 1300, height: 820),
+                     name: "handbook-calculator", loc: Self.ru)
+        d.set(HandbookCategory.pinouts.rawValue, forKey: HandbookPrefs.category)
+        d.set("speakon", forKey: HandbookPrefs.item)
+        try snapshot(HandbookWorkspace().padding(16).background(Backdrop()), size: CGSize(width: 1300, height: 820),
+                     name: "handbook-pinout", loc: Self.ru)
+    }
+
     static var sampleShow: (doc: ShowDocument, intro: UUID, group: UUID, preshow: UUID, bell: UUID) {
         var doc = ShowDocument(name: "Spring gala")
         let l = doc.lists[0].id
@@ -302,9 +350,45 @@ final class SnapshotTests: XCTestCase {
         // Console test with the fader wave panel.
         store.mode = .test
         try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-test", loc: Self.ru)
+        // Learning: recordings and the patterns found in them (simulator, so no network).
+        store.mode = .learn
+        store.learnTitle = "Мюзикл «Чикаго»"
+        store.showRecordings(Self.sampleRecordings.infos, patterns: PatternLearner.learn(Self.sampleRecordings.recs))
+        try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-learn", loc: Self.ru)
+        // A real console is read-only: soundcheck is "coming soon".
+        store.previewReadOnly = true
+        store.mode = .soundcheck
+        try snapshot(AssistWorkspace(), size: CGSize(width: 1500, height: 940), name: "assist-locked", loc: Self.ru)
+        store.previewReadOnly = false
         store.mode = .soundcheck
         store.selectedChannel = nil
         store.disconnect()
+    }
+
+    /// Three made-up events: a ridden vocal with a filter and a compressor, a kick, a bass.
+    static var sampleRecordings: (infos: [AssistStore.RecordingInfo], recs: [LearnRecording]) {
+        var infos: [AssistStore.RecordingInfo] = []
+        var recs: [LearnRecording] = []
+        for (n, title) in ["Мюзикл «Чикаго»", "Концерт группы", "Корпоратив"].enumerated() {
+            var rec = LearningRecorder(header: LearnHeader(title: title, startedAt: 1_790_000_000 + Double(n) * 86400, console: "x32", model: "X32 · 4.06"))
+            var vox = ChannelStrip(id: 1, name: "Vox Lead", gainDB: 34 + Double(n), highPassOn: true, highPassHz: 120, faderDB: -4)
+            vox.eq[2] = StripEQBand(type: .peaking, frequency: 3000, gainDB: 2.5, q: 1.4)
+            vox.compressor = StripCompressor(enabled: true, thresholdDB: -20, ratio: 3)
+            let kick = ChannelStrip(id: 2, name: "Kick In", gainDB: 25, highPassOn: true, highPassHz: 40, faderDB: -6)
+            let bass = ChannelStrip(id: 3, name: "Bass DI", gainDB: 18, faderDB: -8)
+            var frames: [LearnFrame] = []
+            for t in 0..<400 {
+                var v = vox
+                v.faderDB = -4 + (t / 10 % 2 == 0 ? 0 : 1.5)
+                frames.append(rec.makeFrame(t: Double(t), strips: [1: v, 2: kick, 3: bass], buses: [:],
+                                            channelLevels: [1: -18, 2: -12, 3: -15], busLevels: [:]))
+            }
+            let r = LearnRecording(header: rec.header, frames: frames)
+            recs.append(r)
+            infos.append(AssistStore.RecordingInfo(file: "\(n).ssmtlearn", title: title, started: Date(timeIntervalSince1970: r.header.startedAt),
+                                                   duration: r.duration, model: r.header.model, event: true))
+        }
+        return (infos, recs)
     }
 
     func testInputListPrintSheets() throws {

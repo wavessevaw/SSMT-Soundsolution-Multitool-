@@ -70,12 +70,15 @@ final class ShowStore: ObservableObject {
     @Published var showOSC = false
     var oscWizardKind: OSCDeviceKind?
     let osc = OSCHub()
-    @Published private(set) var snapshot = ShowSnapshot.empty
+    /// Playback state and meters (≈25 updates a second while playing) live in their own object, so they redraw
+    /// only the views that show them.
+    let live = ShowLive()
+    var snapshot: ShowSnapshot { live.snapshot }
     /// When `snapshot` was taken: views move playback cursors on smoothly between snapshots.
-    private(set) var snapshotDate = Date()
-    @Published private(set) var meters: [Float] = []
+    var snapshotDate: Date { live.snapshotDate }
+    var meters: [Float] { live.meters }
     /// Outputs that clipped in the last 1.5 s.
-    @Published private(set) var clipping: [Bool] = []
+    var clipping: [Bool] { live.clipping }
     private var clipUntil: [Int: Date] = [:]
     @Published private(set) var outputName = ""
     @Published private(set) var outputError: String?
@@ -171,9 +174,9 @@ final class ShowStore: ObservableObject {
                  waveforms: [String: [Float]] = [:]) {
         self.waveforms = waveforms
         outputStarted = true
-        self.snapshot = snapshot
+        live.snapshot = snapshot
         clipInfo = clips
-        self.meters = meters
+        live.meters = meters
         missingFiles = []
         outputName = "Preview"
     }
@@ -184,6 +187,7 @@ final class ShowStore: ObservableObject {
         guard !showMode else { return }
         let before = doc
         change(&doc)
+        if doc != before { trackShape() }
         guard doc != before, let undo else { return }
         undo.registerUndo(withTarget: self) { store in
             MainActor.assumeIsolated { store.restore(before) }
@@ -438,7 +442,10 @@ final class ShowStore: ObservableObject {
         bankID = b.id
     }
 
-    func pad(_ id: UUID, pressed: Bool) { run { e, now in e.pad(id, pressed: pressed, now: now) } }
+    func pad(_ id: UUID, pressed: Bool) {
+        if pressed { ProfileCenter.shared.record("qtrl.oneShot") }
+        run { e, now in e.pad(id, pressed: pressed, now: now) }
+    }
 
     /// File length of an audio cue in seconds, when loaded.
     func fileLength(_ cue: Cue) -> Double? {
@@ -472,6 +479,7 @@ final class ShowStore: ObservableObject {
 
     func deleteSelection() {
         let ids = selection
+        if snapshot.running.contains(where: { ids.contains($0.id) }) { ProfileCenter.shared.record("qtrl.deletePlaying") }
         // A deleted cue stops sounding at once (the engine stops it when the edit reaches it); so does its preview.
         if let a = audition, ids.contains(a.cue) || ids.contains(where: { doc.cue($0)?.children.findCue(a.cue) != nil }) { stopAudition() }
         edit(loc("action.delete")) { $0.delete(ids) }
@@ -523,6 +531,7 @@ final class ShowStore: ObservableObject {
     // MARK: Transport
 
     func go() {
+        trackGo()
         // A red border on GO while double-GO protection holds it.
         if doc.doubleGoGuard > 0, goGuarded == false {
             goGuarded = true
@@ -535,10 +544,75 @@ final class ShowStore: ObservableObject {
     @Published private(set) var goGuarded = false
     /// Seconds across the width of the timelines (⌘= / ⌘− zoom them).
     @Published var timelineSpan: Double = 40
-    func panic() { run { e, now in e.panic(now: now) } }
+    func panic() {
+        let c = ProfileCenter.shared
+        if !snapshot.running.isEmpty {
+            c.record("qtrl.panic")
+            if let t = lastPanicTap, Date().timeIntervalSince(t) < 1.5 { c.record("qtrl.panicHard") }
+            lastPanicTap = Date()
+        }
+        run { e, now in e.panic(now: now) }
+    }
+
+    // MARK: Progress (achievements)
+
+    private var lastPanicTap: Date?
+    private var sessionGos = 0
+    private var pausedSince: Date?
+    private var loopSince: [UUID: Date] = [:]
+
+    /// GO and starts: what kind of cue fired, a clean run of 30 GOs earns the show XP.
+    private func trackGo() {
+        let c = ProfileCenter.shared
+        if goGuarded { c.record("qtrl.doubleGo"); return }
+        c.record("qtrl.go")
+        if let cue = doc.cue(snapshot.playhead) { trackFired(cue) }
+        sessionGos += 1
+        if sessionGos == 30, snapshot.problems.isEmpty {
+            c.record("qtrl.cleanShow")
+            c.record("qtrl.show")
+        }
+    }
+
+    private func trackFired(_ cue: Cue) {
+        switch cue.kind {
+        case .fade: ProfileCenter.shared.record("qtrl.fade")
+        case .network: ProfileCenter.shared.record("qtrl.osc")
+        default: break
+        }
+    }
+
+    /// Every 5 s: long pauses and long loops.
+    func sampleProgress() {
+        let c = ProfileCenter.shared
+        if !snapshot.running.isEmpty, snapshot.running.allSatisfy(\.paused) {
+            if pausedSince == nil { pausedSince = Date() }
+            if let p = pausedSince, Date().timeIntervalSince(p) > 15 * 60 { c.record("qtrl.longPause") }
+        } else {
+            pausedSince = nil
+        }
+        let looping = snapshot.running.filter { ($0.iteration ?? 0) > 0 && !$0.paused }.map(\.id)
+        loopSince = loopSince.filter { looping.contains($0.key) }
+        for id in looping where loopSince[id] == nil { loopSince[id] = Date() }
+        if let oldest = loopSince.values.min() { c.recordMax("qtrl.loopMinutes", Int(Date().timeIntervalSince(oldest) / 60)) }
+    }
+
+    private var lastShapeCheck = Date.distantPast
+
+    /// Biggest playlist and timeline group in the show (at most once a second: drags edit many times a second).
+    private func trackShape() {
+        guard Date().timeIntervalSince(lastShapeCheck) > 1 else { return }
+        lastShapeCheck = Date()
+        let groups = doc.allCues.filter { $0.kind == .group }
+        ProfileCenter.shared.recordMax("qtrl.maxPlaylist", groups.filter { $0.groupMode == .playlist }.map(\.children.count).max() ?? 0)
+        ProfileCenter.shared.recordMax("qtrl.maxTimelineTracks", groups.filter { $0.groupMode == .simultaneous }.map(\.children.count).max() ?? 0)
+    }
     func pauseAll() { run { e, now in e.pauseAll(now: now) } }
     func resumeAll() { run { e, now in e.resumeAll(now: now) } }
-    func start(_ id: UUID) { run { e, now in e.start(id, now: now) } }
+    func start(_ id: UUID) {
+        if let cue = doc.cue(id) { trackFired(cue) }
+        run { e, now in e.start(id, now: now) }
+    }
     func stop(_ id: UUID) { run { e, now in e.stop(id, now: now) } }
     func togglePause(_ id: UUID) {
         let paused = snapshot.running.first { $0.id == id }?.paused ?? false
@@ -649,7 +723,7 @@ final class ShowStore: ObservableObject {
     }
 
     private func apply(_ snap: ShowSnapshot, peaks: [Float]) {
-        if snap != snapshot { snapshotDate = Date(); snapshot = snap }
+        if snap != live.snapshot { live.snapshotDate = Date(); live.snapshot = snap }
         let used = Array(peaks.prefix(doc.outputs.count))
         // Ballistics as on a console: rises at once, falls about 25 dB/s; clipping (≥ 0 dBFS, the output really
         // overloads) stays lit 1.5 s.
@@ -660,9 +734,9 @@ final class ShowStore: ObservableObject {
             shown[i] = max(used[i], fall < 1e-5 ? 0 : fall)
             if used[i] >= 1 { clipUntil[i] = Date().addingTimeInterval(1.5) }
         }
-        if shown != meters { meters = shown }
+        if shown != live.meters { live.meters = shown }
         let clips = used.indices.map { (clipUntil[$0] ?? .distantPast) > Date() }
-        if clips != clipping { clipping = clips }
+        if clips != live.clipping { live.clipping = clips }
         if let lid = snap.listID, lid != listID, doc.lists.contains(where: { $0.id == lid }) { listID = lid }
     }
 
@@ -859,6 +933,7 @@ final class ShowStore: ObservableObject {
         collectMedia(oldShowURL: oldURL)
         do {
             try doc.encoded().write(to: url, options: .atomic)
+            if doc.allCues.count >= 100 { ProfileCenter.shared.record("qtrl.bigShow") }
         } catch {
             fileURL = oldURL
             lastError = "\(url.lastPathComponent): \(error)"
@@ -1158,4 +1233,14 @@ final class ShowStore: ObservableObject {
     }
 
     private func loc(_ key: String) -> String { localizer?.t(key) ?? key }
+}
+
+/// Playback state of Qtrl and its output meters. Separate from `ShowStore` so the ≈25 updates a second while
+/// something plays redraw the cue states, timeline cursor, running panel and meters — not the whole Qtrl screen.
+@MainActor
+final class ShowLive: ObservableObject {
+    @Published var snapshot = ShowSnapshot.empty
+    var snapshotDate = Date()
+    @Published var meters: [Float] = []
+    @Published var clipping: [Bool] = []
 }
