@@ -257,9 +257,10 @@ final class ProfileCenter: ObservableObject {
 
     // MARK: Previews
 
-    /// Snapshot tests: show a made-up profile without monitoring input or saving.
+    /// Snapshot tests: show a made-up profile without monitoring input or saving. Nothing is tracked
+    /// (`live` stays empty), so activity in the test host cannot unlock achievements mid-snapshot.
     func preview(_ p: LocalProfile?) {
-        live = p
+        live = nil
         current = p
         gate.signedIn = p != nil
         toasts = []

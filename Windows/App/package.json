@@ -9,7 +9,7 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/*.test.js",
+    "test": "node --test",
     "smoke": "node scripts/engine-smoke.js",
     "dist": "electron-builder --win nsis --x64 --publish never"
   },
