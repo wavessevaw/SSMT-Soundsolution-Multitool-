@@ -184,6 +184,7 @@ private struct LinkLamp: View {
 private struct AssistConnectScreen: View {
     @EnvironmentObject var store: AssistStore
     @EnvironmentObject var loc: Localizer
+    @Environment(\.workspaceVisible) private var visible
     @State private var manualIP = ""
 
     private let families: [MixerFamily] = [.x32, .xAir, .simulator, .wing, .yamaha, .allenHeath]
@@ -239,10 +240,17 @@ private struct AssistConnectScreen: View {
             .frame(maxWidth: .infinity)
             .padding(.top, 20)
         }
+        // Looking for consoles on the network only when FOH Assist is really opened (not when its screen is built
+        // in the background).
         .onAppear {
             if manualIP.isEmpty { manualIP = store.host }
-            if store.autoScan && (store.family == .x32 || store.family == .xAir) { store.scan() }
+            if visible { autoScan() }
         }
+        .onChange(of: visible) { if $0 { autoScan() } }
+    }
+
+    private func autoScan() {
+        if store.autoScan && (store.family == .x32 || store.family == .xAir) { store.scan() }
     }
 
     private var statusText: String {

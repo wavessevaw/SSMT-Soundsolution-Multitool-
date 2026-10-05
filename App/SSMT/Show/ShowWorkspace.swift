@@ -87,13 +87,13 @@ struct ShowWorkspace: View {
             .frame(maxHeight: .infinity)
             QtrlStatusBar()
         }
+        // Qtrl is active (audio output, no sleep, keyboard) while its function is shown — MainView sets
+        // `isActive`; this screen stays built when another function is open.
         .onAppear {
             show.undo = undoManager
             show.localizer = loc
-            show.isActive = true
             show.installKeyMonitor()
         }
-        .onDisappear { show.isActive = false }
         .sheet(isPresented: $show.showOSC) {
             OSCDevicesView()
                 .environmentObject(show)
