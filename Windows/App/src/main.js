@@ -39,6 +39,7 @@ function startEngine() {
   link.on('event', (ev) => {
     if (ev.event === 'learn') keepAwake(!!ev.recording);
     if (win && !win.isDestroyed()) win.webContents.send('engine', ev);
+    if (ev.event && ev.event.startsWith('setup') && miniWin && !miniWin.isDestroyed()) miniWin.webContents.send('engine', ev);
   });
   link.on('stderr', (s) => process.stderr.write(s));
   link.start();
@@ -59,7 +60,61 @@ function createWindow() {
   });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
+  // The diagnostics window appears when the main window is minimized and goes when it comes back (MiniPanelController).
+  win.on('minimize', () => { if (mini.autoShow) showMini(); });
+  win.on('restore', () => hideMini());
 }
+
+// MARK: floating diagnostics window (App/SSMT/Views/MiniPanel.swift)
+let miniWin = null;
+const mini = { opacity: 0.92, clickThrough: false, autoShow: true };
+function showMini() {
+  if (!miniWin || miniWin.isDestroyed()) {
+    const { screen } = require('electron');
+    const area = screen.getPrimaryDisplay().workArea;
+    miniWin = new BrowserWindow({
+      width: 380, height: 330, x: area.x + area.width - 400, y: area.y + 20, frame: false, transparent: true, resizable: true,
+      alwaysOnTop: true, skipTaskbar: true, show: false, hasShadow: true, focusable: true, backgroundColor: '#00000000',
+      webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
+    });
+    miniWin.setAlwaysOnTop(true, 'floating');
+    miniWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    miniWin.loadFile(path.join(__dirname, 'renderer', 'mini.html'));
+    // Snap to the screen edges when dragged close to them.
+    miniWin.on('moved', () => {
+      const { screen: sc } = require('electron');
+      const b = miniWin.getBounds(), a = sc.getDisplayMatching(b).workArea, d = 24;
+      let { x, y } = b;
+      if (Math.abs(b.x - a.x) < d) x = a.x + 4;
+      if (Math.abs(b.x + b.width - (a.x + a.width)) < d) x = a.x + a.width - b.width - 4;
+      if (Math.abs(b.y - a.y) < d) y = a.y + 4;
+      if (Math.abs(b.y + b.height - (a.y + a.height)) < d) y = a.y + a.height - b.height - 4;
+      if (x !== b.x || y !== b.y) miniWin.setPosition(x, y);
+    });
+    miniWin.once('ready-to-show', () => { applyMini(); miniWin.showInactive(); });
+    return;
+  }
+  applyMini();
+  miniWin.showInactive();
+}
+function applyMini() {
+  if (!miniWin || miniWin.isDestroyed()) return;
+  miniWin.setOpacity(mini.opacity);
+  miniWin.setIgnoreMouseEvents(mini.clickThrough, { forward: true });
+}
+// The content exists only while the window is shown, so a hidden window costs nothing.
+function hideMini() { if (miniWin && !miniWin.isDestroyed()) miniWin.destroy(); miniWin = null; }
+ipcMain.on('mini', (_e, { op, value }) => {
+  if (op === 'toggle') { if (miniWin && !miniWin.isDestroyed()) hideMini(); else showMini(); }
+  else if (op === 'show') showMini();
+  else if (op === 'hide') hideMini();
+  else if (op === 'opacity') { mini.opacity = Math.min(1, Math.max(0.3, Number(value) || 1)); applyMini(); }
+  else if (op === 'clickThrough') { mini.clickThrough = !!value; applyMini(); }
+  else if (op === 'expand') {
+    hideMini();
+    if (win && !win.isDestroyed()) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
+  }
+});
 
 // A small local language model through Ollama (https://ollama.com): nothing leaves the computer.
 async function ollama(url, pathName, body, timeoutMs) {

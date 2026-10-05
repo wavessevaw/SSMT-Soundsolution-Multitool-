@@ -804,6 +804,16 @@ final class SetupModule: EngineModule, @unchecked Sendable {
         return nums(s.frequencies.indices.map { s.isValid($0) ? Decibel.fromAmplitude(s.response[$0].magnitude) : .nan })
     }
 
+    /// A dB curve 1/6-octave smoothed, as ComparisonPlotView draws relative plots (zero phase, full coherence).
+    func smoothedDB(_ db: [Double], _ f: [Double]) -> Any {
+        guard db.count == f.count, !f.isEmpty else { return NSNull() }
+        let tf = TransferFunction(frequencies: f,
+                                  response: db.map { $0.isFinite ? Complex(Decibel.toAmplitude($0)) : Complex(.nan, .nan) },
+                                  coherence: db.map { _ in 1 }, measurementPower: db.map { _ in 1 },
+                                  referencePower: db.map { _ in 1 }, averages: 1)
+        return magnitude(tf, smoothing: .oct6)
+    }
+
     func filterJSON(_ f: PEQFilter) -> [String: Any] {
         ["id": f.id, "frequency": num(f.frequency), "gainDB": num(f.gainDB), "q": num(f.q), "group": f.group.rawValue,
          "label": f.frequencyLabel, "width": f.widthLabel(inOctaves: wizard.configuration.processor.bandwidthInOctaves)]
@@ -814,6 +824,7 @@ final class SetupModule: EngineModule, @unchecked Sendable {
             "frequencies": nums(grid, 1000),
             "processors": Out.json(ProcessorProfile.presets),
             "customProcessor": Out.json(ProcessorProfile.customDefault),
+            "targetPresets": TargetCurve.Preset.allCases.map(\.rawValue),
             "targets": Dictionary(uniqueKeysWithValues: TargetCurve.Preset.allCases.map { ($0.rawValue, Out.json(TargetCurve.preset($0).points)) }),
             "grids": EQFrequencyGrid.allCases.map(\.rawValue),
             "microphones": MicrophoneProfile.Kind.allCases.map { kind -> [String: Any] in
@@ -874,6 +885,7 @@ final class SetupModule: EngineModule, @unchecked Sendable {
                 "target": Out.json(cfg.target), "grid": cfg.eq.frequencyGrid.rawValue, "processor": Out.json(cfg.processor),
             ] as [String: Any],
             "qualityBand": range(w.step.qualityBand(crossover: cfg.crossover)),
+            "requiredGroups": w.step.requiredGroups.map { ["sub": $0.sub, "mains": $0.mains] as [String: Any] } ?? NSNull(),
             "eqPoints": w.eqPoints.map { $0.assessment.quality.rawValue },
             "eqVerificationPoints": w.eqVerificationPoints.map { $0.assessment.quality.rawValue },
             "canComputeEQ": w.canComputeEQ, "canIterateEQ": w.canIterateEQ,
@@ -907,11 +919,18 @@ final class SetupModule: EngineModule, @unchecked Sendable {
             "prediction": magnitude(w.prediction, smoothing: .oct6),
             "verification": magnitude(w.verification?.transfer, smoothing: .oct6),
             "eqAfter": w.eqAfterAverage.map { nums($0.levelDB) } ?? NSNull(),
+            "eqAfterSmoothed": magnitude(w.eqAfterAverage?.asTransferFunction, smoothing: .oct6),
+            "eqAfterFrequencies": w.eqAfterAverage.map { nums($0.frequencies, 1000) } ?? NSNull(),
         ] as [String: Any]
         if let r = w.eqResult {
             j["eqResult"] = ["filters": r.filters.map(filterJSON), "workingRange": range(r.workingRange),
                              "measuredDB": nums(r.measuredDB), "targetDB": nums(r.targetDB), "predictedDB": nums(r.predictedDB),
-                             "filterResponseDB": nums(r.filterResponseDB), "frequencies": nums(r.frequencies, 1000)] as [String: Any]
+                             "filterResponseDB": nums(r.filterResponseDB), "frequencies": nums(r.frequencies, 1000),
+                             "smoothed": [
+                                "measured": smoothedDB(r.measuredDB, r.frequencies),
+                                "target": smoothedDB(r.targetDB, r.frequencies),
+                                "predicted": smoothedDB(r.predictedDB, r.frequencies),
+                             ] as [String: Any]] as [String: Any]
         }
         if let s = w.eqScores(microphone: calibration.selectedMicrophone) {
             let before: [String: Any] = ["deviation": num(s.before.rmsDeviationDB), "score": s.before.score]
@@ -1038,6 +1057,7 @@ final class SetupModule: EngineModule, @unchecked Sendable {
             }
             j["mini"] = [
                 "mag": nums(sm.frequencies.indices.map { sm.isValid($0) ? Decibel.fromAmplitude(sm.response[$0].magnitude) : .nan }),
+                "target": nums(sm.frequencies.map { target.value(at: $0) }),
                 "deviation": num(deviation),
             ] as [String: Any]
         }

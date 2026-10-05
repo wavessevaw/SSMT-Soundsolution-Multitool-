@@ -17,4 +17,6 @@ contextBridge.exposeInMainWorld('ssmt', {
   writeFile: (p, data, encoding) => ipcRenderer.invoke('file:write', { path: p, data, encoding }),
   renderPDF: (o) => ipcRenderer.invoke('render:pdf', o),
   renderPNG: (o) => ipcRenderer.invoke('render:png', o),
+  // The floating diagnostics window: toggle | show | hide | expand | opacity (value) | clickThrough (value).
+  mini: (op, value) => ipcRenderer.send('mini', { op, value }),
 });

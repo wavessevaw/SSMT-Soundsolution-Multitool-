@@ -22,11 +22,14 @@
   const withAlpha = (color, a) => (color.startsWith('#') ? rgba(color, a) : color.replace('rgb(', 'rgba(').replace(')', `,${a})`));
   const fmt = (f, v) => SSMT.format(f, v);
   const store = new Map();   // canvas id → drawing spec
-  let nextId = 1;
+  let prefix = 'cv', nextId = 1;
+
+  /** Starts numbering canvases of one drawn region afresh, so unchanged markup stays identical between redraws. */
+  function scope(name) { prefix = name; nextId = 1; }
 
   /** A canvas whose drawing is `spec` ({kind, …}); painted by `paint`. */
   function canvas(spec, style = '') {
-    const id = 'cv' + (nextId++);
+    const id = prefix + (nextId++);
     store.set(id, spec);
     return `<canvas class="ssmt-canvas" data-draw="${id}" style="${style}"></canvas>`;
   }
@@ -44,14 +47,11 @@
 
   const PAINTERS = {};
   function paint(root) {
-    const used = new Set();
-    for (const cv of (root || document).querySelectorAll('canvas[data-draw]')) {
+    if (!root) return;
+    for (const cv of root.querySelectorAll('canvas[data-draw]')) {
       const spec = store.get(cv.dataset.draw);
-      used.add(cv.dataset.draw);
       if (spec && PAINTERS[spec.kind]) PAINTERS[spec.kind](cv, spec);
     }
-    // Specs of canvases no longer in the page are dropped.
-    if (store.size > 400) for (const k of [...store.keys()]) if (!used.has(k) && !document.querySelector(`canvas[data-draw="${k}"]`)) store.delete(k);
   }
 
   function text(g, s, x, y, { size = 10, weight = 400, color = C.textMuted, align = 'center', base = 'middle' } = {}) {
@@ -110,13 +110,15 @@
     const large = !!o.large;
     return `<div class="glass tuner-gauge${large ? ' large' : ''}">
       <div class="tg-title">${esc(o.title)}</div>
-      ${canvas({ kind: 'gauge', o, st }, `height:${large ? 214 : 158}px;opacity:${o.reliable === false ? 0.5 : 1}`)}
-      <div class="tg-instruction" style="color:${st.has ? st.color : C.textMuted}">${st.inTune ? icon('checkmark.circle.fill', large ? 18 : 15) : ''}<span>${esc(o.instruction)}</span></div>
+      ${canvas({ kind: 'gauge', o, st }, `height:${(large ? 214 : 158) + 40}px;margin-bottom:-40px;opacity:${o.reliable === false ? 0.5 : 1}`)}
+      <div class="tg-instruction" style="color:${st.has ? st.color : C.textMuted}">${st.inTune ? checkFill(large ? 18 : 15) : ''}<span>${esc(o.instruction)}</span></div>
     </div>`;
   }
 
   PAINTERS.gauge = (cv, { o, st }) => {
-    const { g, w, h } = prepare(cv);
+    // The canvas reaches 40 px below the instrument, so the readout's unit may hang below it as on the Mac.
+    const { g, w } = prepare(cv);
+    const h = o.large ? 214 : 158;
     const a = arcGeometry(w, h, !!o.large);
     const arc = (from, to, color) => {
       g.beginPath();
@@ -161,6 +163,12 @@
     if (hasUnit) text(g, o.unit, cx, cy + total / 2 - lineSmall / 2, { size: small, color: C.textMuted });
   };
 
+  /** checkmark.circle.fill: a filled disc with the check cut out (Lucide has only the outline). */
+  const checkFill = (size) => `<svg class="icon" width="${size}" height="${size}" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7.5" fill="currentColor"/>
+    <path d="M4.8 8.3l2.1 2.1 4.3-4.6" fill="none" stroke="#131715" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  /** An SF Symbol; the solid play and stop symbols are filled. */
+  const sym = (name, size) => SSMT.icon(name, size, name === 'play.fill' || name === 'stop.fill' ? 'filled' : '');
+
   // MARK: small instruments
 
   const indicatorLamp = (color, size) => `<span class="indicator-lamp" style="width:${size}px;height:${size}px"><i style="width:${size * 0.5}px;height:${size * 0.5}px;background:${color}"></i></span>`;
@@ -190,7 +198,7 @@
     const ic = wrong === true ? 'arrow.triangle.2.circlepath' : wrong === false ? 'checkmark.circle.fill' : 'circle.dashed';
     const label = wrong === true ? t('tuner.polarity.switch') : wrong === false ? t('tuner.polarity.ok') : t('tuner.waiting');
     return `<div class="glass polarity-lamp${large ? ' large' : ''}">
-      <span class="pl-icon${wrong === true ? ' blink' : ''}" style="color:${color}">${icon(ic, large ? 26 : 22)}</span>
+      <span class="pl-icon${wrong === true ? ' blink' : ''}" style="color:${color}">${wrong === false ? checkFill(large ? 26 : 22) : icon(ic, large ? 26 : 22)}</span>
       <div class="pl-text"><span>${esc(t('card.polarity'))}</span><b style="color:${color}">${esc(label)}</b></div>
       <span class="pl-value">${wrong === true ? '180°' : wrong === false ? '0°' : '—'}</span>
     </div>`;
@@ -222,7 +230,7 @@
 
   function wizardPrimaryButton(title, ic, act, enabled = true) {
     return `<button class="wizard-primary${enabled ? '' : ' disabled'}" data-act="${act}"${enabled ? '' : ' disabled'}>
-      <span class="wp-label">${icon(ic, 17)}<span>${esc(title)}</span></span><span class="wp-arrow">${icon('arrow.right', 16)}</span></button>`;
+      <span class="wp-label">${sym(ic, 17)}<span>${esc(title)}</span></span><span class="wp-arrow">${icon('arrow.right', 16)}</span></button>`;
   }
 
   const actionRow = (title, ic, act, enabled, secondary) => `<div class="action-row">${secondary || ''}${wizardPrimaryButton(title, ic, act, enabled)}</div>`;
@@ -326,7 +334,8 @@
     let ref = 0;
     if (!absolute && curves[0] && curves[0].db) {
       const v = [];
-      curves[0].db.forEach((d, i) => { if (d != null && inRange(f[i])) v.push(d); });
+      const f0 = curves[0].f || f;
+      curves[0].db.forEach((d, i) => { if (d != null && inRange(f0[i])) v.push(d); });
       v.sort((a, b) => a - b);
       ref = v.length ? v[Math.floor(v.length / 2)] : 0;
     }
@@ -354,9 +363,10 @@
       if (!c.db) continue;
       g.beginPath();
       let started = false;
+      const fc = c.f || f;
       c.db.forEach((d, i) => {
-        if (d == null || !inRange(f[i])) return;
-        const x = P.x + ax.x(f[i], P.w), yy = y(d);
+        if (d == null || !inRange(fc[i])) return;
+        const x = P.x + ax.x(fc[i], P.w), yy = y(d);
         if (started) g.lineTo(x, yy); else { g.moveTo(x, yy); started = true; }
       });
       g.save();
@@ -440,25 +450,9 @@
     g.strokeStyle = C.accent; g.lineWidth = 1.6; g.stroke();
   };
 
-  /** Target curve value at f (TargetCurve.value(at:) for drawing the dashed target): points interpolated in log f. */
-  function targetAt(points, fr) {
-    if (!points || !points.length) return 0;
-    const first = points[0], last = points[points.length - 1];
-    if (fr <= first.frequency) return first.gainDB;
-    if (fr >= last.frequency) return last.gainDB;
-    for (let i = 1; i < points.length; i++) {
-      if (fr <= points[i].frequency) {
-        const a = points[i - 1], b = points[i];
-        const tt = Math.log(fr / a.frequency) / Math.log(b.frequency / a.frequency);
-        return a.gainDB + tt * (b.gainDB - a.gainDB);
-      }
-    }
-    return last.gainDB;
-  }
-
   SSMT.SetupUI = {
-    C, rgba, canvas, paint, tunerGauge, gaugeState, indicatorLamp, miniMeter, miniLED, polarityLamp, levelStrip, valueChip,
+    C, rgba, scope, canvas, paint, tunerGauge, gaugeState, indicatorLamp, miniMeter, miniLED, polarityLamp, levelStrip, valueChip,
     hazardNotice, collapsible, quietButton, wizardPrimaryButton, actionRow, transferPlot, comparisonPlot, micCurve, pointMap,
-    miniCurve, targetAt, fLabel,
+    miniCurve, fLabel, checkFill, sym,
   };
 })();
