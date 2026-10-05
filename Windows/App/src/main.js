@@ -2,7 +2,7 @@
 // SSMT for Windows: Electron shell. Starts the engine, owns the UDP sockets (engine-link.js) and the local language
 // model calls (Ollama), and shows the interface in src/renderer.
 
-const { app, BrowserWindow, dialog, ipcMain, powerSaveBlocker, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, powerSaveBlocker, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { EngineLink } = require('./engine-link');
@@ -193,15 +193,42 @@ ipcMain.handle('render:png', async (_e, { html, path: p, width, height, scale })
   await fs.promises.writeFile(p, data);
   return true;
 });
+// The menu bar: the Mac app's menus (SSMTApp.commands) as the interface describes them, in its language. Electron's
+// default menu is never shown: its accelerators (reload, zoom, close…) would take keys the Mac app uses. The key
+// equivalents are shown but not registered: the interface handles the keys itself, so nothing runs twice.
+ipcMain.on('menu:set', (_e, menus) => {
+  const template = (menus || []).map((m) => ({
+    label: m.label,
+    submenu: (m.items || []).map((it) => (it.divider ? { type: 'separator' } : {
+      label: it.label, accelerator: it.accel || undefined, registerAccelerator: false,
+      click: () => { if (win && !win.isDestroyed()) win.webContents.send('menu', it.id); },
+    })),
+  }));
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+});
+ipcMain.on('app:window', (_e, op) => {
+  if (op === 'minimize' && win && !win.isDestroyed()) win.minimize();
+  else if (op === 'quit') app.quit();
+});
 ipcMain.handle('app:openFolder', async (_e, dir) => { if (dir) await shell.openPath(dir); return true; });
 ipcMain.handle('app:version', () => app.getVersion());
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   startEngine();
   createWindow();
 });
 
+// ProfileCenter.appWillQuit: "Just looking" (quit within 10 s of signing in) and the profile saved, then the engine
+// stops. Once, whether the window was closed or the app quit (app.quit() does not emit window-all-closed).
+function shutdown() {
+  if (!link) return;
+  link.send({ cmd: 'profileQuit' });
+  link.stop();
+  link = null;
+}
 app.on('window-all-closed', () => {
-  if (link) link.stop();
+  shutdown();
   app.quit();
 });
+app.on('will-quit', shutdown);

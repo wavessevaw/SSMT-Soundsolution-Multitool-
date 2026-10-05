@@ -110,7 +110,12 @@ extension Engine {
         if testing {
             let (p, r) = testBox.take()
             if let p { testChecks = p; stateDirty = true }
-            if let r { testChecks = r; testing = false; stateDirty = true }
+            if let r {
+                testChecks = r
+                testing = false
+                stateDirty = true
+                if !r.isEmpty, !r.contains(where: { $0.status == .failed }) { ProfileModule.shared?.record("foh.testPassed") }
+            }
         }
         if now >= nextLinkStats {
             nextLinkStats = now.addingTimeInterval(1)
@@ -163,6 +168,11 @@ extension Engine {
         busLevels = sim.busLevels(channelRMS: feats.filter { $0.value.hasSignal }.mapValues(\.rmsDB))
         let hall = hallDetector.process(r.mic)
         let out = g.step(time: t, channels: feats, busLevels: busLevels, hallFeedback: hall, stageFeedback: [])
+        let before = Set(corrections.map(\.id))
+        for c in g.corrections(at: t) where !before.contains(c.id) {
+            if c.kind == .notch { ProfileModule.shared?.record("foh.feedbackCut") }
+            if c.kind == .monitorDip { ProfileModule.shared?.record("foh.monitorDip") }
+        }
         applyStrips(out.strips)
         applyBuses(out.buses)
         features.merge(feats) { $1 }
@@ -186,7 +196,7 @@ extension Engine {
     }
 
     func applyStrips(_ changed: [ChannelStrip]) {
-        for s in changed { strips[s.id] = s; sim?.setStrip(s) }
+        for s in changed { trackStrip(s); strips[s.id] = s; sim?.setStrip(s) }
         if !changed.isEmpty { stateDirty = true }
     }
 
@@ -283,6 +293,7 @@ extension Engine {
         waveBackup = strips.mapValues(\.faderDB)
         waveStart = Date()
         waving = true
+        ProfileModule.shared?.record("foh.wave")
         nextWaveTick = Date()
         stateDirty = true
     }
@@ -305,6 +316,20 @@ extension Engine {
         if let sim { for (ch, db) in waveBackup { if var s = strips[ch] { s.faderDB = db; sim.setStrip(s) } } }
         waveBackup = [:]
         stateDirty = true
+    }
+
+    // MARK: progress (achievements, as AssistStore's)
+
+    /// A strip the assistant changes (AssistStore.apply): gain changes and polarity flips count.
+    func trackStrip(_ s: ChannelStrip) {
+        guard let o = strips[s.id] else { return }
+        if o.gainDB != s.gainDB { ProfileModule.shared?.record("foh.gainChanges") }
+        if !o.polarityInverted && s.polarityInverted { ProfileModule.shared?.record("foh.polarity") }
+    }
+
+    /// Every 5 s: show-guard time for the achievements (AssistStore.sampleProgress).
+    func sampleAssistProgress() {
+        if guarding && rehearsal == nil { ProfileModule.shared?.record("foh.guardSeconds", count: 5) }
     }
 
     // MARK: link diagnostics (AssistStore.updateLinkStats)

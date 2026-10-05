@@ -193,7 +193,10 @@ final class Engine {
             case "range": sel = .range(int("from") ?? 1, int("to") ?? 8)
             default: sel = .orchestra
             }
-            if session.startGroup(sel).isEmpty { Out.emit("message", ["key": "nothingFound"]) } else { beginJob() }
+            if session.startGroup(sel).isEmpty { Out.emit("message", ["key": "nothingFound"]); return }
+            if sel == .orchestra { ProfileModule.shared?.record("foh.orchestra") }
+            if sel == .choir { ProfileModule.shared?.record("foh.choir") }
+            beginJob()
         case "polarity":
             guard let session, sim != nil, !readOnly else { return refuse(cmd) }
             if session.startPolarity().isEmpty { Out.emit("message", ["key": "nothingFound"]) } else { beginJob() }
@@ -201,7 +204,8 @@ final class Engine {
             stopJob()
         case "undo":
             guard let session, let sim else { return refuse(cmd) }
-            for s in session.undo() { strips[s.id] = s; sim.setStrip(s) }
+            ProfileModule.shared?.record("foh.revert")
+            for s in session.undo() { trackStrip(s); strips[s.id] = s; sim.setStrip(s) }
             stopJob()
         case "runNow":
             // Steps at once instead of every 2 s (simulator demo, snapshot tests); the clock stops, as on the Mac.
@@ -265,6 +269,8 @@ final class Engine {
             buses = c.buses
             model = "SSMT simulator · \(c.strips.count) ch"
             status = "connected"
+            lastAlive = true
+            ProfileModule.shared?.record("foh.simulator")
         case .x32, .xAir:
             status = "connecting"
             model = ""
@@ -311,6 +317,7 @@ final class Engine {
         channelLevels = [:]
         busLevels = [:]
         status = "disconnected"
+        lastAlive = false
         nextRenew = .distantFuture
         nextJobStep = .distantFuture
         askAgain = []
@@ -327,17 +334,22 @@ final class Engine {
     func received(_ m: OSCMessage) {
         guard let family, isReal else { return }
         lastHeard = Date()
+        if !lastAlive && status == "connected" { lastAlive = true; stateDirty = true }
         if !m.arguments.isEmpty { heard.insert(m.address) }
         capture?.take(m)
         if m.address == "/info" || m.address == "/xinfo" {
             let parts = m.arguments.compactMap { a -> String? in if case let .string(s) = a { return s } else { return nil } }
             model = parts.dropFirst().joined(separator: " · ")
+            if status == "connecting" { ProfileModule.shared?.record("foh.connect") }
             status = "connected"
             failure = ""
             stateDirty = true
             return
         }
-        if status != "connected" { status = "connected"; failure = ""; stateDirty = true }
+        if status != "connected" {
+            if status == "connecting" { ProfileModule.shared?.record("foh.connect") }
+            status = "connected"; failure = ""; stateDirty = true
+        }
         if family != .xAir, X32InputRouting.blockAddresses.contains(m.address) || m.address.hasSuffix("/config/source") {
             if routingPreset == .auto, routing.apply(m) {
                 sendToConsole((1...family.channelCount).compactMap { X32Codec.gainAddress($0, family: family, routing: routing) }.map { OSCMessage($0) })
@@ -399,7 +411,7 @@ final class Engine {
         for (ch, x) in r.taps { feats[ch] = ex.analyze(x) }
         hallLevel(r.mic, sampleRate: sim.sampleRate)
         let changed = session.tick(features: feats, mic: r.mic)
-        for s in changed { strips[s.id] = s; sim.setStrip(s) }
+        for s in changed { trackStrip(s); strips[s.id] = s; sim.setStrip(s) }
         features.merge(session.features) { $1 }
         for (ch, f) in feats where f.hasSignal { channelLevels[ch] = f.rmsDB }
         groupPhase = session.group?.phase
@@ -408,7 +420,13 @@ final class Engine {
             let done = session.single?.channel == ch ? session.single?.state == .done : session.group?.tunings[ch]?.state == .done
             if done, let f = session.features[ch], f.bandsDB.contains(where: { $0 > -119 }) { references[ch] = f.bandsDB }
         }
-        if !session.isRunning { nextJobStep = .distantFuture }
+        if !session.isRunning {
+            nextJobStep = .distantFuture
+            // A finished soundcheck job.
+            ProfileModule.shared?.record("foh.soundcheck")
+            if character == .rock { ProfileModule.shared?.record("foh.rock") }
+            if character == .classical { ProfileModule.shared?.record("foh.classic") }
+        }
         emitLog()
         stateDirty = true
     }
@@ -584,6 +602,7 @@ final class Engine {
             learnFrame()
         }
         let alive = sim != nil || (isReal && now.timeIntervalSince(lastHeard) < 4)
+        if alive && !lastAlive && status == "connected" { ProfileModule.shared?.record("foh.reconnect") }
         if alive != lastAlive { lastAlive = alive; stateDirty = true }
         if now >= nextMeters, family != nil {
             nextMeters = now.addingTimeInterval(0.1)

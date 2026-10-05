@@ -65,6 +65,8 @@ final class ShowModule: EngineModule {
     var audition: ShowAudition?
     /// "Trim silence" asked for a file still being prepared: done when it is ready.
     var pendingTrims: [String: [UUID]] = [:]
+    /// What the achievements keep between events (ShowStore's progress fields).
+    var progress = ShowProgressState()
 
     init() {}
 
@@ -163,10 +165,10 @@ final class ShowModule: EngineModule {
         case "deleteDevice": if let id { edit { $0.devices.removeAll { $0.id == id } } }
         // Transport
         case "go": go()
-        case "panic": run { e, now in e.panic(now: now) }
+        case "panic": panic()
         case "pauseAll": run { e, now in e.pauseAll(now: now) }
         case "resumeAll": run { e, now in e.resumeAll(now: now) }
-        case "start": if let id { run { e, now in e.start(id, now: now) } }
+        case "start": if let id { startCue(id) }
         case "stop": if let id { run { e, now in e.stop(id, now: now) } }
         case "togglePause": if let id { togglePause(id) }
         case "setPlayhead": setPlayhead(id)
@@ -175,7 +177,7 @@ final class ShowModule: EngineModule {
         case "pauseSelected": selectedCues.forEach(togglePause)
         case "stopSelected": stopSelected()
         case "loadSelected": selectedCues.forEach { id in run { e, _ in e.load(id) } }
-        case "startSelected": selectedCues.forEach { id in run { e, now in e.start(id, now: now) } }
+        case "startSelected": selectedCues.forEach { startCue($0) }
         case "moveCursor": moveCursor(by: c.int("delta") ?? 1)
         case "movePlayhead": movePlayhead(by: c.int("delta") ?? 1)
         case "jump": jumpToCue(c.str("number") ?? "")
@@ -239,6 +241,7 @@ final class ShowModule: EngineModule {
         guard !showMode else { return }
         let before = doc
         change(&doc)
+        if doc != before { trackShape() }
         guard doc != before else { return }
         undoStack.append(before)
         if undoStack.count > 200 { undoStack.removeFirst(undoStack.count - 200) }
@@ -401,6 +404,7 @@ final class ShowModule: EngineModule {
     }
 
     func pad(_ id: UUID, pressed: Bool) {
+        if pressed { ProfileModule.shared?.record("qtrl.oneShot") }
         run { e, now in e.pad(id, pressed: pressed, now: now) }
     }
 
@@ -413,6 +417,7 @@ final class ShowModule: EngineModule {
 
     func deleteSelection() {
         let ids = selection
+        if live.snapshot.running.contains(where: { ids.contains($0.id) }) { ProfileModule.shared?.record("qtrl.deletePlaying") }
         // A deleted cue stops sounding at once (the engine stops it when the edit reaches it); so does its preview.
         if let a = audition, ids.contains(a.cue) || ids.contains(where: { doc.cue($0)?.children.findCue(a.cue) != nil }) { stopAudition() }
         edit { $0.delete(ids) }
@@ -540,12 +545,27 @@ final class ShowModule: EngineModule {
     // MARK: Transport
 
     func go() {
+        trackGo()
         // A red border on GO while double-GO protection holds it.
         if doc.doubleGoGuard > 0, goGuardUntil == nil {
             goGuardUntil = Date().addingTimeInterval(doc.doubleGoGuard)
             live.forceEmit = true
         }
         run { e, now in e.go(now: now) }
+    }
+
+    func panic() {
+        if !live.snapshot.running.isEmpty, let c = ProfileModule.shared {
+            c.record("qtrl.panic")
+            if let t = progress.lastPanicTap, Date().timeIntervalSince(t) < 1.5 { c.record("qtrl.panicHard") }
+            progress.lastPanicTap = Date()
+        }
+        run { e, now in e.panic(now: now) }
+    }
+
+    func startCue(_ id: UUID) {
+        if let cue = doc.cue(id) { trackFired(cue) }
+        run { e, now in e.start(id, now: now) }
     }
 
     func togglePause(_ id: UUID) {
@@ -603,7 +623,7 @@ final class ShowModule: EngineModule {
         let key = ch.lowercased()
         guard !key.isEmpty, let cue = doc.allCues.first(where: { ($0.hotkey ?? "").lowercased() == key }) else { return }
         if doc.banks.contains(where: { $0.cues.findCue(cue.id) != nil }) { pad(cue.id, pressed: true) } else {
-            run { e, now in e.start(cue.id, now: now) }
+            startCue(cue.id)
         }
     }
 
@@ -813,6 +833,7 @@ final class ShowModule: EngineModule {
         collectMedia(oldShow: old)
         do {
             try doc.encoded().write(to: URL(fileURLWithPath: path), options: .atomic)
+            if doc.allCues.count >= 100 { ProfileModule.shared?.record("qtrl.bigShow") }
         } catch {
             filePath = old
             lastError = ["text": "\(ShowPaths.basename(path)): \(error)"]
@@ -888,4 +909,63 @@ struct ShowAudition {
     var length: Double
     var rate: Double
     var endsAt: Date
+}
+
+// MARK: - Progress (achievements), as ShowStore's
+
+/// What the achievements of Qtrl keep between events.
+struct ShowProgressState {
+    var lastPanicTap: Date?
+    var sessionGos = 0
+    var pausedSince: Date?
+    var loopSince: [UUID: Date] = [:]
+    var lastShapeCheck = Date.distantPast
+}
+
+extension ShowModule: ProgressSampling {
+    /// GO and starts: what kind of cue fired, a clean run of 30 GOs earns the show XP.
+    func trackGo() {
+        guard let c = ProfileModule.shared else { return }
+        if goGuardUntil != nil { c.record("qtrl.doubleGo"); return }
+        c.record("qtrl.go")
+        if let cue = doc.cue(live.snapshot.playhead) { trackFired(cue) }
+        progress.sessionGos += 1
+        if progress.sessionGos == 30, live.snapshot.problems.isEmpty {
+            c.record("qtrl.cleanShow")
+            c.record("qtrl.show")
+        }
+    }
+
+    func trackFired(_ cue: Cue) {
+        switch cue.kind {
+        case .fade: ProfileModule.shared?.record("qtrl.fade")
+        case .network: ProfileModule.shared?.record("qtrl.osc")
+        default: break
+        }
+    }
+
+    /// Every 5 s: long pauses and long loops.
+    func sampleProgress() {
+        guard let c = ProfileModule.shared else { return }
+        let snapshot = live.snapshot
+        if !snapshot.running.isEmpty, snapshot.running.allSatisfy(\.paused) {
+            if progress.pausedSince == nil { progress.pausedSince = Date() }
+            if let p = progress.pausedSince, Date().timeIntervalSince(p) > 15 * 60 { c.record("qtrl.longPause") }
+        } else {
+            progress.pausedSince = nil
+        }
+        let looping = snapshot.running.filter { ($0.iteration ?? 0) > 0 && !$0.paused }.map(\.id)
+        progress.loopSince = progress.loopSince.filter { looping.contains($0.key) }
+        for id in looping where progress.loopSince[id] == nil { progress.loopSince[id] = Date() }
+        if let oldest = progress.loopSince.values.min() { c.recordMax("qtrl.loopMinutes", Int(Date().timeIntervalSince(oldest) / 60)) }
+    }
+
+    /// Biggest playlist and timeline group in the show (at most once a second: drags edit many times a second).
+    func trackShape() {
+        guard Date().timeIntervalSince(progress.lastShapeCheck) > 1 else { return }
+        progress.lastShapeCheck = Date()
+        let groups = doc.allCues.filter { $0.kind == .group }
+        ProfileModule.shared?.recordMax("qtrl.maxPlaylist", groups.filter { $0.groupMode == .playlist }.map(\.children.count).max() ?? 0)
+        ProfileModule.shared?.recordMax("qtrl.maxTimelineTracks", groups.filter { $0.groupMode == .simultaneous }.map(\.children.count).max() ?? 0)
+    }
 }

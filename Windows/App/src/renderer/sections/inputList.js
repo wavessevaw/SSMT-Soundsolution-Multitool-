@@ -567,7 +567,8 @@
   // Window shortcuts of the Mac menu bar while Ptch is open (they work while typing, as menu shortcuts do).
   document.addEventListener('keydown', (e) => {
     if (S.section !== 'inputList' || !(e.ctrlKey || e.metaKey) || e.altKey) return;
-    const k = e.key.toLowerCase();
+    // By physical key, so the shortcuts work with any keyboard layout (as the Mac's menu key equivalents do).
+    const k = /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     const hit = (fn) => { e.preventDefault(); e.stopPropagation(); fn(); };
     if (k === 'o' && !e.shiftKey) hit(open);
     else if (k === 's') hit(() => save(e.shiftKey));

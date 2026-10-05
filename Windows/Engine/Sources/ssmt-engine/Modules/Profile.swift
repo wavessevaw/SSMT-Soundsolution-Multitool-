@@ -11,6 +11,11 @@ import SSMTCore
 /// {active}, profileQuit, profilePreview {sample} (snapshot fixtures: a made-up profile, nothing tracked).
 /// Events: profileCatalog, profiles, profile, profileUnlocked {achievements, level}, profileAuto {id},
 /// profileError {key}.
+/// A function whose live state feeds time-based achievements every 5 s while someone is signed in.
+protocol ProgressSampling: AnyObject {
+    func sampleProgress()
+}
+
 final class ProfileModule: EngineModule {
     /// Other engine modules record their events here (as `ProfileCenter.shared.record` on the Mac).
     static weak var shared: ProfileModule?
@@ -120,6 +125,9 @@ final class ProfileModule: EngineModule {
         nextTick = now.addingTimeInterval(5)
         let active = now.timeIntervalSince(lastInput) < 120 && focused
         live?.progress.tick(seconds: 5, active: active, at: now)
+        // App state sampled every 5 s (ProfileCenter.sample on the Mac: AppModel, ShowStore and AssistStore).
+        for m in engine.modules { (m as? ProgressSampling)?.sampleProgress() }
+        engine.sampleAssistProgress()
         evaluate()
         if now.timeIntervalSince(lastSave) > 30 { save(engine) }
     }

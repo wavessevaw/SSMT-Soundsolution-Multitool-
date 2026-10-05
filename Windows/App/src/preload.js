@@ -21,4 +21,8 @@ contextBridge.exposeInMainWorld('ssmt', {
   mini: (op, value) => ipcRenderer.send('mini', { op, value }),
   // The path of a dropped file (File.path is gone since Electron 32).
   pathForFile: (f) => webUtils.getPathForFile(f),
+  // The menu bar (the Mac app's menu commands, built by app.js) and its clicks; window commands (minimize | quit).
+  setMenu: (menus) => ipcRenderer.send('menu:set', menus),
+  onMenu: (fn) => ipcRenderer.on('menu', (_e, id) => fn(id)),
+  window: (op) => ipcRenderer.send('app:window', op),
 });

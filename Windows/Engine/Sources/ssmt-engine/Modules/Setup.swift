@@ -16,7 +16,12 @@ final class SetupModule: EngineModule, @unchecked Sendable {
     var referenceChannel = 1
     var outputChannel = 0
     var referenceMode: ReferenceMode = .internalSignal
-    var temperatureCelsius = 20.0
+    var temperatureCelsius = 20.0 {
+        didSet {
+            if temperatureCelsius < 5 { ProfileModule.shared?.record("setup.cold") }
+            if temperatureCelsius > 35 { ProfileModule.shared?.record("setup.hot") }
+        }
+    }
 
     // Generator
     var noise = 0
@@ -384,6 +389,7 @@ final class SetupModule: EngineModule, @unchecked Sendable {
     }
 
     func emergencyStop() {
+        if noiseOn { ProfileModule.shared?.record("setup.stop") }
         engine?.emergencyStop()
         if streamBackend != nil { AudioBridge.shared.stream("setup").flush() }
         noiseOn = false
@@ -399,6 +405,7 @@ final class SetupModule: EngineModule, @unchecked Sendable {
                 self?.delay = estimate
                 self?.delaySearchRunning = false
                 self?.dirty = true
+                if estimate?.isReliable == true { ProfileModule.shared?.record("setup.delayFound") }
             }
         }
     }
@@ -443,6 +450,7 @@ final class SetupModule: EngineModule, @unchecked Sendable {
             calibration.microphones.append(mic)
             calibration.selectedMicrophoneID = mic.id
             calibration.save(to: calibrationURL)
+            ProfileModule.shared?.record("setup.calibration")
         } catch {
             lastError = "\(name): \(error)"
         }
@@ -491,7 +499,10 @@ final class SetupModule: EngineModule, @unchecked Sendable {
                 guard let self else { return }
                 self.wizardDelaySearch = false
                 self.delay = estimate
-                if let e = estimate, e.isReliable { self.wizard.lockDelay(e, epoch: epoch) }
+                if let e = estimate, e.isReliable {
+                    self.wizard.lockDelay(e, epoch: epoch)
+                    ProfileModule.shared?.record("setup.delayFound")
+                }
                 self.dirty = true
             }
         }
@@ -517,7 +528,12 @@ final class SetupModule: EngineModule, @unchecked Sendable {
             self?.post {
                 guard let self, self.wizardCaptureRunning else { return }
                 self.wizardCaptureRunning = false
+                let hadAlignment = self.wizard.alignment != nil
                 self.lastAcceptance = self.wizard.submit(capture)
+                if !hadAlignment, let a = self.wizard.alignment {
+                    ProfileModule.shared?.record("setup.aligned")
+                    if a.best.invertPolarity { ProfileModule.shared?.record("setup.polarityFixed") }
+                }
                 if case .accepted = self.lastAcceptance, self.isSimulation {
                     self.simulateGroupsForStep()
                     if step == .eqPoints || step == .eqVerification { self.simulateMoveToNextPoint() }
@@ -611,6 +627,7 @@ final class SetupModule: EngineModule, @unchecked Sendable {
     func wizardComputeEQ() {
         lastAcceptance = nil
         wizard.computeEQ(microphone: calibration.selectedMicrophone)
+        ProfileModule.shared?.record("setup.eqBands", count: wizard.eqResult?.filters.count ?? 0)
         if isSimulation { simulationBackend?.moveMicrophone(toPoint: 0) }
     }
 
@@ -654,6 +671,8 @@ final class SetupModule: EngineModule, @unchecked Sendable {
     func wizardFinish() {
         stopEQTuner()
         wizard.finish()
+        ProfileModule.shared?.record("setup.finished")
+        if isSimulation { ProfileModule.shared?.record("setup.simFinished") }
     }
 
     // MARK: simulation
@@ -1062,5 +1081,21 @@ final class SetupModule: EngineModule, @unchecked Sendable {
             ] as [String: Any]
         }
         Out.emit("setupLive", j)
+    }
+}
+
+extension SetupModule: ProgressSampling {
+    /// Every 5 s while signed in: time-based setup achievements read the live state (AppModel.sampleProgress).
+    func sampleProgress() {
+        guard let center = ProfileModule.shared, noiseOn else { return }
+        center.record("setup.noiseSeconds", count: 5)
+        if levelDBFS <= -79.5 { center.record("secret.quietSeconds", count: 5) }
+        if let s = snapshot {
+            if s.microphone.rmsDBFS > -6 { center.record("setup.micHot") }
+            if let c = s.transfer?.coherence, c.count > 8 {
+                let mean = c.reduce(0, +) / Double(c.count)
+                if mean < 0.5 { center.record("setup.lowCoherence") }
+            }
+        }
     }
 }

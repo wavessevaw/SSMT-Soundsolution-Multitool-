@@ -337,6 +337,11 @@ STRINGS = {
     "mini.opacity": ("Opacity", "Прозрачность"),
     "mini.clickThrough": ("Click-through (turn off in the SSMT menu)", "Клики насквозь (выключить в меню SSMT)"),
     "mini.clickThroughOff": ("Mini window: clicks back on", "Мини-окно: вернуть клики"),
+    # The system menus macOS adds itself (File, Window, Minimize, Quit), for the Windows menu bar.
+    "menu.file": ("File", "Файл"),
+    "menu.window": ("Window", "Окно"),
+    "menu.minimize": ("Minimize", "Свернуть"),
+    "menu.quit": ("Quit SSMT", "Завершить SSMT"),
     "mini.expand": ("Expand", "Развернуть"),
     "mini.noDelay": ("delay not locked", "задержка не зафиксирована"),
     "report.title": ("System setup report", "Отчёт о настройке системы"),

@@ -886,7 +886,8 @@
       if (U.dragging) { deferred = true; return null; }
       if (lastError && !S.lastError) { lastError = null; cmd('dismissError'); }
       X.scope('pane');
-      const html = `${workspace()}${overlays()}`;
+      // The settings sheet and the target editor are drawn over the whole window by app.js (SSMT.setupOverlays).
+      const html = workspace();
       if (html === lastHTML) return null;
       lastHTML = html;
       return html;
@@ -896,9 +897,6 @@
       pane.classList.toggle('expert-mode', U.mode === 'expert');
       X.paint(pane);
       X.paint(document.getElementById('sidebar'));
-      const sb = document.getElementById('sidebar');
-      if (sb) sb.style.display = U.stage ? 'none' : '';
-      document.body.classList.toggle('reduced', U.reduced);
       standalone();
     },
     keys(e) {
@@ -907,8 +905,7 @@
       else if (e.key === 'Enter' && U.mode === 'wizard') {
         const st = W().step;
         if (['baseline', 'subOnly', 'mainsOnly', 'verification', 'eqPoints', 'eqVerification'].includes(st) && !(st === 'verification' && W().report)) cmd('capture');
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') { e.preventDefault(); cmd('findDelay'); }
-      else if (e.key === 'Escape') { U.menu = null; U.info = null; U.procEdit = false; SSMT.render(); }
+      } else if (e.key === 'Escape') { U.menu = null; U.info = null; U.procEdit = false; SSMT.render(); }
     },
     actions: {},
     inputs: {},
@@ -988,6 +985,7 @@
     store.set('langChoice', v);
     const lang = v === 'system' ? ((navigator.language || 'ru').toLowerCase().startsWith('ru') ? 'ru' : 'en') : v;
     S.lang = lang; store.set('lang', lang); lastHTML = null;
+    if (SSMT.profile) SSMT.profile.record('ui.language'); // Localizer.language set
   });
   sec.inputs.level = (v) => cmd('level', { value: Number(v) });
   sec.inputs.maxLevel = (v) => cmd('maxLevel', { value: Number(v) });
@@ -1094,7 +1092,7 @@
   // Generic dispatch for actions carrying a field in their name ("teGain:3", "vprocStep:subDelayMs:0.01").
   document.addEventListener('click', (e) => {
     const el = e.target.closest('[data-act]');
-    if (!el || el.disabled || !el.closest('#pane-setup, #sidebar')) return;
+    if (!el || el.disabled || !el.closest('#pane-setup, #sidebar, #app-overlay')) return;
     const a = el.dataset.act;
     if (a.startsWith('teGain:')) {
       const i = Number(a.slice(7));
@@ -1108,7 +1106,7 @@
   // Sliders with a field in their key.
   document.addEventListener('input', (e) => {
     const k = e.target.dataset && e.target.dataset.input;
-    if (!k || !e.target.closest('#pane-setup, #sidebar')) return;
+    if (!k || !e.target.closest('#pane-setup, #sidebar, #app-overlay')) return;
     if (k.startsWith('vproc:')) {
       const field = k.slice(6);
       const step = field === 'subGainDB' ? 0.5 : 0.01;
@@ -1181,6 +1179,9 @@
 
   /** The setup TopBar, which the Mac also shows above Ptch (inputList). */
   SSMT.setupTopBar = () => topBar();
+  /** The setup sheets (settings, target editor), which the Mac shows over the whole window. */
+  SSMT.setupOverlays = () => { X.scope('ov'); return overlays(); };
+  SSMT.setupPaint = (el) => X.paint(el);
   /** Draws one view on its own, as the Mac snapshot tests do (parity checks). Null returns to the window. */
   SSMT.setupStandalone = (name) => { U.standalone = name; lastHTML = null; SSMT.render(); };
   SSMT.setupData = D;

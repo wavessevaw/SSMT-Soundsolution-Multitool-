@@ -98,16 +98,12 @@
   }, true);
   window.addEventListener('focus', () => send({ cmd: 'profileFocus', active: true }));
   window.addEventListener('blur', () => send({ cmd: 'profileFocus', active: false }));
-  window.addEventListener('beforeunload', () => send({ cmd: 'profileQuit' }));
+  // Quitting (ProfileCenter.appWillQuit, "Just looking" within 10 s) is sent by the main process when the app quits.
 
-  // Sections opened (MainView.onChange(of: section)).
-  window.addEventListener('DOMContentLoaded', () => {
-    const draw = SSMT.draw;
-    SSMT.draw = () => {
-      draw();
-      if (tracking() && S.section !== P.lastSection) { P.lastSection = S.section; send({ cmd: 'profileSection', name: S.section }); }
-    };
-  });
+  // Sections opened (MainView.onChange(of: section)): app.js calls this after every redraw.
+  SSMT.sectionShown = (id) => {
+    if (tracking() && id !== P.lastSection) { P.lastSection = id; send({ cmd: 'profileSection', name: id }); }
+  };
 
   function redrawAll() {
     drawGate();

@@ -84,7 +84,9 @@
     const api = SSMT.api;
     if (!api || !api.saveFile) return;
     const path = await api.saveFile({ defaultName: 'SSMT-report.' + (pdf ? 'pdf' : 'png'), filters: [{ name: pdf ? 'PDF' : 'PNG', extensions: [pdf ? 'pdf' : 'png'] }] });
-    if (!path) return;
+    // AppModel.exportReport records the export when ReportExporter returns without an error, a cancelled panel included.
+    const done = () => { if (SSMT.profile) SSMT.profile.record('setup.reportExport'); };
+    if (!path) { done(); return; }
     const host = document.createElement('div');
     host.className = 'report-export-host';
     X.scope('rp');
@@ -108,6 +110,7 @@
         </head><body>${host.innerHTML}</body></html>`;
       if (pdf) await api.renderPDF({ html: page, path, pageSize: [1100, height] });
       else await api.renderPNG({ html: page, path, width: 1100, height, scale });
+      done();
     } catch (e) {
       SSMT.send({ cmd: 'setup', do: 'error', text: String((e && e.message) || e) });
     } finally {
