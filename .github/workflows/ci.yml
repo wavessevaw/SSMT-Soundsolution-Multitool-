@@ -36,8 +36,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: compnerd/gha-setup-swift@main
         with:
-          branch: swift-6.0.3-release
-          tag: 6.0.3-RELEASE
+          # 6.0 cannot build the ucrt module of the runner's Windows SDK 10.0.26100 (cyclic module dependency).
+          branch: swift-6.2-release
+          tag: 6.2-RELEASE
       - name: Build the engine (SSMTCore for Windows)
         run: swift build -c release --package-path Windows/Engine
       - name: Collect the engine with the Swift and MSVC runtimes
