@@ -90,6 +90,9 @@ final class Engine {
 
     var isReal: Bool { family == .x32 || family == .xAir }
 
+    /// The program's other functions (Modules/).
+    lazy var modules: [EngineModule] = makeModules()
+
     // MARK: commands
 
     func handle(_ line: String) {
@@ -173,7 +176,10 @@ final class Engine {
             let p = patterns()
             Out.emit("prompt", ["id": str("id") ?? "", "text": p.prompt(question: str("question") ?? "", russian: str("lang") != "en")])
         default:
-            Out.emit("error", ["key": "unknownCommand", "detail": cmd])
+            let c = Command(name: cmd, fields: obj)
+            if !modules.contains(where: { $0.handle(c, engine: self) }) {
+                Out.emit("error", ["key": "unknownCommand", "detail": cmd])
+            }
         }
     }
 
@@ -446,6 +452,7 @@ final class Engine {
 
     func tick() {
         let now = Date()
+        for m in modules { m.tick(now, engine: self) }
         if now >= nextRenew, let family, isReal {
             sendToConsole(ConsoleReadOnly.renewals(family: family))
             nextRenew = now.addingTimeInterval(8)

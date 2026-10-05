@@ -28,6 +28,40 @@ jobs:
         run: |
           apt-get update -qq && apt-get install -y -qq nodejs > /dev/null
           node Windows/App/scripts/engine-smoke.js "$(swift build -c release --package-path Windows/Engine --show-bin-path)/ssmt-engine"
+      - name: Keep the Linux engine for the parity check
+        run: cp "$(swift build -c release --package-path Windows/Engine --show-bin-path)/ssmt-engine" ssmt-engine-linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ssmt-engine-linux
+          path: ssmt-engine-linux
+
+  parity:
+    name: Windows interface vs the Mac app, screen by screen
+    needs: core-linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/download-artifact@v4
+        with:
+          name: ssmt-engine-linux
+      - name: Interface assets and Chromium
+        working-directory: Windows/App
+        run: |
+          npm install --no-audit --no-fund --ignore-scripts
+          node scripts/assets.js --check
+          npx playwright-core install --with-deps chromium
+      - name: Draw every Mac screen in the Windows interface
+        run: |
+          chmod +x ssmt-engine-linux
+          node Windows/App/scripts/parity.js ./ssmt-engine-linux
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SSMT-parity
+          path: build/parity
 
   windows:
     name: Windows app (engine + installer)
