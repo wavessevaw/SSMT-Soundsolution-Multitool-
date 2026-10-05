@@ -1,0 +1,165 @@
+/* Ptch (function #2): InputListWorkspace, EditableRows, StagePlanEditor and their controls in the Mac metrics. */
+#pane-inputList { scrollbar-width: none; }
+#pane-inputList::-webkit-scrollbar { display: none; }
+.il { display: flex; flex-direction: column; gap: 18px; padding: 0 24px 24px; min-width: 0; }
+.il .spacer { flex: 1; }
+.il input, .il select, .il textarea { user-select: text; }
+
+/* Header: title, file name and the export menu, aligned on the first baseline. */
+.il-head { display: flex; align-items: baseline; gap: 8px; }
+.il-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.il-titles h1 { margin: 0; font-size: 30px; font-weight: 700; line-height: 36px; letter-spacing: -0.01em; }
+.il-file { font-size: 13px; line-height: 16px; color: var(--text-secondary); }
+.il-export { display: inline-flex; align-items: center; gap: 5px; padding: 8px 14px; border-radius: 999px; border: none;
+  background: rgba(46, 229, 157, 0.18); font-size: 13px; line-height: 16px; color: var(--text-primary); }
+.il-export:active, .il-menubtn:active { opacity: 0.75; }
+.il .il-chev { width: 9px; height: 9px; stroke-width: 2.6; margin-left: 1px; }
+
+/* ErrorBanner */
+.il-error { display: flex; align-items: baseline; gap: 10px; padding: 12px 16px; border-radius: var(--radius-small);
+  background: rgba(255, 69, 58, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.35); }
+.il-error > svg { color: var(--status-error); align-self: center; }
+.il-error .text { flex: 1; font-size: 13px; color: var(--text-primary); user-select: text; }
+.il-plain { background: none; border: none; padding: 0; color: var(--text-secondary); display: inline-flex; align-items: center; }
+.il-plain:active { opacity: 0.6; }
+
+/* Fields (the Mac's bordered text fields, pop-up buttons and checkboxes in dark mode). */
+.il-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.il-col > label { font-size: 12px; line-height: 15px; color: var(--text-secondary); }
+.il-field { display: block; width: 100%; min-width: 0; height: 19px; padding: 0 4px; font-size: 13px; font-weight: 600; line-height: 17px;
+  color: var(--text-primary); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.10); border-top-color: rgba(255, 255, 255, 0.13);
+  border-bottom-color: rgba(255, 255, 255, 0.25);
+  border-radius: 2px; outline: none; }
+.il-field.rounded { height: 20px; border-radius: 4px; padding: 0 9px; }
+.il-field::placeholder { color: rgba(255, 255, 255, 0.25); font-weight: 400; }
+.il-field:focus { border-color: rgba(46, 229, 157, 0.6); box-shadow: 0 0 0 3px rgba(46, 229, 157, 0.25); }
+.il-field.num { font-variant-numeric: tabular-nums; }
+.il-field.right { text-align: right; }
+.il-field.mono12 { font-size: 12px; font-variant-numeric: tabular-nums; }
+textarea.il-field { resize: none; overflow: hidden; height: 20px; padding: 0 9px; line-height: 18px; font-family: inherit; }
+.il-pop { appearance: none; -webkit-appearance: none; width: 100%; min-width: 0; height: 20px; padding: 0 22px 0 8px; font-size: 13px; font-weight: 600;
+  color: var(--text-primary); border: none; border-radius: 5px; outline: none; box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.24) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'%3E%3Cpath d='M1 4.5 L4 1.5 L7 4.5 M1 7.5 L4 10.5 L7 7.5' fill='none' stroke='white' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 7px center; }
+.il-pop:focus { box-shadow: 0 0 0 3px rgba(46, 229, 157, 0.35); }
+.il-pop option { background: #2A2C2B; color: var(--text-primary); }
+.il-check { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; margin: 0; border-radius: 3.5px; flex: none; position: relative;
+  background: rgba(255, 255, 255, 0.20); box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.15); vertical-align: middle; }
+.il-check:checked::after { content: ''; position: absolute; left: 4.5px; top: 1.5px; width: 3.5px; height: 7.5px; border: solid #fff;
+  border-width: 0 1.8px 1.8px 0; transform: rotate(40deg); }
+.il-check:focus-visible { outline: 2px solid rgba(46, 229, 157, 0.6); }
+.il-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+
+/* Stepper: label and the small up / down control. */
+.il-stepper { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+.il-step { display: inline-flex; flex-direction: column; width: 13px; height: 20px; border-radius: 4px; overflow: hidden; flex: none;
+  background: rgba(255, 255, 255, 0.24); box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.12); }
+.il-step button { flex: 1; border: none; background: none; padding: 0; color: var(--text-primary); display: flex; align-items: center; justify-content: center; }
+.il-step button:active { background: rgba(255, 255, 255, 0.18); }
+.il-step button:disabled { opacity: 0.35; }
+
+/* Show info */
+.il-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; row-gap: 13px; }
+.il-date { display: flex; align-items: center; gap: 8px; height: 22px; position: relative; }
+.il-datetext { width: auto; flex: none; padding: 0 9px 0 9px; height: 20px; border-radius: 3px; font-variant-numeric: tabular-nums; text-align: left; }
+.il-datepick { position: absolute; left: 22px; top: 0; width: 1px; height: 22px; opacity: 0; pointer-events: none; }
+.il-date .il-step { margin-left: -6px; }
+
+/* Toolbars */
+.il-toolbar { display: flex; align-items: center; gap: 8px; }
+#il-ch-toolbar { height: 33px; }
+.il-toolbar .btn { height: 32px; }
+.il-tool { padding: 8px 16px; }
+.il-tool svg, .il-toolbar .btn svg { width: 15px; height: 15px; }
+.il-keep:disabled { opacity: 1; }
+.il-vdiv { width: 1px; height: 20px; background: rgba(255, 255, 255, 0.12); flex: none; }
+.il-menubtn { display: inline-flex; align-items: center; gap: 5px; padding: 0 2px; border: none; background: none; font-size: 13px; color: var(--text-primary); }
+.il-menubtn > svg:first-child { width: 15px; height: 15px; }
+.il-pop-anchor { position: relative; display: inline-flex; }
+
+/* EditableRows */
+.il-rows { border-radius: 6px; background: rgba(0, 0, 0, 0.18); overflow: hidden; }
+.il-rows-head { height: 24px; padding: 0 8px; align-items: center; font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+.il-rows-head span { white-space: nowrap; overflow: hidden; }
+.il-rows-div { height: 1px; background: rgba(255, 255, 255, 0.10); }
+.il-rows-body { overflow-y: auto; position: relative; scrollbar-width: thin; }
+.il-row { height: 28px; padding: 0 8px; align-items: center; }
+.il-row.on { background: rgba(46, 229, 157, 0.18); }
+.il-cols-ch { display: grid; column-gap: 8px; grid-template-columns: 54px minmax(120px, 1fr) 150px 150px 40px 84px 90px 116px minmax(90px, 1fr); }
+.il-cols-mix { display: grid; column-gap: 8px; grid-template-columns: 40px minmax(100px, 1fr) 110px 56px minmax(60px, 1fr); }
+.il-row > * { min-width: 0; }
+.il-num { display: flex; align-items: center; gap: 6px; }
+.il-num > i { width: 3px; height: 16px; border-radius: 1.5px; flex: none; }
+.il-mic { display: flex; align-items: center; gap: 2px; }
+.il-mic .il-field { flex: 1; }
+.il-mic-menu { width: 22px; height: 20px; justify-content: center; color: var(--text-primary); flex: none; }
+.il-mic-menu svg { width: 15px; height: 15px; stroke-width: 1.7; }
+.il-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; pointer-events: none; }
+.il-empty svg { color: var(--text-muted); }
+.il-empty span { font-size: 13px; color: var(--text-secondary); }
+
+/* Issues */
+.il-issues { display: flex; flex-direction: column; gap: 4px; }
+.il-issue { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--signal-yellow); }
+.il-issues-more { font-size: 11px; color: var(--text-muted); }
+#il-issues-slot:empty { display: none; }
+
+/* Mixes and the pull list */
+.il-pair { display: flex; align-items: flex-start; gap: 16px; }
+.il-pair .il-mixpanel { flex: 1; min-width: 0; }
+.il-pair .il-sumpanel { width: 340px; flex: none; }
+.il-mixes { display: flex; flex-direction: column; gap: 10px; }
+.il-summary { display: flex; flex-direction: column; gap: 10px; }
+.il-stats { display: flex; gap: 18px; }
+.il-stat { display: flex; flex-direction: column; gap: 2px; }
+.il-stat b { font-size: 26px; font-weight: 300; line-height: 31px; font-variant-numeric: tabular-nums; }
+.il-stat span { font-size: 11px; line-height: 13px; color: var(--text-secondary); }
+.il-sub { font-size: 12px; line-height: 15px; color: var(--text-secondary); }
+.il-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.il-chips span { font-size: 12px; line-height: 15px; padding: 4px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); white-space: nowrap; }
+
+/* Stage plan editor */
+.il-stage { display: flex; flex-direction: column; gap: 14px; }
+.il-palette { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.il-palette::-webkit-scrollbar { display: none; }
+.il-kind { width: 78px; height: 70px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  border: none; border-radius: 10px; background: rgba(255, 255, 255, 0.05); padding: 0; }
+.il-kind:active { opacity: 0.7; }
+.il-kind span { font-size: 10px; line-height: 12px; color: var(--text-secondary); text-align: center; max-width: 78px; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.il-symbol { display: block; flex: none; overflow: visible; }
+.il-symbol text, .il-plan text { font-family: var(--font); }
+.il-stage-main { display: flex; align-items: stretch; gap: 16px; }
+.il-canvas { flex: 1; min-width: 0; min-height: 440px; border-radius: var(--radius-small); background: rgba(0, 0, 0, 0.2); outline: none; touch-action: none; }
+.il-canvas svg { display: block; }
+.il-plan .tnum { font-variant-numeric: tabular-nums; }
+.il-hit { cursor: default; }
+.il-inspector { width: 250px; flex: none; align-self: flex-start; }
+.il-insp { padding: 14px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.il-insp.il-hint { gap: 8px; }
+.il-insp.il-hint > svg { color: var(--text-muted); width: 20px; height: 20px; }
+.il-insp.il-hint span { font-size: 12px; line-height: 15px; color: var(--text-secondary); }
+.il-insp-head { display: flex; align-items: center; gap: 10px; }
+.il-insp-head b { font-size: 14px; font-weight: 600; }
+.il-rot { display: flex; align-items: center; gap: 8px; }
+.il-slider { flex: 1; min-width: 0; accent-color: var(--accent); }
+.il-insp-steps { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.il-insp-tools { display: flex; align-items: center; gap: 8px; }
+.il-insp-tools .btn svg { width: 15px; height: 15px; }
+.il-stage-controls { display: flex; align-items: center; gap: 20px; font-size: 13px; }
+
+/* Menus (NSMenu) and the stage box popover (NSPopover). */
+.il-menu { position: fixed; z-index: 50; min-width: 200px; padding: 5px; border-radius: 7px; background: rgba(42, 44, 43, 0.97);
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex; flex-direction: column; max-height: 70vh; overflow-y: auto; }
+.il-menu-item { display: block; text-align: left; border: none; background: none; padding: 3px 10px; border-radius: 4px; font-size: 13px;
+  color: var(--text-primary); white-space: nowrap; }
+.il-menu-item:hover { background: rgba(10, 132, 255, 0.9); color: #fff; }
+.il-menu-sep { height: 1px; margin: 5px 10px; background: rgba(255, 255, 255, 0.12); }
+.il-popover { position: absolute; z-index: 40; top: calc(100% + 10px); left: 50%; transform: translateX(-50%); width: 360px; padding: 16px;
+  display: flex; flex-direction: column; gap: 12px; font-size: 13px; border-radius: 10px; background: rgba(42, 44, 43, 0.98);
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.6), inset 0 0 0 0.5px rgba(255, 255, 255, 0.14), 0 12px 32px rgba(0, 0, 0, 0.5); }
+.il-popover-arrow { position: absolute; top: -6px; left: calc(50% - 6px); width: 12px; height: 12px; transform: rotate(45deg);
+  background: rgba(42, 44, 43, 0.98); box-shadow: -0.5px -0.5px 0 rgba(255, 255, 255, 0.14); }
+.il-popover-title { font-size: 14px; font-weight: 600; }
+.il-popover-row { display: flex; align-items: center; gap: 8px; }
+.il-sb-prefix { width: 90px; flex: none; }

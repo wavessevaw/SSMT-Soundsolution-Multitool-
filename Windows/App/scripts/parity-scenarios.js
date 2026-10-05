@@ -7,6 +7,29 @@ const go = (section) => async (h) => {
   await h.settle();
 };
 
+// Ptch: the sample document of SnapshotTests.sampleInputList (engine command il.fixture, or the recorded events).
+const ptch = (show) => async (h) => {
+  if (h.hasEngine) {
+    h.send({ cmd: 'il.fixture' });
+    await h.waitFor((e) => e.event === 'il.state' && e.doc && e.doc.artist === 'The Sample Band');
+  }
+  await h.eval(() => { window.SSMT.S.section = 'inputList'; window.SSMT.render(); });
+  await h.settle();
+  await h.eval((v) => {
+    if (v === 'workspace') {
+      // InputListWorkspace().padding(16) on its own, as the Mac test renders it.
+      const st = document.createElement('style');
+      st.textContent = '#sidebar, #workspace-head { display: none !important; } #app { padding: 16px; gap: 0; } .workspace { gap: 0; }';
+      document.head.appendChild(st);
+      window.SSMT.render();
+    } else {
+      const html = window.SSMT.inputList.sheet(v);
+      document.open(); document.write(html); document.close();
+    }
+  }, show);
+  await h.settle();
+};
+
 module.exports = [
   { name: 'splash', size: [960, 600] },
   { name: 'instruments', size: [1380, 340] },
@@ -21,9 +44,9 @@ module.exports = [
   { name: 'finished', size: [1000, 1250] },
   { name: 'mini-window', size: [380, 330] },
   { name: 'report', size: [1100, 1474] },
-  { name: 'input-list', size: [1300, 2100] },
-  { name: 'input-list-print', size: [842, 595] },
-  { name: 'stage-plan-print', size: [842, 595] },
+  { name: 'input-list', size: [1300, 2100], steps: ptch('workspace') },
+  { name: 'input-list-print', size: [842, 595], fixture: 'input-list', steps: ptch('channels') },
+  { name: 'stage-plan-print', size: [842, 595], fixture: 'input-list', steps: ptch('stage') },
   { name: 'account-register', size: [1200, 760] },
   { name: 'profile-overview', size: [1100, 760] },
   { name: 'profile-achievements', size: [1100, 900] },
