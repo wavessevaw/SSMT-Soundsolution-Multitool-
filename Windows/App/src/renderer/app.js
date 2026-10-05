@@ -88,20 +88,20 @@
     const sh = e.target.closest('[data-shell]');
     if (sh) { shell[sh.dataset.shell] && shell[sh.dataset.shell](sh.dataset.arg); return; }
     const el = e.target.closest('[data-act]');
-    if (!el || el.disabled || el.closest('#pane-assist')) return;
+    if (!el || el.disabled) return;
     const sec = owner(el);
     const fn = sec && sec.actions && sec.actions[el.dataset.act];
     if (fn) fn(el.dataset.arg, el, e);
   });
   document.addEventListener('input', (e) => {
     const k = e.target.dataset && e.target.dataset.input;
-    if (!k || e.target.closest('#pane-assist')) return;
+    if (!k) return;
     const sec = owner(e.target);
     if (sec && sec.inputs && sec.inputs[k]) sec.inputs[k](e.target.type === 'checkbox' ? e.target.checked : e.target.value, e.target);
   });
   document.addEventListener('change', (e) => {
     const k = e.target.dataset && e.target.dataset.change;
-    if (!k || e.target.closest('#pane-assist')) return;
+    if (!k) return;
     const sec = owner(e.target);
     const fn = sec && sec.actions && sec.actions[k];
     if (fn) fn(e.target.type === 'checkbox' ? e.target.checked : e.target.value, e.target, e);
