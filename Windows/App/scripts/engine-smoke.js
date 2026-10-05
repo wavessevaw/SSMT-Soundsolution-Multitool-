@@ -111,9 +111,10 @@ function fakeConsole() {
   const fake = await fakeConsole();
   link.send({ cmd: 'routing', preset: 'local' });
   link.send({ cmd: 'connect', family: 'x32', host: '127.0.0.1' });
-  const real = await waitFor((e) => e.event === 'state' && e.family === 'x32' && e.strips.some((s) => s.id === 1 && s.name === 'Vox Lead'), 8000, 'console state over UDP');
+  // The state streams in as the console answers, so wait for both the name and the fader of channel 1.
+  const real = await waitFor((e) => e.event === 'state' && e.family === 'x32'
+    && e.strips.some((s) => s.id === 1 && s.name === 'Vox Lead' && Math.abs(s.faderDB) < 0.01), 8000, 'console state over UDP (name and fader read)');
   assert.strictEqual(real.readOnly, true);
-  assert.ok(Math.abs(real.strips.find((s) => s.id === 1).faderDB) < 0.01, 'fader read');
   await waitFor((e) => e.event === 'meters' && e.channels[0] > -21 && e.channels[0] < -19, 5000, 'channel meter');
   step(`console read over UDP: ${fake.count()} packets sent to it, model "${real.model}"`);
   // Soundcheck commands are refused on a real console.
