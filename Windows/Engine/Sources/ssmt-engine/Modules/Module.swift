@@ -33,5 +33,7 @@ extension EngineModule {
 
 /// Every module, in the order commands are offered to them.
 func makeModules() -> [EngineModule] {
-    []
+    [
+        AudioIOModule(), SetupModule(),
+    ]
 }
