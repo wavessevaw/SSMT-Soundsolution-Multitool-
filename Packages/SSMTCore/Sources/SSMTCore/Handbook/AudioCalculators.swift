@@ -155,14 +155,15 @@ public struct AudioCalculator: Identifiable, Sendable {
         return words.allSatisfy { text.contains($0) }
     }
 
+    /// Up to `digits` decimals, trailing zeros dropped ("2.50" → "2.5", "3.00" → "3"). No formatter object: this
+    /// runs on every keystroke for every result.
     static func format(_ v: Double, digits: Int) -> String {
-        let f = NumberFormatter()
-        f.numberStyle = .decimal
-        f.usesGroupingSeparator = false
-        f.minimumFractionDigits = 0
-        f.maximumFractionDigits = digits
-        f.locale = Locale(identifier: "en_US_POSIX")
-        return f.string(from: NSNumber(value: v)) ?? String(v)
+        var s = String(format: "%.\(max(0, digits))f", v)
+        if s.contains(".") {
+            while s.hasSuffix("0") { s.removeLast() }
+            if s.hasSuffix(".") { s.removeLast() }
+        }
+        return s == "-0" ? "0" : s
     }
 }
 

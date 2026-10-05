@@ -4,7 +4,6 @@ import SwiftUI
 struct MainView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var loc: Localizer
-    @EnvironmentObject var center: ProfileCenter
     var brandNamespace: Namespace.ID? = nil
     var showBrand = true
 
@@ -39,16 +38,11 @@ struct MainView: View {
             }
             .padding(14)
         }
-        .overlay(alignment: .topTrailing) {
-            AchievementToast().padding(.top, 18).padding(.trailing, 22)
-                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: center.toasts.first)
-        }
-        .overlay { LevelUpOverlay().animation(.easeInOut(duration: 0.25), value: center.levelUp) }
-        .sheet(isPresented: $center.showProfile) {
-            ProfileSheet().ssmtEnvironment(model, loc)
-        }
-        .onChange(of: model.section) { center.sectionOpened($0.rawValue) }
-        .onAppear { center.sectionOpened(model.section.rawValue) }
+        // Profile toasts, level-up and the profile sheet watch the profile themselves: progress updates never
+        // redraw the whole window.
+        .overlay { ProfileOverlays() }
+        .onChange(of: model.section) { ProfileCenter.shared.sectionOpened($0.rawValue) }
+        .onAppear { ProfileCenter.shared.sectionOpened(model.section.rawValue) }
         .preferredColorScheme(.dark)
         .tint(Theme.accent)
         .environment(\.reducedEffects, model.reducedEffects)

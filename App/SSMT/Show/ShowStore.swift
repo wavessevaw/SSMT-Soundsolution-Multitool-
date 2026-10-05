@@ -70,12 +70,15 @@ final class ShowStore: ObservableObject {
     @Published var showOSC = false
     var oscWizardKind: OSCDeviceKind?
     let osc = OSCHub()
-    @Published private(set) var snapshot = ShowSnapshot.empty
+    /// Playback state and meters (≈25 updates a second while playing) live in their own object, so they redraw
+    /// only the views that show them.
+    let live = ShowLive()
+    var snapshot: ShowSnapshot { live.snapshot }
     /// When `snapshot` was taken: views move playback cursors on smoothly between snapshots.
-    private(set) var snapshotDate = Date()
-    @Published private(set) var meters: [Float] = []
+    var snapshotDate: Date { live.snapshotDate }
+    var meters: [Float] { live.meters }
     /// Outputs that clipped in the last 1.5 s.
-    @Published private(set) var clipping: [Bool] = []
+    var clipping: [Bool] { live.clipping }
     private var clipUntil: [Int: Date] = [:]
     @Published private(set) var outputName = ""
     @Published private(set) var outputError: String?
@@ -171,9 +174,9 @@ final class ShowStore: ObservableObject {
                  waveforms: [String: [Float]] = [:]) {
         self.waveforms = waveforms
         outputStarted = true
-        self.snapshot = snapshot
+        live.snapshot = snapshot
         clipInfo = clips
-        self.meters = meters
+        live.meters = meters
         missingFiles = []
         outputName = "Preview"
     }
@@ -594,8 +597,12 @@ final class ShowStore: ObservableObject {
         if let oldest = loopSince.values.min() { c.recordMax("qtrl.loopMinutes", Int(Date().timeIntervalSince(oldest) / 60)) }
     }
 
-    /// Biggest playlist and timeline group in the show.
+    private var lastShapeCheck = Date.distantPast
+
+    /// Biggest playlist and timeline group in the show (at most once a second: drags edit many times a second).
     private func trackShape() {
+        guard Date().timeIntervalSince(lastShapeCheck) > 1 else { return }
+        lastShapeCheck = Date()
         let groups = doc.allCues.filter { $0.kind == .group }
         ProfileCenter.shared.recordMax("qtrl.maxPlaylist", groups.filter { $0.groupMode == .playlist }.map(\.children.count).max() ?? 0)
         ProfileCenter.shared.recordMax("qtrl.maxTimelineTracks", groups.filter { $0.groupMode == .simultaneous }.map(\.children.count).max() ?? 0)
@@ -716,7 +723,7 @@ final class ShowStore: ObservableObject {
     }
 
     private func apply(_ snap: ShowSnapshot, peaks: [Float]) {
-        if snap != snapshot { snapshotDate = Date(); snapshot = snap }
+        if snap != live.snapshot { live.snapshotDate = Date(); live.snapshot = snap }
         let used = Array(peaks.prefix(doc.outputs.count))
         // Ballistics as on a console: rises at once, falls about 25 dB/s; clipping (≥ 0 dBFS, the output really
         // overloads) stays lit 1.5 s.
@@ -727,9 +734,9 @@ final class ShowStore: ObservableObject {
             shown[i] = max(used[i], fall < 1e-5 ? 0 : fall)
             if used[i] >= 1 { clipUntil[i] = Date().addingTimeInterval(1.5) }
         }
-        if shown != meters { meters = shown }
+        if shown != live.meters { live.meters = shown }
         let clips = used.indices.map { (clipUntil[$0] ?? .distantPast) > Date() }
-        if clips != clipping { clipping = clips }
+        if clips != live.clipping { live.clipping = clips }
         if let lid = snap.listID, lid != listID, doc.lists.contains(where: { $0.id == lid }) { listID = lid }
     }
 
@@ -1226,4 +1233,14 @@ final class ShowStore: ObservableObject {
     }
 
     private func loc(_ key: String) -> String { localizer?.t(key) ?? key }
+}
+
+/// Playback state of Qtrl and its output meters. Separate from `ShowStore` so the ≈25 updates a second while
+/// something plays redraw the cue states, timeline cursor, running panel and meters — not the whole Qtrl screen.
+@MainActor
+final class ShowLive: ObservableObject {
+    @Published var snapshot = ShowSnapshot.empty
+    var snapshotDate = Date()
+    @Published var meters: [Float] = []
+    @Published var clipping: [Bool] = []
 }

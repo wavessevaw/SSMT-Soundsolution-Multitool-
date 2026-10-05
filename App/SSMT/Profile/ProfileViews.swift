@@ -28,11 +28,15 @@ extension AchievementCategory {
     }
 }
 
+/// "12 345": thin grouping without a formatter object per call.
 private func formatInt(_ n: Int) -> String {
-    let f = NumberFormatter()
-    f.numberStyle = .decimal
-    f.groupingSeparator = " "
-    return f.string(from: NSNumber(value: n)) ?? "\(n)"
+    let digits = String(abs(n))
+    var out = ""
+    for (i, ch) in digits.enumerated() {
+        if i > 0 && (digits.count - i) % 3 == 0 { out.append(" ") }
+        out.append(ch)
+    }
+    return n < 0 ? "-" + out : out
 }
 
 private func formatHours(_ h: Double) -> String {
@@ -563,6 +567,25 @@ struct LevelUpOverlay: View {
                 .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(rank.color.opacity(0.4)))
             }
             .transition(.opacity)
+        }
+    }
+}
+
+/// Everything the profile shows over the main window, in one layer that observes the profile.
+struct ProfileOverlays: View {
+    @EnvironmentObject var center: ProfileCenter
+    @EnvironmentObject var model: AppModel
+    @EnvironmentObject var loc: Localizer
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.clear.allowsHitTesting(false)
+            LevelUpOverlay().animation(.easeInOut(duration: 0.25), value: center.levelUp)
+            AchievementToast().padding(.top, 18).padding(.trailing, 22)
+                .animation(.spring(response: 0.4, dampingFraction: 0.85), value: center.toasts.first)
+        }
+        .sheet(isPresented: $center.showProfile) {
+            ProfileSheet().ssmtEnvironment(model, loc)
         }
     }
 }

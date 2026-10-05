@@ -53,6 +53,7 @@ struct WaveformEditor: View {
             .frame(width: 1100)
             .background(Backdrop())
             .environmentObject(show)
+            .environmentObject(show.live)
             .environmentObject(loc)
             .preferredColorScheme(.dark)
         }

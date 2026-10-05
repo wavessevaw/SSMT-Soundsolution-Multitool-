@@ -35,7 +35,13 @@ final class ProfileCenter: ObservableObject {
     static let shared = ProfileCenter()
 
     @Published private(set) var profiles: [LocalProfile] = []
+    /// The signed-in profile as the interface shows it: refreshed at most every 2 s, and at once when something
+    /// is unlocked. Clicks and ticks change `live` only, so they never redraw the whole app.
     @Published private(set) var current: LocalProfile?
+    private var live: LocalProfile?
+    private var lastPublish = Date.distantPast
+    /// Signed in or not — the only thing the root view watches.
+    let gate = SessionGate()
     /// Achievements waiting to be shown as toasts (first = on screen).
     @Published var toasts: [String] = []
     @Published var levelUp: Int?
@@ -112,11 +118,13 @@ final class ProfileCenter: ObservableObject {
     }
 
     private func begin(_ p: LocalProfile) {
+        live = p
         current = p
+        gate.signedIn = true
         sessionStart = Date()
         sessionSections = []
         lastInput = Date()
-        current?.progress.recordLaunch(at: Date())
+        live?.progress.recordLaunch(at: Date())
         startMonitoring()
         evaluate()
     }
@@ -124,7 +132,9 @@ final class ProfileCenter: ObservableObject {
     func logout() {
         save()
         UserDefaults.standard.removeObject(forKey: Self.autoLoginKey)
+        live = nil
         current = nil
+        gate.signedIn = false
         toasts = []
         levelUp = nil
         showProfile = false
@@ -132,7 +142,7 @@ final class ProfileCenter: ObservableObject {
     }
 
     func save() {
-        guard let p = current else { return }
+        guard let p = live else { return }
         write(p)
         lastSave = Date()
     }
@@ -145,27 +155,27 @@ final class ProfileCenter: ObservableObject {
 
     /// Quitting within ten seconds of the session start ("Just looking").
     func appWillQuit() {
-        if current != nil, Date().timeIntervalSince(sessionStart) < 10 { record("app.quickQuit") }
+        if live != nil, Date().timeIntervalSince(sessionStart) < 10 { record("app.quickQuit") }
         save()
     }
 
     // MARK: Events from the functions
 
     func record(_ event: String, count: Int = 1) {
-        guard current != nil else { return }
-        current?.progress.record(event, count: count)
+        guard live != nil else { return }
+        live?.progress.record(event, count: count)
         evaluate()
     }
 
     func recordMax(_ key: String, _ value: Int) {
-        guard let p = current, value > p.progress.counters[key, default: 0] else { return }
-        current?.progress.recordMax(key, value)
+        guard let p = live, value > p.progress.counters[key, default: 0] else { return }
+        live?.progress.recordMax(key, value)
         evaluate()
     }
 
     func insert(_ item: String, into set: String) {
-        guard let p = current, !p.progress.sets[set, default: []].contains(item) else { return }
-        current?.progress.insert(item, into: set)
+        guard let p = live, !p.progress.sets[set, default: []].contains(item) else { return }
+        live?.progress.insert(item, into: set)
         evaluate()
     }
 
@@ -176,10 +186,21 @@ final class ProfileCenter: ObservableObject {
     }
 
     private func evaluate() {
-        guard current != nil, let u = current?.progress.evaluate(at: Date()), !u.isEmpty else { return }
+        guard live != nil, let u = live?.progress.evaluate(at: Date()), !u.isEmpty else {
+            publish()
+            return
+        }
+        publish(force: true)
         toasts += u.achievements
         if let l = u.newLevel, l > 1 { levelUp = l }
         save()
+    }
+
+    /// Copies the live profile to the interface (throttled).
+    private func publish(force: Bool = false) {
+        guard force || Date().timeIntervalSince(lastPublish) >= 2 else { return }
+        lastPublish = Date()
+        current = live
     }
 
     func dismissToast() { if !toasts.isEmpty { toasts.removeFirst() } }
@@ -198,25 +219,25 @@ final class ProfileCenter: ObservableObject {
     }
 
     private func handle(_ e: NSEvent) {
-        guard current != nil else { return }
+        guard live != nil else { return }
         let now = Date()
         lastInput = now
         switch e.type {
         case .leftMouseDown, .rightMouseDown:
-            current?.progress.recordClick(at: now)
+            live?.progress.recordClick(at: now)
             clickTimes = clickTimes.filter { now.timeIntervalSince($0) < 60 } + [now]
-            if clickTimes.count >= 50 { current?.progress.record("input.burst") }
+            if clickTimes.count >= 50 { live?.progress.record("input.burst") }
             let spot = e.locationInWindow
             clickSpots = clickSpots.filter { now.timeIntervalSince($0.0) < 3 && hypot($0.1.x - spot.x, $0.1.y - spot.y) < 6 } + [(now, spot)]
-            if clickSpots.count >= 10 { current?.progress.record("input.woodpecker") }
+            if clickSpots.count >= 10 { live?.progress.record("input.woodpecker") }
         case .keyDown:
             keyTimes = keyTimes.filter { now.timeIntervalSince($0) < 1 } + [now]
-            if keyTimes.count >= 15 { current?.progress.record("input.cat") }
+            if keyTimes.count >= 15 { live?.progress.record("input.cat") }
             if e.modifierFlags.contains(.command) {
-                current?.progress.record("key.shortcut")
+                live?.progress.record("key.shortcut")
                 switch e.charactersIgnoringModifiers?.lowercased() ?? "" {
-                case "z" where !e.modifierFlags.contains(.shift): current?.progress.record("key.undo")
-                case "s": current?.progress.record("key.save")
+                case "z" where !e.modifierFlags.contains(.shift): live?.progress.record("key.undo")
+                case "s": live?.progress.record("key.save")
                 default: break
                 }
             }
@@ -226,9 +247,9 @@ final class ProfileCenter: ObservableObject {
     }
 
     private func tick() {
-        guard current != nil else { return }
+        guard live != nil else { return }
         let active = Date().timeIntervalSince(lastInput) < 120 && NSApp.isActive
-        current?.progress.tick(seconds: 5, active: active, at: Date())
+        live?.progress.tick(seconds: 5, active: active, at: Date())
         sample?()
         evaluate()
         if Date().timeIntervalSince(lastSave) > 30 { save() }
@@ -238,7 +259,9 @@ final class ProfileCenter: ObservableObject {
 
     /// Snapshot tests: show a made-up profile without monitoring input or saving.
     func preview(_ p: LocalProfile?) {
+        live = p
         current = p
+        gate.signedIn = p != nil
         toasts = []
         levelUp = nil
     }
@@ -246,4 +269,10 @@ final class ProfileCenter: ObservableObject {
     // MARK: Display
 
     var progress: PlayerProgress { current?.progress ?? PlayerProgress() }
+}
+
+/// Signed in or not: the root view switches between the account card and the app on this alone.
+@MainActor
+final class SessionGate: ObservableObject {
+    @Published var signedIn = false
 }

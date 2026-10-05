@@ -52,7 +52,7 @@ final class LaunchState: ObservableObject {
 struct RootView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var loc: Localizer
-    @EnvironmentObject var center: ProfileCenter
+    @ObservedObject private var gate = ProfileCenter.shared.gate
     @StateObject private var launch = LaunchState()
     @Namespace private var brand
     @AppStorage("ssmt.showSplash") private var showSplash = true
@@ -62,7 +62,7 @@ struct RootView: View {
         let done = launch.phase == .done
         ZStack {
             Color.black.ignoresSafeArea()
-            if center.current == nil {
+            if !gate.signedIn {
                 // Every session starts with a profile: progress is tied to it.
                 AccountGate().opacity(done ? 1 : 0)
             } else {

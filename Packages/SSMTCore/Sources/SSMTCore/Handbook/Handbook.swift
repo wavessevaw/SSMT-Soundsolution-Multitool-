@@ -124,23 +124,28 @@ public enum Handbook {
     public static let articles: [HandbookArticle] =
         HandbookContent.pinouts + HandbookContent.guides + HandbookContent.consoles + HandbookContent.glossary
 
-    public static func articles(in category: HandbookCategory) -> [HandbookArticle] {
-        articles.filter { $0.category == category }
+    private static let byCategory: [HandbookCategory: [HandbookArticle]] = Dictionary(grouping: articles, by: \.category)
+
+    public static func articles(in category: HandbookCategory) -> [HandbookArticle] { byCategory[category] ?? [] }
+
+    /// Lower-cased search text of every article, built once per language (search runs on every keystroke).
+    private static let fullText: [Bool: [String]] = [
+        true: articles.map { $0.searchText(russian: true) }, false: articles.map { $0.searchText(russian: false) },
+    ]
+    private static let titleText: [String] = articles.map { a in
+        (a.title.ru + " " + a.title.en + " " + a.tags.joined(separator: " ")).lowercased()
     }
 
     /// Articles matching every word of the query; title hits first.
     public static func search(_ query: String, russian: Bool, in category: HandbookCategory? = nil) -> [HandbookArticle] {
-        let pool = category.map { articles(in: $0) } ?? articles
         let words = query.lowercased().split(whereSeparator: { $0.isWhitespace }).map(String.init)
-        guard !words.isEmpty else { return pool }
-        let hits = pool.filter { a in
-            let text = a.searchText(russian: russian)
-            return words.allSatisfy { text.contains($0) }
+        guard !words.isEmpty else { return category.map { articles(in: $0) } ?? articles }
+        let text = fullText[russian] ?? []
+        var titled: [HandbookArticle] = [], other: [HandbookArticle] = []
+        for (i, a) in articles.enumerated() where category == nil || a.category == category {
+            guard words.allSatisfy({ text[i].contains($0) }) else { continue }
+            if words.allSatisfy({ titleText[i].contains($0) }) { titled.append(a) } else { other.append(a) }
         }
-        func inTitle(_ a: HandbookArticle) -> Bool {
-            let t = (a.title.ru + " " + a.title.en + " " + a.tags.joined(separator: " ")).lowercased()
-            return words.allSatisfy { t.contains($0) }
-        }
-        return hits.filter(inTitle) + hits.filter { !inTitle($0) }
+        return titled + other
     }
 }

@@ -7,6 +7,8 @@ import UniformTypeIdentifiers
 
 /// Grid of one-shot pads of the current bank; F-keys and clicks fire them without moving the playhead.
 struct PadGridView: View {
+    /// Playback state (redraws this view only while something plays).
+    @EnvironmentObject var live: ShowLive
     @EnvironmentObject var show: ShowStore
     @EnvironmentObject var loc: Localizer
     var columns: Int
@@ -15,7 +17,7 @@ struct PadGridView: View {
 
     var body: some View {
         let bank = show.currentBank
-        let running = Dictionary(uniqueKeysWithValues: show.snapshot.running.map { ($0.id, $0) })
+        let running = Dictionary(uniqueKeysWithValues: live.snapshot.running.map { ($0.id, $0) })
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 if !embedded {
