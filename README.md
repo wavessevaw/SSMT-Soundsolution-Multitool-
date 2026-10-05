@@ -29,7 +29,7 @@
 | Что | Для кого | Где |
 |---|---|---|
 | **SSMT для Mac** (установщик `.pkg`) | macOS 13+, Apple Silicon и Intel | [**Последний релиз**](../../releases/latest) |
-| **SSMT для Windows** (установщик `.exe`) | Windows 10 / 11, 64 бит; пока только FOH Assist | [**Последний релиз**](../../releases/latest) |
+| **SSMT для Windows** | Windows 10 / 11, 64 бит | Готовится: полная версия, такая же, как на Mac |
 | Руководство | Как пользоваться всеми функциями | [Русский](docs/USER_GUIDE.ru.md) · [English](docs/USER_GUIDE.en.md) |
 | Установка | Первый запуск без подписи Apple Developer ID | [docs/INSTALL.md](docs/INSTALL.md) |
 
@@ -116,7 +116,7 @@ input lists, show playback and a learning console assistant in one app.**
 - 🤖 **FOH Assist** *(learning)* — connects to Behringer X32 / Midas M32 and X Air over Wi-Fi read-only and
   records how the engineer runs an event, once a second; finds per-source patterns over about 20 events and lets a
   small local model answer questions about them. Automatic soundcheck and the show guard are closed on a real
-  console until the learning is done; they can be tried in the simulator. Windows build: FOH Assist only for now.
+  console until the learning is done; they can be tried in the simulator. The Windows version is in progress: the full program, identical to the Mac one.
 
 Why: hours of routine on every gig become a few measured, repeatable steps, while the mix stays in the
 engineer's hands. Requires macOS 13+ (Apple Silicon or Intel) or Windows 10 / 11 (64-bit). [Download](../../releases/latest) ·
