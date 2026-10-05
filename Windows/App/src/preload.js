@@ -10,4 +10,11 @@ contextBridge.exposeInMainWorld('ssmt', {
   llmAsk: (url, model, prompt) => ipcRenderer.invoke('llm:ask', { url, model, prompt }),
   openFolder: (dir) => ipcRenderer.invoke('app:openFolder', dir),
   version: () => ipcRenderer.invoke('app:version'),
+  // Files and export (open / save panels, PDF and PNG from a page of HTML).
+  openFile: (o) => ipcRenderer.invoke('file:open', o),
+  saveFile: (o) => ipcRenderer.invoke('file:save', o),
+  readFile: (p, encoding) => ipcRenderer.invoke('file:read', { path: p, encoding }),
+  writeFile: (p, data, encoding) => ipcRenderer.invoke('file:write', { path: p, data, encoding }),
+  renderPDF: (o) => ipcRenderer.invoke('render:pdf', o),
+  renderPNG: (o) => ipcRenderer.invoke('render:png', o),
 });

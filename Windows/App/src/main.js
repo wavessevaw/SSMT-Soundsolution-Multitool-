@@ -2,7 +2,7 @@
 // SSMT for Windows: Electron shell. Starts the engine, owns the UDP sockets (engine-link.js) and the local language
 // model calls (Ollama), and shows the interface in src/renderer.
 
-const { app, BrowserWindow, ipcMain, powerSaveBlocker, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, powerSaveBlocker, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { EngineLink } = require('./engine-link');
@@ -49,8 +49,8 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1400,
     height: 900,
-    minWidth: 1000,
-    minHeight: 640,
+    minWidth: 1100,
+    minHeight: 720,
     backgroundColor: '#070908',
     title: 'SSMT',
     icon: path.join(__dirname, 'renderer', 'icon.png'),
@@ -96,6 +96,47 @@ ipcMain.handle('llm:ask', async (_e, { url, model, prompt }) => {
   } catch (e) {
     return { ok: false, error: String(e.message || e) };
   }
+});
+// Files, as the Mac app's open and save panels and its PDF / PNG export. Paths are chosen by the person in a dialog.
+const filters = (f) => (f || []).map((x) => ({ name: x.name, extensions: x.extensions }));
+ipcMain.handle('file:open', async (_e, o = {}) => {
+  const r = await dialog.showOpenDialog(win, { title: o.title, filters: filters(o.filters), defaultPath: o.defaultPath,
+    properties: ['openFile', ...(o.multiple ? ['multiSelections'] : []), ...(o.directory ? ['openDirectory'] : [])] });
+  return r.canceled ? [] : r.filePaths;
+});
+ipcMain.handle('file:save', async (_e, o = {}) => {
+  const r = await dialog.showSaveDialog(win, { title: o.title, defaultPath: o.defaultName, filters: filters(o.filters) });
+  return r.canceled ? null : r.filePath;
+});
+ipcMain.handle('file:read', async (_e, { path: p, encoding }) => fs.promises.readFile(p, encoding === 'base64' ? undefined : 'utf8')
+  .then((d) => (encoding === 'base64' ? d.toString('base64') : d)));
+ipcMain.handle('file:write', async (_e, { path: p, data, encoding }) => {
+  await fs.promises.writeFile(p, encoding === 'base64' ? Buffer.from(data, 'base64') : data);
+  return true;
+});
+/** Renders a self-contained HTML page off screen: to a PDF (pages of `pageSize` in points) or to a PNG. */
+async function offscreen(html, size, fn) {
+  const w = new BrowserWindow({ show: false, width: Math.ceil(size[0]), height: Math.ceil(size[1]), useContentSize: true,
+    webPreferences: { offscreen: true, contextIsolation: true, nodeIntegration: false } });
+  try {
+    await w.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html), { baseURLForDataURL: 'file://' + path.join(__dirname, 'renderer') + '/' });
+    await w.webContents.executeJavaScript('document.fonts.ready.then(() => true)');
+    return await fn(w);
+  } finally {
+    w.destroy();
+  }
+}
+ipcMain.handle('render:pdf', async (_e, { html, path: p, pageSize, landscape }) => {
+  const data = await offscreen(html, pageSize || [595, 842], (w) => w.webContents.printToPDF({
+    printBackground: true, landscape: !!landscape, margins: { marginType: 'none' }, preferCSSPageSize: true,
+    pageSize: pageSize ? { width: pageSize[0] / 72, height: pageSize[1] / 72 } : 'A4' }));
+  await fs.promises.writeFile(p, data);
+  return true;
+});
+ipcMain.handle('render:png', async (_e, { html, path: p, width, height, scale }) => {
+  const data = await offscreen(html, [width * (scale || 1), height * (scale || 1)], async (w) => (await w.webContents.capturePage()).toPNG());
+  await fs.promises.writeFile(p, data);
+  return true;
 });
 ipcMain.handle('app:openFolder', async (_e, dir) => { if (dir) await shell.openPath(dir); return true; });
 ipcMain.handle('app:version', () => app.getVersion());
