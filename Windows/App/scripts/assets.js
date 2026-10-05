@@ -41,6 +41,10 @@ const MAP = {
   'waveform.badge.plus': 'file-audio', 'waveform.path.ecg': 'activity', 'waveform.path.ecg.rectangle': 'square-activity',
   'wifi': 'wifi', 'xmark': 'x', 'xmark.circle.fill': 'circle-x', 'xmark.octagon.fill': 'octagon-x', 'xmark.shield': 'shield-x',
   'folder.badge.plus': 'folder-plus', 'person.crop.circle': 'circle-user', 'questionmark.circle': 'circle-help',
+  'play': 'play', 'stop': 'square', 'pause': 'pause', 'pause.fill': 'pause', 'plus.square.on.square': 'copy-plus',
+  'arrow.up': 'arrow-up', 'arrow.down': 'arrow-down', 'square.stack.3d.up.slash': 'ungroup', 'timeline.selection': 'gallery-horizontal',
+  'rectangle.bottomthird.inset.filled': 'panel-bottom', 'sidebar.right': 'panel-right', 'pause.circle.fill': 'circle-pause',
+  'play.circle.fill': 'circle-play', 'clock.fill': 'clock', 'hifispeaker': 'speaker', 'questionmark': 'circle-help',
 };
 
 const root = path.join(__dirname, '..');

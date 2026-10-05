@@ -7,6 +7,28 @@ const go = (section) => async (h) => {
   await h.settle();
 };
 
+// Qtrl (show control): the Mac renders the view alone with padding 16 (ShowWorkspace), 20 (WaveformEditor) or none
+// (OSCDevicesView), without the app sidebar. The engine builds the sample show of SnapshotTests.prepareShow.
+const QTRL_CSS = '#sidebar{display:none!important}#app{padding:16px!important;gap:0!important}#workspace-head{display:none!important}';
+const qtrl = (variant, ui, engineOps = []) => async (h) => {
+  await h.eval((css) => { const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s); }, QTRL_CSS);
+  if (h.hasEngine) {
+    h.send({ cmd: 'show', op: 'fixture', variant });
+    await h.waitFor((e) => e.event === 'showLive');
+    for (const op of engineOps) h.send(Object.assign({ cmd: 'show' }, op));
+    await h.settle();
+  }
+  await h.eval((u) => {
+    const Q = window.SSMT.qtrl;
+    Object.assign(Q.ui, u);
+    if (u.solo === 'waveform') Q.ui.soloCue = Q.st.show.selection[0];
+    if (u.oscStart) Q.oscStartWith(u.oscStart);
+    window.SSMT.S.section = 'show';
+    window.SSMT.render();
+  }, ui);
+  await h.settle();
+};
+
 module.exports = [
   { name: 'splash', size: [960, 600] },
   { name: 'instruments', size: [1380, 340] },
@@ -31,12 +53,12 @@ module.exports = [
   { name: 'achievement-toast', size: [520, 140] },
   { name: 'handbook-calculator', size: [1300, 820] },
   { name: 'handbook-pinout', size: [1300, 820] },
-  { name: 'show-edit', size: [1500, 900] },
-  { name: 'show-show', size: [1500, 900] },
-  { name: 'show-group-multitrack', size: [1500, 900] },
-  { name: 'show-waveform', size: [1000, 600] },
-  { name: 'osc-devices', size: [640, 600] },
-  { name: 'osc-setup-eos', size: [640, 600] },
+  { name: 'show-edit', size: [1500, 900], steps: qtrl('player', { sidebar: true, inspector: true, timeline: false, sidebarTab: 'pads', inspectorTab: 'main' }) },
+  { name: 'show-show', size: [1500, 900], steps: qtrl('player', { sidebar: true, inspector: true, timeline: true, sidebarTab: 'active', inspectorTab: 'main' }, [{ op: 'showMode', on: true }]) },
+  { name: 'show-group-multitrack', size: [1500, 900], steps: qtrl('multitrack', { sidebar: true, inspector: true, timeline: false, sidebarTab: 'active', inspectorTab: 'multitrack' }) },
+  { name: 'show-waveform', size: [1000, 600], steps: qtrl('waveform', { solo: 'waveform' }) },
+  { name: 'osc-devices', size: [640, 600], steps: qtrl('osc', { solo: 'osc', oscPage: 'list' }) },
+  { name: 'osc-setup-eos', size: [640, 600], steps: qtrl('osc', { solo: 'osc', oscStart: 'eos' }) },
   { name: 'game-launcher', size: [1030, 540] },
   { name: 'assist-connect', size: [1500, 940] },
   { name: 'assist', size: [1500, 940] },
