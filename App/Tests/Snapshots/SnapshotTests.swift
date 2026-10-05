@@ -474,69 +474,11 @@ final class SnapshotTests: XCTestCase {
 }
 
 /// Runs the full wizard (alignment + verification + EQ round) in simulation for screenshots.
+/// The session itself lives in SSMTCore so the Windows parity fixtures use exactly the same one.
 @MainActor
 enum SimulatedSession {
     static func completeWizard() throws -> SetupWizard {
-        var system = AppModel.demoSystem()
-        system.micNoiseDBFS = -75
-        var safety = GeneratorSafety()
-        safety.fadeInSeconds = 0.05
-        safety.startLevelDBFS = -20
-        let backend = SimulatedAudioBackend(system: system, deviceLatency: 512, safety: safety, seed: 21)
-        let engine = MeasurementEngine(backend: backend)
-        backend.generatorControl.targetLevelDBFS.value = -20
-        backend.generatorControl.run.value = true
-        func run(_ seconds: Double) {
-            for _ in 0..<Int(seconds * 40) { backend.pump(frames: 1200); engine.drainNow() }
-        }
-        func capture(_ seconds: Double, band: ClosedRange<Double>? = nil) -> Capture? {
-            var c: Capture?
-            engine.capture(label: "s", duration: seconds, qualityBand: band) { c = $0 }
-            run(seconds + 0.5)
-            return c
-        }
-        run(1)
-        var delay: DelayEstimate?
-        engine.findDelay(seconds: 3) { delay = $0 }
-        run(3.5)
-        var config = WizardConfiguration()
-        config.crossover = 90
-        config.captureSeconds = 8
-        var w = SetupWizard(configuration: config)
-        guard let d = delay else { throw XCTSkip("delay not found") }
-        w.lockDelay(d, epoch: backend.discontinuities.value)
-        w.start()
-        for step in [WizardStep.baseline, .subOnly, .mainsOnly] {
-            let g = step.requiredGroups!
-            backend.setActiveGroups(sub: g.sub, main: g.mains)
-            run(0.5)
-            if let c = capture(8, band: step.qualityBand(crossover: 90)) { w.submit(c) }
-        }
-        guard let a = w.alignment else { throw XCTSkip("no alignment") }
-        backend.applyAlignment(delaySeconds: a.roundedDelay, invertPolarity: a.best.invertPolarity, subGainDB: a.subGainDB)
-        backend.setActiveGroups(sub: true, main: true)
-        w.beginVerification()
-        run(0.5)
-        if let c = capture(8) { w.submit(c) }
-        w.beginEQ()
-        for p in 0..<w.configuration.eqPointCount {
-            backend.moveMicrophone(toPoint: p)
-            run(0.5)
-            if let c = capture(6) { w.submit(c) }
-        }
-        if let r = w.computeEQ() {
-            var knobs = backend.processorSettings
-            knobs.subEQ = r.filters.filter { $0.group == .sub }
-            knobs.mainsEQ = r.filters.filter { $0.group == .mains }
-            backend.setProcessor(knobs)
-            w.beginEQVerification()
-            for p in 0..<w.eqPoints.count {
-                backend.moveMicrophone(toPoint: p)
-                run(0.5)
-                if let c = capture(6) { w.submit(c) }
-            }
-            // Stay on the EQ tuning data for the screenshots, but keep the verification results.
-        }
+        guard let w = SimulatedSetupSession.completeWizard() else { throw XCTSkip("simulated session did not align") }
         return w
     }
 }
