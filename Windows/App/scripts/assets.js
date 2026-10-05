@@ -50,6 +50,8 @@ const MAP = {
   'character.book.closed': 'book-a', 'ruler': 'ruler', 'speaker.wave.3': 'volume-2', 'hifispeaker': 'speaker',
   'plusminus': 'diff', 'sum': 'sigma', 'cable.coaxial': 'cable', 'speaker.wave.2.bubble': 'message-square-text',
   'dot.radiowaves.forward': 'rss', 'cube': 'box', 'metronome': 'metronome', 'number': 'hash', 'lock': 'lock', 'eye': 'eye',
+  'chevron.up.chevron.down': 'chevrons-up-down', 'chevron.up': 'chevron-up', 'waveform.slash': 'audio-lines-off',
+  'speaker.wave.2.fill': 'volume-2', 'speaker.slash.fill': 'volume-x', 'flag.checkered': 'flag', 'circle.dashed': 'circle-dashed',
 };
 
 const root = path.join(__dirname, '..');

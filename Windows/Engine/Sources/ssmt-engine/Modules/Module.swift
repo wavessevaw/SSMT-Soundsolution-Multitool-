@@ -33,5 +33,5 @@ extension EngineModule {
 
 /// Every module, in the order commands are offered to them.
 func makeModules() -> [EngineModule] {
-    [InputListModule(), HandbookModule(), ProfileModule(), GameModule()]
+    [InputListModule(), HandbookModule(), ProfileModule(), GameModule(), AudioIOModule(), SetupModule()]
 }

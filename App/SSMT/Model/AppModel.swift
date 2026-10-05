@@ -838,18 +838,6 @@ final class AppModel: ObservableObject {
 
     /// Demo room with a deliberately misaligned sub (2.5 m closer, polarity inverted, +3 dB),
     /// coloured mains, a floor bounce and two LF modes — gives the wizard something to fix.
-    static func demoSystem() -> VirtualSystem {
-        let fs = 48000.0
-        let room = VirtualRoom(
-            reflections: [VirtualReflection(delaySamples: 168, gain: 0.35),
-                          VirtualReflection(delaySamples: 1900, gain: 0.2)],
-            modes: [Biquad.design(.peaking, frequency: 63, q: 6, gainDB: 7, sampleRate: fs),
-                    Biquad.design(.peaking, frequency: 160, q: 5, gainDB: 4, sampleRate: fs)])
-        var sys = VirtualSystem.typicalPA(sampleRate: fs, crossover: 90, subDistance: 7, mainDistance: 9.5,
-                                          subGainDB: 3, subInverted: true, room: room, micNoiseDBFS: -75)
-        // Mains with a honky mid and a bright top, so the EQ steps have something to correct.
-        sys.main.filters += [Biquad.design(.peaking, frequency: 1800, q: 1.2, gainDB: 5, sampleRate: fs),
-                             Biquad.design(.peaking, frequency: 9000, q: 0.8, gainDB: 3, sampleRate: fs)]
-        return sys
-    }
+    /// Shared with the Windows engine (SSMTCore).
+    static func demoSystem() -> VirtualSystem { VirtualSystem.demo() }
 }
