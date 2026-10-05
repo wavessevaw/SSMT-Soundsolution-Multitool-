@@ -10032,6 +10032,57 @@
         }
       }
     },
+    "game.win.getEmulator": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get BlastEm (free emulator)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скачать BlastEm (бесплатный эмулятор)"
+          }
+        }
+      }
+    },
+    "game.win.play": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play in the emulator"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Играть в эмуляторе"
+          }
+        }
+      }
+    },
+    "game.win.reveal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in folder"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать в папке"
+          }
+        }
+      }
+    },
     "gauge.before": {
       "extractionState": "manual",
       "localizations": {

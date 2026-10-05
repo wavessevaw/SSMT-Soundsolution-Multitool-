@@ -1,32 +1,6 @@
 import AppKit
 import Combine
-import CryptoKit
 import SSMTCore
-
-/// A local engineer profile: name, password and everything earned. One JSON file per profile.
-struct LocalProfile: Codable, Identifiable, Equatable {
-    var id = UUID()
-    var name: String
-    var email: String
-    var role: String
-    var color: Int
-    var createdAt = Date()
-    var salt: String
-    var passwordHash: String
-    var progress = PlayerProgress()
-
-    static func hash(_ password: String, salt: String) -> String {
-        SHA256.hash(data: Data((salt + password).utf8)).map { String(format: "%02x", $0) }.joined()
-    }
-
-    func check(_ password: String) -> Bool { Self.hash(password, salt: salt) == passwordHash }
-
-    var initials: String {
-        let words = name.split(whereSeparator: { $0 == " " || $0 == "." }).prefix(2)
-        let s = words.compactMap(\.first).map(String.init).joined().uppercased()
-        return s.isEmpty ? "?" : s
-    }
-}
 
 /// Profiles on this Mac, the signed-in one, and the progress engine: input monitoring, active time,
 /// events from the five functions, achievement toasts and level-ups.
@@ -47,8 +21,8 @@ final class ProfileCenter: ObservableObject {
     @Published var levelUp: Int?
     @Published var showProfile = false
 
-    static let avatarColors = [0x2A4B3E, 0x23405A, 0x43305A, 0x5A2E2E, 0x5A4A2A]
-    static let roles = ["foh", "monitors", "system", "theatre", "studio", "learning"]
+    static let avatarColors = LocalProfile.avatarColors
+    static let roles = LocalProfile.roles
 
     private var monitor: Any?
     private var ticker: Timer?
@@ -57,9 +31,7 @@ final class ProfileCenter: ObservableObject {
     private var sessionSections = Set<String>()
     private var lastSave = Date()
     // Bursts for the input achievements.
-    private var clickTimes: [Date] = []
-    private var clickSpots: [(Date, CGPoint)] = []
-    private var keyTimes: [Date] = []
+    private var input = ProfileInputTracker()
     /// App state sampled by the ticker (noise on, generator level, mic level…).
     var sample: (() -> Void)?
 
@@ -69,6 +41,8 @@ final class ProfileCenter: ObservableObject {
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base
     }
+
+    private static var library: ProfileLibrary { ProfileLibrary(folder: folder) }
 
     private static let autoLoginKey = "ssmt.profile.auto"
 
@@ -83,31 +57,22 @@ final class ProfileCenter: ObservableObject {
     // MARK: Accounts
 
     func loadProfiles() {
-        let urls = (try? FileManager.default.contentsOfDirectory(at: Self.folder, includingPropertiesForKeys: nil)) ?? []
-        profiles = urls.filter { $0.pathExtension == "json" }
-            .compactMap { try? JSONDecoder().decode(LocalProfile.self, from: Data(contentsOf: $0)) }
-            .sorted { $0.progress.activeSeconds > $1.progress.activeSeconds }
+        profiles = Self.library.load()
     }
 
-    enum AccountError: String, Error { case emptyName, shortPassword, mismatch, nameTaken, wrongPassword }
+    typealias AccountError = ProfileAccountError
 
     func register(name: String, email: String, password: String, repeat again: String, role: String, color: Int,
                   autoLogin: Bool) throws {
-        let n = name.trimmingCharacters(in: .whitespaces)
-        guard !n.isEmpty else { throw AccountError.emptyName }
-        guard password.count >= 4 else { throw AccountError.shortPassword }
-        guard password == again else { throw AccountError.mismatch }
-        guard !profiles.contains(where: { $0.name.caseInsensitiveCompare(n) == .orderedSame }) else { throw AccountError.nameTaken }
-        let salt = UUID().uuidString
-        let p = LocalProfile(name: n, email: email.trimmingCharacters(in: .whitespaces), role: role, color: color,
-                             salt: salt, passwordHash: LocalProfile.hash(password, salt: salt))
+        let p = try ProfileLibrary.makeProfile(name: name, email: email, password: password, repeat: again, role: role,
+                                               color: color, existing: profiles)
         write(p)
         loadProfiles()
         signIn(p, autoLogin: autoLogin)
     }
 
     func login(_ id: LocalProfile.ID, password: String, autoLogin: Bool) throws {
-        guard let p = profiles.first(where: { $0.id == id }), p.check(password) else { throw AccountError.wrongPassword }
+        let p = try ProfileLibrary.login(id, password: password, in: profiles)
         signIn(p, autoLogin: autoLogin)
     }
 
@@ -148,9 +113,7 @@ final class ProfileCenter: ObservableObject {
     }
 
     private func write(_ p: LocalProfile) {
-        let enc = JSONEncoder()
-        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try? enc.encode(p).write(to: Self.folder.appendingPathComponent(p.id.uuidString + ".json"), options: .atomic)
+        Self.library.write(p)
     }
 
     /// Quitting within ten seconds of the session start ("Just looking").
@@ -222,27 +185,17 @@ final class ProfileCenter: ObservableObject {
         guard live != nil else { return }
         let now = Date()
         lastInput = now
+        guard var progress = live?.progress else { return }
         switch e.type {
         case .leftMouseDown, .rightMouseDown:
-            live?.progress.recordClick(at: now)
-            clickTimes = clickTimes.filter { now.timeIntervalSince($0) < 60 } + [now]
-            if clickTimes.count >= 50 { live?.progress.record("input.burst") }
             let spot = e.locationInWindow
-            clickSpots = clickSpots.filter { now.timeIntervalSince($0.0) < 3 && hypot($0.1.x - spot.x, $0.1.y - spot.y) < 6 } + [(now, spot)]
-            if clickSpots.count >= 10 { live?.progress.record("input.woodpecker") }
+            input.click(at: now, x: Double(spot.x), y: Double(spot.y), progress: &progress)
         case .keyDown:
-            keyTimes = keyTimes.filter { now.timeIntervalSince($0) < 1 } + [now]
-            if keyTimes.count >= 15 { live?.progress.record("input.cat") }
-            if e.modifierFlags.contains(.command) {
-                live?.progress.record("key.shortcut")
-                switch e.charactersIgnoringModifiers?.lowercased() ?? "" {
-                case "z" where !e.modifierFlags.contains(.shift): live?.progress.record("key.undo")
-                case "s": live?.progress.record("key.save")
-                default: break
-                }
-            }
+            input.key(at: now, command: e.modifierFlags.contains(.command), shift: e.modifierFlags.contains(.shift),
+                      key: e.charactersIgnoringModifiers ?? "", progress: &progress)
         default: break
         }
+        live?.progress = progress
         evaluate()
     }
 

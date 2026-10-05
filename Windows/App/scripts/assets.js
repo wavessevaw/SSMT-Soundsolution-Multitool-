@@ -45,6 +45,11 @@ const MAP = {
   'folder.badge.plus': 'folder-plus', 'person.crop.circle': 'circle-user', 'questionmark.circle': 'circle-help',
   'arrow.left.and.right': 'move-horizontal', 'plus.square.on.square': 'copy-plus', 'arrow.up': 'arrow-up', 'arrow.down': 'arrow-down',
   'square.3.layers.3d.top.filled': 'bring-to-front', 'square.3.layers.3d.bottom.filled': 'send-to-back',
+  // Handbook, profile and brand.
+  'star': 'star', 'star.fill': 'star', 'cable.connector': 'plug-2', 'list.bullet.clipboard': 'clipboard-list',
+  'character.book.closed': 'book-a', 'ruler': 'ruler', 'speaker.wave.3': 'volume-2', 'hifispeaker': 'speaker',
+  'plusminus': 'diff', 'sum': 'sigma', 'cable.coaxial': 'cable', 'speaker.wave.2.bubble': 'message-square-text',
+  'dot.radiowaves.forward': 'rss', 'cube': 'box', 'metronome': 'metronome', 'number': 'hash', 'lock': 'lock', 'eye': 'eye',
 };
 
 const root = path.join(__dirname, '..');
