@@ -47,9 +47,13 @@ function startEngine(dataDir) {
       try { const ev = JSON.parse(line); listeners.forEach((fn) => fn(ev)); } catch (_) { /* not JSON */ }
     }
   });
-  const send = (cmd) => p.stdin.write(JSON.stringify(cmd) + '\n');
+  let dead = null;
+  p.on('error', (e) => { dead = e; });
+  p.on('exit', (code) => { if (code) dead = new Error('engine exited with code ' + code); });
+  p.stdin.on('error', (e) => { dead = dead || e; });
+  const send = (cmd) => { if (!dead) p.stdin.write(JSON.stringify(cmd) + '\n'); };
   send({ cmd: 'hello', dataDir });
-  return { send, on: (fn) => listeners.push(fn), stop: () => p.kill() };
+  return { send, on: (fn) => listeners.push(fn), stop: () => p.kill(), error: () => dead };
 }
 
 async function main() {
@@ -102,6 +106,7 @@ async function main() {
       settle: () => page.waitForTimeout(600),
     };
     try {
+      if (engine) { await page.waitForTimeout(300); if (engine.error()) throw engine.error(); }
       await sc.steps(h);
       await page.evaluate(() => document.fonts.ready);
       await page.waitForTimeout(400);

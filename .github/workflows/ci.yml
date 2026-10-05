@@ -28,8 +28,10 @@ jobs:
         run: |
           apt-get update -qq && apt-get install -y -qq nodejs > /dev/null
           node Windows/App/scripts/engine-smoke.js "$(swift build -c release --package-path Windows/Engine --show-bin-path)/ssmt-engine"
-      - name: Keep the Linux engine for the parity check
-        run: cp "$(swift build -c release --package-path Windows/Engine --show-bin-path)/ssmt-engine" ssmt-engine-linux
+      - name: Keep the Linux engine for the parity check (Swift runtime linked in, it runs outside this container)
+        run: |
+          swift build -c release --package-path Windows/Engine --static-swift-stdlib --scratch-path .build-static
+          cp "$(swift build -c release --package-path Windows/Engine --static-swift-stdlib --scratch-path .build-static --show-bin-path)/ssmt-engine" ssmt-engine-linux
       - uses: actions/upload-artifact@v4
         with:
           name: ssmt-engine-linux
