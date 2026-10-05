@@ -31,6 +31,6 @@ public enum ConsoleReadOnly {
 
     /// Repeated every few seconds: the console forgets a remote and stops its meters after 10 s.
     public static func renewals(family: MixerFamily) -> [OSCMessage] {
-        [X32Codec.subscribe(family: family)] + [ConsoleMeters.Bank.channels, .buses].map { ConsoleMeters.request($0, family: family) }
+        [X32Codec.subscribe(family: family)] + ConsoleCapture.meterRequests(family: family)
     }
 }

@@ -54,6 +54,7 @@ private struct RecordPanel: View {
                 HStack(spacing: 10) {
                     stat("\(store.learnFrames)", loc.t("assist.learn.frames"))
                     stat("\(store.learnChanges)", loc.t("assist.learn.changes"))
+                    stat("\(store.learnParams)", loc.t("assist.learn.params"))
                 }
                 Button { store.stopLearning() } label: {
                     Label(loc.t("assist.learn.stop"), systemImage: "stop.fill").frame(maxWidth: .infinity)

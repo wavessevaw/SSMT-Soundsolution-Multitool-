@@ -1,5 +1,12 @@
 # История версий · Changelog
 
+## 1.5.1
+
+FOH Assist: обучение записывает все параметры пульта по адресам OSC (около 7 500 на X32: каналы, aux, возвраты,
+шины, матрицы, главный выход, DCA, эффекты, хедампы), подавление гейта и компрессора, уровни выходов и RTA, раз в
+секунду и только чтением (`ConsoleTree`, `ConsoleCapture`, формат записи 2). / Learning records every console
+parameter by OSC address, gain reduction, output levels and the RTA, read-only (recording format 2).
+
 # Не выпущено
 
 Быстродействие: во время воспроизведения Qtrl 25 раз в секунду перерисовываются только индикаторы, время и состояние

@@ -307,7 +307,7 @@ function learnScreen() {
     <p class="muted">${esc(t('learn.hint'))}</p>
     ${isRec ? `<div class="rec-live"><span class="rec-dot big"></span><b>${esc(t('learn.recording'))}: ${esc(L.title || '')}</b>
         <span class="clock">${clock(L.seconds)}</span></div>
-      <div class="stats"><div><b>${L.frames || 0}</b><span>${esc(t('learn.frames'))}</span></div><div><b>${L.changes || 0}</b><span>${esc(t('learn.changes'))}</span></div></div>
+      <div class="stats"><div><b>${L.frames || 0}</b><span>${esc(t('learn.frames'))}</span></div><div><b>${L.changes || 0}</b><span>${esc(t('learn.changes'))}</span></div><div><b>${L.params || 0}</b><span>${esc(t('learn.params'))}</span></div></div>
       <button class="danger big" data-act="learnStop">${esc(t('learn.stop'))}</button>`
     : `<label>${esc(t('learn.title'))}<input id="learnTitle" data-input="learnTitle" value="${esc(S.learnTitle)}" placeholder="${esc(t('learn.title.ph'))}"></label>
       <button class="primary big" data-act="learnStart">${esc(t('learn.start'))}</button>`}

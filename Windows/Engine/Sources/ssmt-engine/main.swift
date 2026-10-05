@@ -6,7 +6,7 @@ import SSMTCore
 // packets come back as "osc" commands. With a real console the engine is read-only: every packet passes through
 // `ConsoleReadOnly`, and soundcheck commands are taken in the simulator only.
 
-let engineVersion = "1.5.0"
+let engineVersion = "1.5.1"
 
 // MARK: - I/O
 
@@ -70,6 +70,10 @@ final class Engine {
     var references: [Int: [Double]] = [:]
 
     var recorder: LearningRecorder?
+    /// Every parameter and meter of the console while connected (read-only).
+    var capture: ConsoleCapture?
+    /// Console parameters in the last frame.
+    var learnParams = 0
     var recordFile: FileHandle?
     var recordURL: URL?
     var learnStartedAt = Date()
@@ -197,6 +201,7 @@ final class Engine {
             buses = Dictionary(uniqueKeysWithValues: (1...X32Codec.busCount(f)).map { ($0, BusStrip(id: $0)) })
             routing = X32InputRouting.preset(routingPreset) ?? X32InputRouting()
             heard = []
+            capture = ConsoleCapture(family: f)
             Out.emit("link", ["host": h, "port": Int(f.defaultPort)])
             sendToConsole(ConsoleReadOnly.connectRequests(family: f, routing: routing))
             nextRenew = Date().addingTimeInterval(8)
@@ -212,6 +217,7 @@ final class Engine {
         if recorder != nil { learnStop() }
         if isReal { Out.emit("unlink") }
         family = nil
+        capture = nil
         sim = nil
         session = nil
         strips = [:]
@@ -237,6 +243,7 @@ final class Engine {
         guard let family, isReal else { return }
         lastHeard = Date()
         if !m.arguments.isEmpty { heard.insert(m.address) }
+        capture?.take(m)
         if m.address == "/info" || m.address == "/xinfo" {
             let parts = m.arguments.compactMap { a -> String? in if case let .string(s) = a { return s } else { return nil } }
             model = parts.dropFirst().joined(separator: " · ")
@@ -340,6 +347,7 @@ final class Engine {
             recordFile?.seekToEndOfFile()
             recordURL = url
             recorder = rec
+            _ = capture?.takeSecond()   // the first second's meters start now
             learnStartedAt = Date()
             nextLearnFrame = Date()
         } catch {
@@ -351,7 +359,22 @@ final class Engine {
     func learnFrame() {
         guard var rec = recorder else { return }
         let t = Date().timeIntervalSince(learnStartedAt)
-        let line = rec.record(t: t, strips: strips, buses: buses, channelLevels: channelLevels, busLevels: busLevels)
+        var params: [String: ParamValue]?
+        var meters: LearnMeters?
+        if sim != nil {
+            var c = ConsoleCapture(family: .simulator)
+            c.absorb(strips: strips, buses: buses)
+            params = c.params
+        } else if var c = capture {
+            // Every parameter is asked again in turn (a few a second), so the recording has the whole console.
+            sendToConsole(c.sweep())
+            meters = c.takeSecond()
+            params = c.params
+            capture = c
+        }
+        learnParams = params?.count ?? 0
+        let line = rec.record(t: t, strips: strips, buses: buses, channelLevels: channelLevels, busLevels: busLevels,
+                              params: params, meters: meters)
         recorder = rec
         recordFile?.write(line)
         emitLearn()
@@ -373,6 +396,7 @@ final class Engine {
             f["seconds"] = Date().timeIntervalSince(learnStartedAt)
             f["frames"] = r.frames
             f["changes"] = r.changes
+            f["params"] = learnParams
             f["title"] = r.header.title
             f["file"] = recordURL?.lastPathComponent ?? ""
         }

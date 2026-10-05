@@ -4037,13 +4037,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Start the recording before the event and stop it after. Once a second the console is recorded: faders, gain, EQ, dynamics and channel levels."
+            "value": "Start the recording before the event and stop it after. Once a second every console parameter is recorded: faders, gain, channel and bus EQ, gate and compressor with gain reduction, sends, DCAs, effects, levels and the RTA."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Включите запись перед началом мероприятия и остановите после него. Раз в секунду записывается состояние пульта: фейдеры, гейн, эквалайзер, динамика и уровни каналов."
+            "value": "Включите запись перед началом мероприятия и остановите после него. Раз в секунду записываются все параметры пульта: фейдеры, гейн, эквалайзеры каналов и шин, гейт и компрессор с подавлением, посылы, DCA, эффекты, уровни и RTA."
           }
         }
       }
@@ -4095,6 +4095,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть папку с записями"
+          }
+        }
+      }
+    },
+    "assist.learn.params": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "console parameters"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "параметров пульта"
           }
         }
       }

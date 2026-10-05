@@ -6,7 +6,8 @@ import Foundation
 
 /// First line of a recording: which event, which console.
 public struct LearnHeader: Codable, Equatable, Sendable {
-    public var format = 1
+    /// 1: strips, buses and levels. 2: also every console parameter (`p`) and meters (gain reduction, outputs, RTA).
+    public var format = 2
     public var id: String
     public var title: String
     /// Start, seconds since 1970.
@@ -25,7 +26,8 @@ public struct LearnHeader: Codable, Equatable, Sendable {
 }
 
 /// One second of the console. Strips and buses are stored when they changed (all of them in a key frame, once a
-/// minute), so a four-hour show stays at a few megabytes.
+/// minute); raw parameters likewise, all of them every ten minutes. Meters add about 1 kB a second, so a four-hour
+/// show takes some 20 MB.
 public struct LearnFrame: Codable, Equatable, Sendable {
     /// Seconds since the start of the recording.
     public var t: Double
@@ -38,6 +40,12 @@ public struct LearnFrame: Codable, Equatable, Sendable {
     public var buses: [BusStrip]?
     /// Every strip and bus is in this frame.
     public var key: Bool?
+    /// Console parameters by OSC address (as the console sends them) that changed since the previous frame; all of
+    /// them when `pkey`.
+    public var p: [String: ParamValue]?
+    public var pkey: Bool?
+    /// Gain reduction, output levels and RTA of the second (`LearnMeters`).
+    public var m: LearnMeters?
 
     public init(t: Double, levels: [Double], busLevels: [Double], strips: [ChannelStrip]? = nil, buses: [BusStrip]? = nil, key: Bool? = nil) {
         self.t = t; self.levels = levels; self.busLevels = busLevels; self.strips = strips; self.buses = buses; self.key = key
@@ -55,6 +63,10 @@ public struct LearningRecorder: Sendable {
     private var last: [Int: ChannelStrip] = [:]
     private var lastBuses: [Int: BusStrip] = [:]
     private var lastKey = -Double.infinity
+    /// All raw parameters are written again this often, seconds.
+    public var paramKeyInterval = 600.0
+    private var lastParams: [String: ParamValue] = [:]
+    private var lastParamKey = -Double.infinity
 
     public init(header: LearnHeader) { self.header = header }
 
@@ -62,19 +74,22 @@ public struct LearningRecorder: Sendable {
 
     /// The frame for second `t` of the recording, as one JSON line (with the newline).
     public mutating func record(t: Double, strips: [Int: ChannelStrip], buses: [Int: BusStrip],
-                                channelLevels: [Int: Double], busLevels: [Int: Double]) -> Data {
-        let frame = makeFrame(t: t, strips: strips, buses: buses, channelLevels: channelLevels, busLevels: busLevels)
+                                channelLevels: [Int: Double], busLevels: [Int: Double],
+                                params: [String: ParamValue]? = nil, meters: LearnMeters? = nil) -> Data {
+        let frame = makeFrame(t: t, strips: strips, buses: buses, channelLevels: channelLevels, busLevels: busLevels,
+                              params: params, meters: meters)
         return Self.line(frame)
     }
 
     public mutating func makeFrame(t: Double, strips: [Int: ChannelStrip], buses: [Int: BusStrip],
-                                   channelLevels: [Int: Double], busLevels: [Int: Double]) -> LearnFrame {
+                                   channelLevels: [Int: Double], busLevels: [Int: Double],
+                                   params: [String: ParamValue]? = nil, meters: LearnMeters? = nil) -> LearnFrame {
         let s = strips.mapValues(Self.rounded)
         let b = buses.mapValues(Self.rounded)
         let key = t - lastKey >= keyInterval
         let changedStrips = s.values.filter { last[$0.id] != $0 }.sorted { $0.id < $1.id }
         let changedBuses = b.values.filter { lastBuses[$0.id] != $0 }.sorted { $0.id < $1.id }
-        if frames > 0 { changes += changedStrips.count + changedBuses.count }
+        if frames > 0, params == nil { changes += changedStrips.count + changedBuses.count }
         var frame = LearnFrame(t: (t * 10).rounded() / 10,
                                levels: Self.levels(channelLevels, count: strips.keys.max() ?? 0),
                                busLevels: Self.levels(busLevels, count: buses.keys.max() ?? 0))
@@ -87,10 +102,35 @@ public struct LearningRecorder: Sendable {
             if !changedStrips.isEmpty { frame.strips = changedStrips }
             if !changedBuses.isEmpty { frame.buses = changedBuses }
         }
+        if let params {
+            if t - lastParamKey >= paramKeyInterval {
+                if !params.isEmpty {
+                    frame.p = params
+                    frame.pkey = true
+                    lastParamKey = t
+                }
+                changes += Self.edits(params, since: lastParams)
+            } else {
+                let changed = params.filter { lastParams[$0.key] != $0.value }
+                if !changed.isEmpty { frame.p = changed }
+                changes += Self.edits(changed, since: lastParams)
+            }
+            lastParams = params
+        }
+        if var meters {
+            // Per-second peaks from the meter stream are better than the last meter value.
+            if !meters.levels.isEmpty { frame.levels = meters.levels; meters.levels = [] }
+            if meters != LearnMeters() { frame.m = meters }
+        }
         last = s
         lastBuses = b
         frames += 1
         return frame
+    }
+
+    /// Parameters that had a value before and now have another (a value heard for the first time is not an edit).
+    static func edits(_ params: [String: ParamValue], since old: [String: ParamValue]) -> Int {
+        params.filter { key, value in old[key].map { $0 != value } ?? false }.count
     }
 
     static func levels(_ map: [Int: Double], count: Int) -> [Double] {
@@ -178,6 +218,15 @@ public struct LearnRecording: Equatable, Sendable {
             }
         }
         return header.map { LearnRecording(header: $0, frames: frames) }
+    }
+
+    /// Every console parameter at each frame (the last value heard), with the frame.
+    public func replayParams(_ body: (_ frame: LearnFrame, _ params: [String: ParamValue]) -> Void) {
+        var params: [String: ParamValue] = [:]
+        for f in frames {
+            params.merge(f.p ?? [:]) { $1 }
+            body(f, params)
+        }
     }
 
     /// Plays the recording back second by second with the full console state at each frame.
