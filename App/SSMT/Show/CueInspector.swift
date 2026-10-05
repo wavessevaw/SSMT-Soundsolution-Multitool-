@@ -495,28 +495,7 @@ private struct CueInspectorContent: View {
 
     /// "1 0.5 \"Go+ Sequence 1\" true" → int, float, string, bool.
     static func parseArguments(_ text: String) -> [OSCArgument] {
-        var out: [OSCArgument] = []
-        var rest = Substring(text)
-        while true {
-            rest = rest.drop { $0 == " " }
-            guard let c = rest.first else { break }
-            var token: String
-            if c == "\"" {
-                let body = rest.dropFirst()
-                let end = body.firstIndex(of: "\"") ?? body.endIndex
-                out.append(.string(String(body[..<end])))
-                rest = end < body.endIndex ? body[body.index(after: end)...] : ""
-                continue
-            }
-            let end = rest.firstIndex(of: " ") ?? rest.endIndex
-            token = String(rest[..<end])
-            rest = rest[end...]
-            if token == "true" || token == "false" { out.append(.bool(token == "true")) }
-            else if let i = Int32(token) { out.append(.int(i)) }
-            else if let f = Float(token) { out.append(.float(f)) }
-            else { out.append(.string(token)) }
-        }
-        return out
+        OSCArgument.parseList(text)
     }
 
     // MARK: Group

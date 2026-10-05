@@ -1,5 +1,5 @@
 'use strict';
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 // The only bridge between the interface and the rest: engine commands and events, console search, the language model.
 contextBridge.exposeInMainWorld('ssmt', {
@@ -19,4 +19,6 @@ contextBridge.exposeInMainWorld('ssmt', {
   renderPNG: (o) => ipcRenderer.invoke('render:png', o),
   // The floating diagnostics window: toggle | show | hide | expand | opacity (value) | clickThrough (value).
   mini: (op, value) => ipcRenderer.send('mini', { op, value }),
+  // The path of a dropped file (File.path is gone since Electron 32).
+  pathForFile: (f) => webUtils.getPathForFile(f),
 });

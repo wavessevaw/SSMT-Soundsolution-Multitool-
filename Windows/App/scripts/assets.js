@@ -52,6 +52,10 @@ const MAP = {
   'dot.radiowaves.forward': 'rss', 'cube': 'box', 'metronome': 'metronome', 'number': 'hash', 'lock': 'lock', 'eye': 'eye',
   'chevron.up.chevron.down': 'chevrons-up-down', 'chevron.up': 'chevron-up', 'waveform.slash': 'audio-lines-off',
   'speaker.wave.2.fill': 'volume-2', 'speaker.slash.fill': 'volume-x', 'flag.checkered': 'flag', 'circle.dashed': 'circle-dashed',
+  'play': 'play', 'stop': 'square', 'pause': 'pause', 'pause.fill': 'pause', 'plus.square.on.square': 'copy-plus',
+  'arrow.up': 'arrow-up', 'arrow.down': 'arrow-down', 'square.stack.3d.up.slash': 'ungroup', 'timeline.selection': 'gallery-horizontal',
+  'rectangle.bottomthird.inset.filled': 'panel-bottom', 'sidebar.right': 'panel-right', 'pause.circle.fill': 'circle-pause',
+  'play.circle.fill': 'circle-play', 'clock.fill': 'clock', 'hifispeaker': 'speaker', 'questionmark': 'circle-help',
 };
 
 const root = path.join(__dirname, '..');
