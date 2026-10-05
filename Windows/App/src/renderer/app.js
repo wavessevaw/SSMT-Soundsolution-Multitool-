@@ -23,8 +23,8 @@
         <span class="titles"><b>${esc(t(r.title))}</b>${sub ? `<span>${esc(sub)}</span>` : ''}</span></button>`;
     }).join('');
     const items = sec && sec.sidebar ? sec.sidebar() : '<div class="spacer"></div>';
-    return `<div class="brand" data-shell="brand"><img src="icon.png" alt=""><div><b>SSMT</b><span>SoundSolution Multi Tool</span></div></div>
-      <div id="profile-badge-slot"></div>
+    return `<div class="brand" data-shell="brand" title="${esc(t('about.title'))}"><img src="brand/BrandMark.png" alt=""><div><b>SSMT</b><span>SoundSolution Multi Tool</span></div></div>
+      <div id="profile-badge-slot">${SSMT.profileBadge ? SSMT.profileBadge() : ''}</div>
       <nav class="section-switch">${rows}</nav>${items}`;
   }
 
@@ -76,7 +76,7 @@
   const shell = {
     section(id) { S.section = id; SSMT.store.set('section', id); SSMT.render(); },
     dismissError() { S.lastError = null; SSMT.render(); },
-    brand() { /* About and the hidden game: ported with the profile. */ },
+    brand() { if (SSMT.brand) SSMT.brand.brandTapped(); },
   };
 
   // Events go to the shell (data-shell) or to the section that owns the element's pane or the sidebar.

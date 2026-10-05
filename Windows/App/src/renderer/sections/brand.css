@@ -1,0 +1,70 @@
+/* Brand, About, splash and the hidden game's launcher: App/SSMT/Brand, Views/AboutView.swift, Views/LaunchView.swift
+   (SplashView) and Game/GameWindow.swift (GameLauncherView), one to one. */
+
+.brand-mark { display: block; width: auto; }
+.sidebar .brand { cursor: default; }
+
+/* One view alone over the backdrop (the Mac snapshot tests render single views). */
+.solo { position: fixed; inset: 0; overflow: hidden; z-index: 50; display: flex; flex-direction: column; }
+.solo.black { background: #000; }
+.solo.background { background: var(--background); }
+.solo.backdrop, .solo-backdrop {
+  background:
+    radial-gradient(700px circle at 85% -5%, rgba(46, 229, 157, 0.12), transparent 70%),
+    radial-gradient(650px circle at 5% 105%, rgba(16, 168, 110, 0.08), transparent 70%),
+    linear-gradient(#0E1210, #050706);
+}
+
+/* About: a popover on the brand. */
+.popover { position: fixed; z-index: 80; width: 340px; border-radius: 10px; background: var(--panel); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 10px 30px rgba(0, 0, 0, 0.5); }
+.popover .arrow { position: absolute; top: -6px; left: 24px; width: 12px; height: 12px; transform: rotate(45deg); background: var(--panel); box-shadow: -1px -1px 0 rgba(255, 255, 255, 0.12); }
+.about { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; }
+.about .name { font-size: 16px; font-weight: 600; }
+.about .ver { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.about p { margin: 0; font-size: 12px; line-height: 15px; color: var(--text-secondary); }
+.check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.check input { margin: 0; width: 14px; height: 14px; accent-color: var(--accent); }
+
+/* Splash (SplashView). */
+#splash { position: fixed; inset: 0; z-index: 100; background: #000; transition: opacity 0.75s ease-in-out; }
+#splash.out { opacity: 0; pointer-events: none; }
+.splash-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; gap: 18px; background: #000; }
+.splash-in .grow { flex: 1; }
+.splash-in .tagline { font-size: 13px; line-height: 16px; color: rgba(255, 255, 255, 0.55); }
+.splash-in .foot { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-bottom: 28px; }
+.splash-in .bar { width: 160px; height: 1px; background: rgba(255, 255, 255, 0.08); }
+.splash-in .bar .fill { height: 1px; background: rgba(255, 255, 255, 0.6); }
+.splash-in .loading { font-size: 11px; color: rgba(255, 255, 255, 0.5); }
+.splash-in .ver { font-size: 10px; line-height: 12px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.35); }
+
+/* The launcher's window. */
+#game-window { position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center; justify-content: center; }
+#game-window .win { width: 1030px; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14), 0 20px 60px rgba(0, 0, 0, 0.6); background: var(--background); }
+#game-window .titlebar { height: 28px; display: flex; align-items: center; justify-content: center; position: relative; font-size: 13px; font-weight: 600; color: var(--text-secondary); background: #1A1D1B; }
+#game-window .titlebar button { position: absolute; right: 8px; top: 5px; border: none; background: none; color: var(--text-secondary); display: flex; padding: 2px; }
+#game-window .body { height: 540px; }
+
+/* GameLauncherView. */
+.game { display: flex; align-items: flex-start; justify-content: center; gap: 22px; padding: 22px; background: var(--background); height: 100%; }
+.game .left { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.game .screen { width: 640px; height: 448px; background: #000; border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 1px var(--hairline-strong); position: relative; }
+.game .screen img { width: 640px; height: 448px; image-rendering: pixelated; display: block; }
+.game .screen::after { content: ''; position: absolute; inset: 0; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.game .dots { display: flex; gap: 6px; }
+.game .dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--hairline-strong); }
+.game .dots span.on { background: var(--accent); }
+.game .right { width: 300px; flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+.game .titles { display: flex; flex-direction: column; gap: 4px; }
+.game h2 { margin: 0; font-size: 22px; line-height: 27px; font-weight: 600; }
+.game .titles span { font-size: 11px; line-height: 13px; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.game .story { margin: 0; font-size: 12px; line-height: 15px; color: var(--text-secondary); }
+.game .buttons { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.game .buttons .row { display: flex; gap: 8px; }
+.game .btn.wrap { white-space: normal; text-align: left; max-width: 189px; justify-content: flex-start; }
+.game .controls { display: flex; flex-direction: column; gap: 5px; }
+.game .controls .head { font-size: 11px; line-height: 13px; color: var(--text-muted); }
+.game .controls .key { display: flex; align-items: baseline; gap: 8px; }
+.game .controls .key b { width: 74px; flex: none; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--accent); }
+.game .controls .key span { font-size: 12px; line-height: 15px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.game .run { margin: 0; font-size: 11px; line-height: 13px; color: var(--text-muted); }
+.game .btn { line-height: 15px; }

@@ -7,8 +7,17 @@ const go = (section) => async (h) => {
   await h.settle();
 };
 
+/** A view alone, as the Mac test renders it (SSMT.snapshot sets up the same state); `engine` commands go first. */
+const snap = (name, engine = []) => async (h) => {
+  for (const c of engine) h.send(c);
+  if (engine.length) await h.settle();
+  await h.eval((n) => window.SSMT.snapshot(n), name);
+  await h.settle();
+};
+const sample = [{ cmd: 'profilePreview', sample: true }];
+
 module.exports = [
-  { name: 'splash', size: [960, 600] },
+  { name: 'splash', size: [960, 600], steps: snap('splash') },
   { name: 'instruments', size: [1380, 340] },
   { name: 'mini-meters', size: [560, 330] },
   { name: 'main-wizard', size: [1400, 900], steps: go('setup') },
@@ -24,20 +33,20 @@ module.exports = [
   { name: 'input-list', size: [1300, 2100] },
   { name: 'input-list-print', size: [842, 595] },
   { name: 'stage-plan-print', size: [842, 595] },
-  { name: 'account-register', size: [1200, 760] },
-  { name: 'profile-overview', size: [1100, 760] },
-  { name: 'profile-achievements', size: [1100, 900] },
-  { name: 'profile-badge', size: [304, 140] },
-  { name: 'achievement-toast', size: [520, 140] },
-  { name: 'handbook-calculator', size: [1300, 820] },
-  { name: 'handbook-pinout', size: [1300, 820] },
+  { name: 'account-register', size: [1200, 760], steps: snap('account-register', [{ cmd: 'profilePreview' }]) },
+  { name: 'profile-overview', size: [1100, 760], steps: snap('profile-overview', sample) },
+  { name: 'profile-achievements', size: [1100, 900], steps: snap('profile-achievements', sample) },
+  { name: 'profile-badge', size: [304, 140], steps: snap('profile-badge', sample) },
+  { name: 'achievement-toast', size: [520, 140], steps: snap('achievement-toast', sample) },
+  { name: 'handbook-calculator', size: [1300, 820], steps: snap('handbook-calculator') },
+  { name: 'handbook-pinout', size: [1300, 820], steps: snap('handbook-pinout') },
   { name: 'show-edit', size: [1500, 900] },
   { name: 'show-show', size: [1500, 900] },
   { name: 'show-group-multitrack', size: [1500, 900] },
   { name: 'show-waveform', size: [1000, 600] },
   { name: 'osc-devices', size: [640, 600] },
   { name: 'osc-setup-eos', size: [640, 600] },
-  { name: 'game-launcher', size: [1030, 540] },
+  { name: 'game-launcher', size: [1030, 540], steps: snap('game-launcher') },
   { name: 'assist-connect', size: [1500, 940] },
   { name: 'assist', size: [1500, 940] },
   { name: 'assist-show', size: [1500, 940] },

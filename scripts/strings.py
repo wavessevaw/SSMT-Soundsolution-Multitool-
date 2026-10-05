@@ -1360,6 +1360,10 @@ STRINGS = {
     "game.does.start": ("Pause", "Пауза"),
     "game.run": ("Runs in any Mega Drive emulator (OpenEmu, Genesis Plus GX, BlastEm) and on a real console from a flash cartridge such as Mega EverDrive.",
                  "Работает в любом эмуляторе Mega Drive (OpenEmu, Genesis Plus GX, BlastEm) и на настоящей приставке с флеш-картриджа, например Mega EverDrive."),
+    # Windows: the ROM opens in the emulator associated with .gen files (OpenEmu and Finder are macOS only).
+    "game.win.play": ("Play in the emulator", "Играть в эмуляторе"),
+    "game.win.getEmulator": ("Get BlastEm (free emulator)", "Скачать BlastEm (бесплатный эмулятор)"),
+    "game.win.reveal": ("Show in folder", "Показать в папке"),
 
 }
 
