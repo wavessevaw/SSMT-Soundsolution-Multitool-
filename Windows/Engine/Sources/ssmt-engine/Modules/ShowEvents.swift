@@ -246,7 +246,12 @@ extension ShowModule {
                                   ("Applause", 12), ("Wind", 30), ("Steps", 3), ("Clock", 5)].enumerated() {
             let path = "/show/\(name).wav"
             clipInfo[path] = (d, 2)
-            waveforms[path] = (0..<600).map { k in Float(0.25 + 0.5 * abs(sin(Double(k) * 0.05 + Double(i)) * cos(Double(k) * 0.013))) }
+            let phase = Double(i)
+            waveforms[path] = (0..<600).map { (k: Int) -> Float in
+                let x = Double(k)
+                let lobe: Double = abs(sin(x * 0.05 + phase) * cos(x * 0.013))
+                return Float(0.25 + 0.5 * lobe)
+            }
         }
         live.snapshot = ShowSnapshot(listID: s.doc.lists[0].id, playhead: s.group, running: [
             RunningCue(id: s.preshow, phase: .stopping, elapsed: 1.2, duration: 3, paused: false, iteration: 4),
