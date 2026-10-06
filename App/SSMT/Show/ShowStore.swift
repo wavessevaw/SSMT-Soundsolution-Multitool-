@@ -354,22 +354,15 @@ final class ShowStore: ObservableObject {
         let sr = sampleRate
         let core = self.core
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let clip = core.clips.cached(path, sampleRate: sr) ?? core.clips.load(path, sampleRate: sr) else { return }
-            let threshold: Float = 0.00316
-            var first = clip.frames, last = 0
-            for c in 0..<clip.channelCount {
-                let ch = clip.channel(c)
-                if let i = ch.firstIndex(where: { abs($0) > threshold }) { first = min(first, i) }
-                if let i = ch.lastIndex(where: { abs($0) > threshold }) { last = max(last, i) }
-            }
-            guard first < last else { return }
-            let start = max(0, Double(first) / sr - 0.01)
-            let end = min(clip.duration, Double(last) / sr + 0.05)
+            guard let clip = core.clips.cached(path, sampleRate: sr) ?? core.clips.load(path, sampleRate: sr),
+                  let bounds = ShowWaveform.soundBounds(clip) else { return }
+            let start = bounds.start, end = bounds.end
+            let duration = clip.duration
             Task { @MainActor in
                 self?.edit(self?.loc("show.wave.trim") ?? "") { d in
                     d.updateCue(cueID) { c in
                         c.audio?.start = (start * 1000).rounded() / 1000
-                        c.audio?.end = end >= clip.duration - 0.001 ? nil : (end * 1000).rounded() / 1000
+                        c.audio?.end = end >= duration - 0.001 ? nil : (end * 1000).rounded() / 1000
                     }
                 }
             }
@@ -381,25 +374,8 @@ final class ShowStore: ObservableObject {
         let sr = sampleRate
         let core = self.core
         return await Task.detached(priority: .userInitiated) { () -> [Float]? in
-            guard let clip = core.clips.cached(path, sampleRate: sr), buckets > 0, to > from else { return nil }
-            let a = max(0, Int(from * sr)), b = min(clip.frames, Int(to * sr))
-            guard b > a else { return nil }
-            let per = Double(b - a) / Double(buckets)
-            let stride = max(1, Int(per / 64)) // at most ~64 reads per column
-            var out = [Float](repeating: 0, count: buckets)
-            for c in 0..<clip.channelCount {
-                let p = clip.channel(c)
-                do {
-                    for k in 0..<buckets {
-                        let s = a + Int(Double(k) * per), e = min(b, a + Int(Double(k + 1) * per) + 1)
-                        var peak: Float = 0
-                        var i = s
-                        while i < e { peak = max(peak, abs(p[i])); i += stride }
-                        out[k] = max(out[k], min(1, peak))
-                    }
-                }
-            }
-            return out
+            guard let clip = core.clips.cached(path, sampleRate: sr) else { return nil }
+            return ShowWaveform.slice(clip, from: from, to: to, buckets: buckets)
         }.value
     }
 
@@ -839,23 +815,7 @@ final class ShowStore: ObservableObject {
 
     /// Peak overview of a clip (all channels), `buckets` values in 0…1.
     nonisolated static func overview(_ clip: AudioClip, buckets: Int = 1200) -> [Float] {
-        let n = clip.frames
-        guard n > 0 else { return [] }
-        let size = max(1, n / buckets)
-        var out = [Float](repeating: 0, count: min(buckets, n))
-        for c in 0..<clip.channelCount {
-            let p = clip.channel(c)
-            do {
-                for b in 0..<out.count {
-                    var peak: Float = 0
-                    let start = b * size, end = min(n, start + size)
-                    var i = start
-                    while i < end { peak = max(peak, abs(p[i])); i += 4 } // every 4th sample is plenty for display
-                    out[b] = max(out[b], min(1, peak))
-                }
-            }
-        }
-        return out
+        ShowWaveform.overview(clip, buckets: buckets)
     }
 
     /// Looks for missing files by name inside a folder (recursively) and relinks them.

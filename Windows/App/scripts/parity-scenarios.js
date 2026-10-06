@@ -1,0 +1,186 @@
+'use strict';
+// The Mac snapshot tests' screens (App/Tests/Snapshots/SnapshotTests.swift) with their sizes. `steps` drives the
+// Windows interface into the same state; a screen without steps is not ported yet. Keep names and sizes as on the Mac.
+
+const go = (section) => async (h) => {
+  await h.eval((s) => { window.SSMT.S.section = s; window.SSMT.render(); }, section);
+  await h.settle();
+};
+
+// Ptch: the sample document of SnapshotTests.sampleInputList (engine command il.fixture, or the recorded events).
+const ptch = (show) => async (h) => {
+  if (h.hasEngine) {
+    h.send({ cmd: 'il.fixture' });
+    await h.waitFor((e) => e.event === 'il.state' && e.doc && e.doc.artist === 'The Sample Band');
+  }
+  await h.eval(() => { window.SSMT.S.section = 'inputList'; window.SSMT.render(); });
+  await h.settle();
+  await h.eval((v) => {
+    if (v === 'workspace') {
+      // InputListWorkspace().padding(16) on its own, as the Mac test renders it.
+      const st = document.createElement('style');
+      st.textContent = '#sidebar, #workspace-head { display: none !important; } #app { padding: 16px; gap: 0; } .workspace { gap: 0; }';
+      document.head.appendChild(st);
+      window.SSMT.render();
+    } else {
+      const html = window.SSMT.inputList.sheet(v);
+      document.open(); document.write(html); document.close();
+    }
+  }, show);
+  await h.settle();
+};
+// FOH Assist (SnapshotTests.testAssistWorkspace): AssistWorkspace alone on the window background, as the Mac test
+// renders it. Each screen replays the Mac test's steps up to its own state on a fresh engine.
+const assistSolo = (h) => h.eval(() => {
+  const st = document.createElement('style');
+  st.textContent = '#sidebar{display:none}#app{padding:0;gap:0}.workspace{gap:0}.backdrop{display:none}body{background:#070908}';
+  document.head.appendChild(st);
+  window.SSMT.sections.assist.state.autoScan = false;
+});
+const assistUI = (h, o) => h.eval((v) => Object.assign(window.SSMT.sections.assist.state, v), o);
+async function assistSteps(h, upTo) {
+  const order = ['connect', 'soundcheck', 'show', 'test', 'learn', 'locked'];
+  const reach = (s) => order.indexOf(s) <= order.indexOf(upTo);
+  await assistSolo(h);
+  await assistUI(h, { family: 'x32', mode: 'soundcheck' });
+  if (h.hasEngine) {
+    h.send({ cmd: 'assistFixture', name: 'discovered' });
+    await h.waitFor((e) => e.event === 'found' && e.ip === '192.168.1.71');
+  }
+  if (reach('soundcheck')) {
+    await assistUI(h, { family: 'simulator', character: 'musical' });
+    if (h.hasEngine) {
+      h.send({ cmd: 'character', value: 'musical' });
+      h.send({ cmd: 'connect', family: 'simulator' });
+      await h.waitFor((e) => e.event === 'state' && e.status === 'connected');
+      h.send({ cmd: 'tuneGroup', group: 'choir' });
+      h.send({ cmd: 'runNow', steps: 14 });
+      await h.waitFor((e) => e.event === 'state' && Object.values(e.states || {}).includes('done'));
+    }
+    await h.eval(() => {
+      const A = window.SSMT.sections.assist.state;
+      const s = (A.st.strips || []).find((x) => (A.st.states || {})[x.id] === 'done');
+      A.selectedChannel = s ? s.id : null;
+    });
+  }
+  if (reach('show')) {
+    await assistUI(h, { mode: 'show' });
+    if (h.hasEngine) {
+      h.send({ cmd: 'guardStart' });
+      h.send({ cmd: 'guardRun', steps: 24 });
+      await h.waitFor((e) => e.event === 'state' && e.guarding && e.guardElapsed >= 5.75);
+    }
+  }
+  if (reach('test')) {
+    if (h.hasEngine) { h.send({ cmd: 'guardStop' }); await h.waitFor((e) => e.event === 'state' && e.status === 'connected' && !e.guarding); }
+    await assistUI(h, { mode: 'test' });
+  }
+  if (reach('learn')) {
+    await assistUI(h, { mode: 'learn', learnTitle: 'Мюзикл «Чикаго»' });
+    if (h.hasEngine) {
+      h.send({ cmd: 'assistFixture', name: 'sampleRecordings' });
+      await h.waitFor((e) => e.event === 'patterns' && /из 20/.test(e.summary) && !/: 0 из/.test(e.summary));
+    }
+  }
+  if (reach('locked')) {
+    if (h.hasEngine) { h.send({ cmd: 'previewReadOnly', on: true }); await h.waitFor((e) => e.event === 'state' && e.readOnly); }
+    await assistUI(h, { mode: 'soundcheck' });
+  }
+  await h.eval(() => { window.SSMT.S.section = 'assist'; window.SSMT.render(); });
+  await h.settle();
+}
+const assist = (upTo) => (h) => assistSteps(h, upTo);
+/** A view alone, as the Mac test renders it (SSMT.snapshot sets up the same state); `engine` commands go first. */
+const snap = (name, engine = []) => async (h) => {
+  for (const c of engine) h.send(c);
+  if (engine.length) await h.settle();
+  await h.eval((n) => window.SSMT.snapshot(n), name);
+  await h.settle();
+};
+const sample = [{ cmd: 'profilePreview', sample: true }];
+// System setup: the snapshot tests' session (SimulatedSetupSession.completeWizard in the engine, or the recorded
+// fixtures/setup.json), then the main window in a mode, or one view drawn on its own as the Mac test draws it.
+const setupSession = async (h) => {
+  if (!h.hasEngine) return;
+  h.send({ cmd: 'setup', do: 'fixture' });
+  await h.waitFor((e) => e.event === 'setupState' && e.wizard && e.wizard.step === 'eqVerification', 120000);
+};
+const setup = ({ mode = 'wizard', view = null } = {}) => async (h) => {
+  await setupSession(h);
+  await h.eval(({ mode: m, view: v }) => {
+    window.SSMT.setupUI.mode = m;
+    window.SSMT.S.section = 'setup';
+    if (v) window.SSMT.setupStandalone(v); else window.SSMT.render();
+  }, { mode, view });
+  await h.settle();
+};
+const mini = async (h) => {
+  const path = require('path');
+  await h.page.goto('file://' + path.join(__dirname, '..', 'src', 'renderer', 'mini.html'));
+  if (!h.hasEngine) {
+    const events = JSON.parse(require('fs').readFileSync(path.join(__dirname, 'fixtures', 'setup.json'), 'utf8'));
+    for (const ev of events) await h.eval((e) => window.__ssmtListeners.forEach((fn) => fn(e)), ev);
+  }
+  await setupSession(h);
+  await h.settle();
+};
+// Qtrl (show control): the Mac renders the view alone with padding 16 (ShowWorkspace), 20 (WaveformEditor) or none
+// (OSCDevicesView), without the app sidebar. The engine builds the sample show of SnapshotTests.prepareShow.
+const QTRL_CSS = '#sidebar{display:none!important}#app{padding:16px!important;gap:0!important}#workspace-head{display:none!important}';
+const qtrl = (variant, ui, engineOps = []) => async (h) => {
+  await h.eval((css) => { const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s); }, QTRL_CSS);
+  if (h.hasEngine) {
+    h.send({ cmd: 'show', op: 'fixture', variant });
+    await h.waitFor((e) => e.event === 'showLive');
+    for (const op of engineOps) h.send(Object.assign({ cmd: 'show' }, op));
+    await h.settle();
+  }
+  await h.eval((u) => {
+    const Q = window.SSMT.qtrl;
+    Object.assign(Q.ui, u);
+    if (u.solo === 'waveform') Q.ui.soloCue = Q.st.show.selection[0];
+    if (u.oscStart) Q.oscStartWith(u.oscStart);
+    window.SSMT.S.section = 'show';
+    window.SSMT.render();
+  }, ui);
+  await h.settle();
+};
+
+module.exports = [
+  { name: 'splash', size: [960, 600], steps: snap('splash') },
+  { name: 'instruments', size: [1380, 340], fixture: 'setup', steps: setup({ view: 'instruments' }) },
+  { name: 'mini-meters', size: [560, 330], fixture: 'setup', steps: setup({ view: 'mini-meters' }) },
+  { name: 'main-wizard', size: [1400, 900], fixture: 'setup', steps: setup() },
+  { name: 'main-wizard-en', size: [1400, 900], lang: 'en', fixture: 'setup', steps: setup() },
+  { name: 'main-expert', size: [1400, 900], fixture: 'setup', steps: setup({ mode: 'expert' }) },
+  { name: 'step0-preparation', size: [1120, 1000], fixture: 'setup', steps: setup({ view: 'step0-preparation' }) },
+  { name: 'step4-tuner', size: [1000, 1300], fixture: 'setup', steps: setup({ view: 'step4-tuner' }) },
+  { name: 'step5-verify', size: [1000, 1000], fixture: 'setup', steps: setup({ view: 'step5-verify' }) },
+  { name: 'step7-eq', size: [1100, 1300], fixture: 'setup', steps: setup({ view: 'step7-eq' }) },
+  { name: 'finished', size: [1000, 1250], fixture: 'setup', steps: setup({ view: 'finished' }) },
+  { name: 'mini-window', size: [380, 330], steps: mini },
+  { name: 'report', size: [1100, 1474], fixture: 'setup', steps: setup({ view: 'report' }) },
+  { name: 'input-list', size: [1300, 2100], steps: ptch('workspace') },
+  { name: 'input-list-print', size: [842, 595], fixture: 'input-list', steps: ptch('channels') },
+  { name: 'stage-plan-print', size: [842, 595], fixture: 'input-list', steps: ptch('stage') },
+  { name: 'account-register', size: [1200, 760], steps: snap('account-register', [{ cmd: 'profilePreview' }]) },
+  { name: 'profile-overview', size: [1100, 760], steps: snap('profile-overview', sample) },
+  { name: 'profile-achievements', size: [1100, 900], steps: snap('profile-achievements', sample) },
+  { name: 'profile-badge', size: [304, 140], steps: snap('profile-badge', sample) },
+  { name: 'achievement-toast', size: [520, 140], steps: snap('achievement-toast', sample) },
+  { name: 'handbook-calculator', size: [1300, 820], steps: snap('handbook-calculator') },
+  { name: 'handbook-pinout', size: [1300, 820], steps: snap('handbook-pinout') },
+  { name: 'show-edit', size: [1500, 900], steps: qtrl('player', { sidebar: true, inspector: true, timeline: false, sidebarTab: 'pads', inspectorTab: 'main' }) },
+  { name: 'show-show', size: [1500, 900], steps: qtrl('player', { sidebar: true, inspector: true, timeline: true, sidebarTab: 'active', inspectorTab: 'main' }, [{ op: 'showMode', on: true }]) },
+  { name: 'show-group-multitrack', size: [1500, 900], steps: qtrl('multitrack', { sidebar: true, inspector: true, timeline: false, sidebarTab: 'active', inspectorTab: 'multitrack' }) },
+  { name: 'show-waveform', size: [1000, 600], steps: qtrl('waveform', { solo: 'waveform' }) },
+  { name: 'osc-devices', size: [640, 600], steps: qtrl('osc', { solo: 'osc', oscPage: 'list' }) },
+  { name: 'osc-setup-eos', size: [640, 600], steps: qtrl('osc', { solo: 'osc', oscStart: 'eos' }) },
+  { name: 'game-launcher', size: [1030, 540], steps: snap('game-launcher') },
+  { name: 'assist-connect', size: [1500, 940], steps: assist('connect') },
+  { name: 'assist', size: [1500, 940], steps: assist('soundcheck') },
+  { name: 'assist-show', size: [1500, 940], steps: assist('show') },
+  { name: 'assist-test', size: [1500, 940], steps: assist('test') },
+  { name: 'assist-learn', size: [1500, 940], steps: assist('learn') },
+  { name: 'assist-locked', size: [1500, 940], steps: assist('locked') },
+];

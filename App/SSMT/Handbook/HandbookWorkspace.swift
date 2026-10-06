@@ -19,82 +19,12 @@ enum HandbookPrefs {
     static let item = "ssmt.handbook.item"
     static let favorites = "ssmt.handbook.favorites"
     /// Pseudo-category: the starred pages.
-    static let favoritesCategory = "favorites"
+    static let favoritesCategory = HandbookIndex.favoritesCategory
 
     static func favoriteIDs(_ raw: String) -> [String] { raw.split(separator: ",").map(String.init) }
 }
 
-/// A page of the handbook: an article or a calculator.
-struct HandbookEntry: Identifiable {
-    enum Kind {
-        case article(HandbookArticle)
-        case calculator(AudioCalculator)
-    }
-    var kind: Kind
-
-    var id: String {
-        switch kind {
-        case .article(let a): return a.id
-        case .calculator(let c): return "calc." + c.id
-        }
-    }
-
-    var category: HandbookCategory {
-        switch kind {
-        case .article(let a): return a.category
-        case .calculator: return .calculators
-        }
-    }
-
-    var icon: String {
-        switch kind {
-        case .article(let a): return a.category.icon
-        case .calculator(let c): return c.icon
-        }
-    }
-
-    func title(_ ru: Bool) -> String {
-        switch kind {
-        case .article(let a): return a.title.text(russian: ru)
-        case .calculator(let c): return c.title.text(russian: ru)
-        }
-    }
-
-    func subtitle(_ ru: Bool) -> String {
-        switch kind {
-        case .article(let a): return a.subtitle.text(russian: ru)
-        case .calculator(let c): return c.subtitle.text(russian: ru)
-        }
-    }
-}
-
-enum HandbookIndex {
-    static let all: [HandbookEntry] =
-        AudioCalculator.all.map { HandbookEntry(kind: .calculator($0)) } + Handbook.articles.map { HandbookEntry(kind: .article($0)) }
-
-    static func entry(_ id: String) -> HandbookEntry? { all.first { $0.id == id } }
-
-    /// Pages of a category, or search results across everything while a query is typed.
-    static func entries(category: String, query: String, russian: Bool, favorites: [String]) -> [HandbookEntry] {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        if !q.isEmpty {
-            return AudioCalculator.search(q, russian: russian).map { HandbookEntry(kind: .calculator($0)) }
-                + Handbook.search(q, russian: russian).map { HandbookEntry(kind: .article($0)) }
-        }
-        if category == HandbookPrefs.favoritesCategory { return favorites.compactMap(entry) }
-        switch HandbookCategory(rawValue: category) ?? .calculators {
-        case .calculators: return AudioCalculator.all.map { HandbookEntry(kind: .calculator($0)) }
-        case .glossary:
-            return Handbook.articles(in: .glossary).map { HandbookEntry(kind: .article($0)) }
-                .sorted { $0.title(russian).localizedCaseInsensitiveCompare($1.title(russian)) == .orderedAscending }
-        case let c: return Handbook.articles(in: c).map { HandbookEntry(kind: .article($0)) }
-        }
-    }
-
-    static func count(_ category: HandbookCategory) -> Int {
-        category == .calculators ? AudioCalculator.all.count : Handbook.articles(in: category).count
-    }
-}
+// HandbookEntry and HandbookIndex live in SSMTCore (shared with the Windows engine).
 
 // MARK: - Sidebar
 

@@ -161,4 +161,20 @@ final class InputListTests: XCTestCase {
         XCTAssertFalse(MicLibrary.needsPhantom("MD421"))
         XCTAssertFalse(MicLibrary.needsPhantom("Radial ProD2"))
     }
+
+    func testStarterAndSuggestedName() {
+        let s = InputListDocument.starter
+        XCTAssertTrue(s.channels.isEmpty)
+        XCTAssertEqual(s.stage.items.map(\.kind), [.riser, .drumKit, .person, .wedge, .text])
+        XCTAssertEqual(s.stage.items.map(\.label), ["Drum riser", "Drums", "Lead vocal", "Mix 1", "Audience"])
+        XCTAssertEqual(s.stage.items[3].y, 0.4, accuracy: 1e-9)
+        var d = InputListDocument()
+        XCTAssertEqual(d.suggestedName, "Ptch")
+        d.artist = " AC/DC "
+        XCTAssertEqual(d.suggestedName, "AC-DC")
+        d.event = "Club"
+        XCTAssertEqual(d.suggestedName, "AC-DC - Club")
+        d.artist = ""
+        XCTAssertEqual(d.suggestedName, "Club")
+    }
 }

@@ -47,12 +47,13 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
     case 'disconnect': if (family && family !== 'simulator') out('unlink'); family = ''; state(); break;
     case 'osc': out('gotOsc', { data: c.data }); break;
     case 'discovered': out('found', { family: 'x32', ip: c.sender, name: 'X32-MOCK', model: 'X32', firmware: '4.06' }); break;
-    case 'learnStart': learn = { title: c.title || 'Event', seconds: 0, frames: 0, changes: 0 }; out('learn', { recording: true, ...learn }); break;
+    case 'learnStart': learn = { title: c.title || 'Event', seconds: 0, frames: 0, changes: 0, params: 0 }; out('learn', { recording: true, ...learn }); break;
     case 'learnStop':
       if (learn) recordings.unshift({ file: 'x.ssmtlearn', title: learn.title, startedAt: Date.now() / 1000, duration: learn.seconds, console: family, model: 'X32 · 4.06', event: learn.seconds >= 300 });
       learn = null; out('learn', { recording: false }); list();
       break;
     case 'recordings': list(); break;
+    case 'exportDataset': out('dataset', { path: '/tmp/SSMT/Learning/SSMT-dataset.jsonl', rows: 1240, recordings: recordings.length, bytes: 2400000 }); break;
     case 'patterns': out('patterns', { summary: c.lang === 'en' ? 'Events recorded: 3 of 20, 7.5 h in total.' : 'Записано мероприятий: 3 из 20, всего 7,5 ч.\n• Вокал (муж.) (3): гейн 34 дБ, фейдер -3.0 дБ, обрезной фильтр 120 Гц (100%), EQ3 +2.5 дБ на 3000 Гц, компрессор -20 дБ, 3.0:1, движений фейдера 5.8 в мин\n• Бочка (3): гейн 25 дБ, фейдер -6.0 дБ, движений фейдера 0.2 в мин' }); break;
     case 'prompt': out('prompt', { id: c.id || '', text: 'PROMPT ' + c.question }); break;
     case 'tune': out('log', { entries: [{ step: 1, channel: c.channel, note: { recognised: { _0: kinds[c.channel] || 'unknown', confidence: 0.9 } } }, { step: 2, channel: c.channel, note: { gain: { fromDB: 20, toDB: 31.5 } } }] }); break;
@@ -62,6 +63,6 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
 
 setInterval(() => {
   if (family) out('meters', { channels: strips.map((s, i) => -40 + 25 * Math.abs(Math.sin(Date.now() / 700 + i))), buses: [] });
-  if (learn) { learn.seconds += 1; learn.frames += 1; if (Math.random() < 0.3) learn.changes += 1; out('learn', { recording: true, ...learn }); }
+  if (learn) { learn.seconds += 1; learn.frames += 1; learn.params = Math.min(7498, learn.params + 150); if (Math.random() < 0.3) learn.changes += 1; out('learn', { recording: true, ...learn }); }
 }, 1000);
 out('ready', { version: 'mock' });

@@ -116,4 +116,167 @@ final class LearnTests: XCTestCase {
         XCTAssertTrue(p.sources.isEmpty)
         XCTAssertTrue(p.summary(russian: false).contains("0 of 20"))
     }
+
+    // MARK: every console parameter
+
+    static func blob(floats: [Float]) -> OSCArgument {
+        var d = Data()
+        var n = UInt32(floats.count).littleEndian
+        d.append(Data(bytes: &n, count: 4))
+        for f in floats { var b = f.bitPattern.littleEndian; d.append(Data(bytes: &b, count: 4)) }
+        return .blob(d)
+    }
+
+    static func blob(shorts: [Double]) -> OSCArgument {
+        var d = Data()
+        var n = UInt32(shorts.count).littleEndian
+        d.append(Data(bytes: &n, count: 4))
+        for v in shorts { var b = UInt16(bitPattern: Int16((v * 256).rounded())).littleEndian; d.append(Data(bytes: &b, count: 2)) }
+        return .blob(d)
+    }
+
+    func testTreeCoversTheWholeConsoleAndOnlyReads() {
+        let x = ConsoleTree.addresses(.x32)
+        XCTAssertGreaterThan(x.count, 6000)
+        XCTAssertEqual(Set(x).count, x.count, "no address twice")
+        for a in ["/ch/01/mix/fader", "/ch/32/dyn/thr", "/ch/05/gate/range", "/ch/07/mix/03/level", "/bus/16/eq/6/g",
+                  "/mtx/06/mix/fader", "/main/st/dyn/ratio", "/dca/8/fader", "/fx/1/par/64", "/headamp/127/phantom",
+                  "/auxin/08/mix/fader", "/fxrtn/01/mix/01/level"] {
+            XCTAssertTrue(x.contains(a), a)
+        }
+        let xa = ConsoleTree.addresses(.xAir)
+        for a in ["/ch/16/dyn/thr", "/bus/6/eq/6/f", "/lr/mix/fader", "/rtn/aux/mix/fader", "/headamp/24/gain"] {
+            XCTAssertTrue(xa.contains(a), a)
+        }
+        var c = ConsoleCapture(family: .x32)
+        var asked: [OSCMessage] = []
+        for _ in 0..<60 { asked += c.sweep() }
+        XCTAssertEqual(c.passes, 1, "the first pass takes under a minute")
+        XCTAssertEqual(ConsoleReadOnly.filter(asked).count, asked.count)
+        XCTAssertEqual(c.sweep().count, c.refreshRate)
+        for fam in [MixerFamily.x32, .xAir] {
+            let reqs = ConsoleReadOnly.renewals(family: fam)
+            XCTAssertEqual(ConsoleReadOnly.filter(reqs).count, reqs.count)
+            XCTAssertTrue(reqs.contains(ConsoleMeters.request(.rta, family: fam)))
+        }
+    }
+
+    func testCaptureKeepsParametersAndFoldsMetersPerSecond() {
+        var c = ConsoleCapture(family: .x32)
+        XCTAssertTrue(c.take(OSCMessage("/ch/01/mix/03/level", [.float(0.62519)])))
+        XCTAssertTrue(c.take(OSCMessage("/ch/01/config/name", [.string("Kick")])))
+        XCTAssertTrue(c.take(OSCMessage("/ch/01/gate/on", [.int(1)])))
+        XCTAssertFalse(c.take(OSCMessage("/info", [.string("V2.07")])))
+        XCTAssertFalse(c.take(OSCMessage("/ch/01/mix/fader")))
+        XCTAssertEqual(c.params["/ch/01/mix/03/level"], .number(0.6252))
+        XCTAssertEqual(c.params["/ch/01/config/name"], .text("Kick"))
+        XCTAssertEqual(c.params["/ch/01/gate/on"], .number(1))
+        // /meters/1: 32 levels, 32 gate, 32 compressor gain (1 = no reduction).
+        var m1 = [Float](repeating: 0, count: 96)
+        m1[0] = 0.5; m1[32] = 1; m1[64] = 0.5
+        XCTAssertTrue(c.take(OSCMessage("/meters/1", [Self.blob(floats: m1)])))
+        m1[0] = 0.25; m1[64] = 0.25
+        c.take(OSCMessage("/meters/1", [Self.blob(floats: m1)]))
+        var m2 = [Float](repeating: 0, count: 49)
+        m2[0] = 1; m2[25] = 0.5
+        c.take(OSCMessage("/meters/2", [Self.blob(floats: m2)]))
+        c.take(OSCMessage("/meters/15", [Self.blob(shorts: [Double](repeating: -30, count: 100))]))
+        let s = c.takeSecond()
+        XCTAssertEqual(s.levels.first ?? 0, -6, accuracy: 0.5, "peak of the second")
+        XCTAssertEqual(s.dyn.first ?? 0, -12, accuracy: 0.5, "most reduction of the second")
+        XCTAssertEqual(s.gate.first ?? -1, 0, accuracy: 0.01)
+        XCTAssertEqual(s.outs.count, 25)
+        XCTAssertEqual(s.outs.first ?? -1, 0, accuracy: 0.01)
+        XCTAssertEqual(s.outDyn.first ?? 0, -6, accuracy: 0.5)
+        XCTAssertEqual(s.rta.count, ThirdOctave.centers.count)
+        XCTAssertTrue(c.takeSecond().rta.isEmpty, "the window starts again")
+        // X Air gain reduction bank.
+        var a = ConsoleCapture(family: .xAir)
+        a.take(OSCMessage("/meters/6", [Self.blob(shorts: [-3] + [Double](repeating: 0, count: 15) + [-8])]))
+        let sa = a.takeSecond()
+        XCTAssertEqual(sa.gate.first ?? 0, -3, accuracy: 0.01)
+        XCTAssertEqual(sa.dyn.first ?? 0, -8, accuracy: 0.01)
+    }
+
+    func testRecorderWritesParametersAndMeters() {
+        var rec = LearningRecorder(header: LearnHeader(title: "All", console: "x32"))
+        rec.paramKeyInterval = 100
+        var c = ConsoleCapture(family: .x32)
+        let strips = [1: ChannelStrip(id: 1, name: "Kick", gainDB: 30, faderDB: -10)]
+        c.absorb(strips: strips, buses: [1: BusStrip(id: 1, name: "Mon", faderDB: -3)])
+        XCTAssertNotNil(c.params["/ch/01/mix/fader"])
+        XCTAssertNotNil(c.params["/bus/01/mix/fader"])
+        var data = rec.headerLine()
+        for t in 0..<150 {
+            if t == 20 { c.take(OSCMessage("/ch/01/mix/05/level", [.float(0.5)])) }       // heard for the first time
+            if t == 40 { c.take(OSCMessage("/ch/01/mix/05/level", [.float(0.7)])) }       // an edit
+            var m = LearnMeters()
+            m.levels = [-12]
+            m.dyn = [-4]
+            data += rec.record(t: Double(t), strips: strips, buses: [:], channelLevels: [1: -30], busLevels: [:],
+                               params: c.params, meters: m)
+        }
+        XCTAssertEqual(rec.changes, 1)
+        let r = LearnRecording.parse(data)!
+        XCTAssertEqual(r.header.format, 2)
+        XCTAssertEqual(r.frames[0].pkey, true)
+        XCTAssertNil(r.frames[1].p, "nothing changed")
+        XCTAssertEqual(r.frames[20].p, ["/ch/01/mix/05/level": .number(0.5)])
+        XCTAssertEqual(r.frames[40].p, ["/ch/01/mix/05/level": .number(0.7)])
+        XCTAssertEqual(r.frames[100].pkey, true)
+        XCTAssertEqual(r.frames[5].levels, [-12], "meter peaks replace the last level")
+        XCTAssertEqual(r.frames[5].m?.dyn, [-4])
+        var last: [String: ParamValue] = [:]
+        r.replayParams { f, p in if f.t == 45 { last = p } }
+        XCTAssertEqual(last["/ch/01/mix/05/level"], .number(0.7))
+        XCTAssertEqual(last["/ch/01/config/name"], .text("Kick"))
+        // A recording of the first format still reads.
+        let old = Data(#"{"app":"","console":"x32","format":1,"id":"a","model":"","startedAt":0,"title":"Old"}"#.utf8)
+            + Data("\n".utf8) + Data(#"{"busLevels":[],"levels":[-20],"t":0}"#.utf8)
+        let o = LearnRecording.parse(old)
+        XCTAssertEqual(o?.frames.count, 1)
+        XCTAssertNil(o?.frames.first?.p)
+    }
+
+    func testLostSecondsAreMarkedAndTheDatasetHasSoundAndSettings() {
+        var rec = LearningRecorder(header: LearnHeader(title: "Show", console: "x32"))
+        var c = ConsoleCapture(family: .x32)
+        let strips = [1: ChannelStrip(id: 1, name: "Kick", gainDB: 30, faderDB: -10), 2: ChannelStrip(id: 2, name: "Vox", faderDB: -5)]
+        c.absorb(strips: strips, buses: [:])
+        var data = rec.headerLine()
+        var flushes = 0
+        for t in 0..<30 {
+            var m = LearnMeters()
+            m.levels = [-12, -90]
+            m.dyn = [-4, 0]
+            m.rta = [Double](repeating: -40, count: 30)
+            data += rec.record(t: Double(t), strips: strips, buses: [:], channelLevels: [:], busLevels: [:],
+                               params: c.params, meters: m, lost: (12...15).contains(t))
+            if rec.shouldFlush { flushes += 1 }
+        }
+        XCTAssertEqual(rec.lostFrames, 4)
+        XCTAssertEqual(flushes, 1, "on disk every 30 s")
+        // The computer went off in the middle of a line: everything before it still reads.
+        let r = LearnRecording.parse(data + Data(#"{"levels":[-1"#.utf8))!
+        XCTAssertEqual(r.frames.count, 30)
+        XCTAssertEqual(r.frames[12].lost, true)
+        XCTAssertNil(r.frames[11].lost)
+
+        let rows = LearnDataset.rows(r)
+        XCTAssertEqual(rows.map(\.t), [0, 10, 20], "one row per window, only the playing channel")
+        let row = rows[0]
+        XCTAssertEqual(row.ch, 1)
+        XCTAssertEqual(row.name, "Kick")
+        XCTAssertEqual(row.kind, "kick")
+        XCTAssertEqual(row.peak, -12)
+        XCTAssertEqual(row.dyn, -4)
+        XCTAssertEqual(row.rta?.count, 30)
+        XCTAssertEqual(row.rta?.first, -40)
+        XCTAssertNotNil(row.settings["mix/fader"])
+        XCTAssertEqual(row.settings["config/name"], .text("Kick"))
+        XCTAssertFalse(row.settings.keys.contains { $0.hasPrefix("/") }, "addresses below the channel")
+        let lines = LearnDataset.jsonLines([r]).split(separator: 0x0A)
+        XCTAssertEqual(lines.count, 3)
+        XCTAssertNotNil(try? JSONDecoder().decode(LearnDataset.Row.self, from: Data(lines[1])))
+    }
 }

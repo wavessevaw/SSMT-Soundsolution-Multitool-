@@ -8,6 +8,8 @@ import json, os, re, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "App/SSMT/Resources/Localizable.xcstrings")
+# The Windows interface uses the same strings (same keys, same texts).
+WIN_OUT = os.path.join(ROOT, "Windows/App/src/renderer/strings.gen.js")
 
 STRINGS = {
     "action.stop": ("STOP", "STOP"),
@@ -335,6 +337,11 @@ STRINGS = {
     "mini.opacity": ("Opacity", "Прозрачность"),
     "mini.clickThrough": ("Click-through (turn off in the SSMT menu)", "Клики насквозь (выключить в меню SSMT)"),
     "mini.clickThroughOff": ("Mini window: clicks back on", "Мини-окно: вернуть клики"),
+    # The system menus macOS adds itself (File, Window, Minimize, Quit), for the Windows menu bar.
+    "menu.file": ("File", "Файл"),
+    "menu.window": ("Window", "Окно"),
+    "menu.minimize": ("Minimize", "Свернуть"),
+    "menu.quit": ("Quit SSMT", "Завершить SSMT"),
     "mini.expand": ("Expand", "Развернуть"),
     "mini.noDelay": ("delay not locked", "задержка не зафиксирована"),
     "report.title": ("System setup report", "Отчёт о настройке системы"),
@@ -1261,19 +1268,24 @@ STRINGS = {
     "assist.learn.live": ("Console now", "Пульт сейчас"),
     "assist.learn.readOnly": ("Read-only: nothing on the console changes", "Только чтение: на пульте ничего не меняется"),
     "assist.learn.simNote": ("Simulator: a practice recording", "Симулятор: пробная запись"),
-    "assist.learn.hint": ("Start the recording before the event and stop it after. Once a second the console is recorded: faders, gain, EQ, dynamics and channel levels.", "Включите запись перед началом мероприятия и остановите после него. Раз в секунду записывается состояние пульта: фейдеры, гейн, эквалайзер, динамика и уровни каналов."),
+    "assist.learn.hint": ("Start the recording before the event and stop it after. Once a second every console parameter is recorded: faders, gain, channel and bus EQ, gate and compressor with gain reduction, sends, DCAs, effects, levels and the RTA.", "Включите запись перед началом мероприятия и остановите после него. Раз в секунду записываются все параметры пульта: фейдеры, гейн, эквалайзеры каналов и шин, гейт и компрессор с подавлением, посылы, DCA, эффекты, уровни и RTA."),
     "assist.learn.titlePlaceholder": ("Event name, e.g. Chicago musical, 12 October", "Название мероприятия, например «Чикаго», 12 октября"),
     "assist.learn.start": ("Start recording", "Начать запись"),
     "assist.learn.stop": ("Stop recording", "Остановить запись"),
     "assist.learn.recording": ("Recording", "Идёт запись"),
     "assist.learn.frames": ("seconds recorded", "секунд записано"),
     "assist.learn.changes": ("changes on the console", "изменений на пульте"),
+    "assist.learn.params": ("console parameters", "параметров пульта"),
     "assist.learn.progress": ("Learning progress", "Прогресс обучения"),
     "assist.learn.events": ("Events: %ld of %ld", "Мероприятий: %ld из %ld"),
     "assist.learn.progressHint": ("A recording longer than 5 minutes counts as an event. After about 20 events the patterns are enough to build the soundcheck engine.", "Мероприятием считается запись длиннее 5 минут. Примерно после 20 мероприятий по закономерностям можно строить движок саундчека."),
     "assist.learn.empty": ("No recordings yet.", "Записей пока нет."),
     "assist.learn.trial": ("trial", "проба"),
     "assist.learn.openFolder": ("Open the recordings folder", "Открыть папку с записями"),
+    "assist.learn.dataset": ("Build the training dataset", "Собрать данные для обучения"),
+    "assist.learn.datasetHint": ("All recordings in one file for training: per channel every 10 s, the sound (level, gain reduction, RTA) and every setting of the channel.",
+                                 "Все записи в один файл для обучения: по каждому каналу раз в 10 с звук (уровень, подавление, RTA) и все настройки канала."),
+    "assist.learn.datasetDone": ("Done: %d rows from %d recordings, %@ in the recordings folder.", "Готово: %d строк из %d записей, файл %@ в папке с записями."),
     "assist.learn.delete": ("Delete the recording", "Удалить запись"),
     "assist.learn.patterns": ("Patterns", "Закономерности"),
     "assist.learn.noPatterns": ("Patterns appear after the first recordings.", "Закономерности появятся после первых записей."),
@@ -1353,6 +1365,10 @@ STRINGS = {
     "game.does.start": ("Pause", "Пауза"),
     "game.run": ("Runs in any Mega Drive emulator (OpenEmu, Genesis Plus GX, BlastEm) and on a real console from a flash cartridge such as Mega EverDrive.",
                  "Работает в любом эмуляторе Mega Drive (OpenEmu, Genesis Plus GX, BlastEm) и на настоящей приставке с флеш-картриджа, например Mega EverDrive."),
+    # Windows: the ROM opens in the emulator associated with .gen files (OpenEmu and Finder are macOS only).
+    "game.win.play": ("Play in the emulator", "Играть в эмуляторе"),
+    "game.win.getEmulator": ("Get BlastEm (free emulator)", "Скачать BlastEm (бесплатный эмулятор)"),
+    "game.win.reveal": ("Show in folder", "Показать в папке"),
 
 }
 
@@ -1419,6 +1435,18 @@ def generate():
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(catalog, f, ensure_ascii=False, indent=2)
         f.write("\n")
+    with open(WIN_OUT, "w", encoding="utf-8") as f:
+        f.write(win_js())
+
+
+def win_js():
+    out = {"ru": {}, "en": {}}
+    for key in sorted(STRINGS):
+        en, ru = STRINGS[key]
+        out["en"][key] = en
+        out["ru"][key] = ru
+    return ("'use strict';\n// Generated by scripts/strings.py from the Mac app's strings. Do not edit.\n"
+            "window.MAC_STRINGS = " + json.dumps(out, ensure_ascii=False, indent=0, sort_keys=True) + ";\n")
 
 
 def check():
@@ -1440,6 +1468,8 @@ def check():
         missing += [k for k in keys if k not in STRINGS]
     generated = json.load(open(OUT, encoding="utf-8"))
     stale = sorted(set(STRINGS) ^ set(generated["strings"]))
+    if not os.path.exists(WIN_OUT) or open(WIN_OUT, encoding="utf-8").read() != win_js():
+        stale.append(os.path.relpath(WIN_OUT, ROOT))
     if missing or stale:
         print("Missing keys:", missing)
         print("Catalog out of date:", stale)

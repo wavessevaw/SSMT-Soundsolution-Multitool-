@@ -1,0 +1,112 @@
+/* Function #5, the handbook: App/SSMT/Handbook/HandbookWorkspace.swift and HandbookPages.swift, one to one. */
+
+/* Sidebar categories (HandbookSidebarItems). */
+.hb-cats { display: flex; flex-direction: column; gap: 2px; padding: 0 10px; }
+.hb-cats .rule { height: 1px; background: var(--hairline); margin: 8px 8px; }
+.hb-cat { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 9px; border: none; background: none; width: 100%; text-align: left; }
+.hb-cat svg { width: 22px; color: var(--text-secondary); }
+.hb-cat b { flex: 1; font-size: 13px; font-weight: 400; color: var(--text-primary); line-height: 16px; }
+.hb-cat span { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.hb-cat.on { background: rgba(46, 229, 157, 0.12); }
+.hb-cat.on svg { color: var(--accent); }
+.hb-cat.on b { font-weight: 600; }
+
+/* Workspace: header, list on the left, page on the right. */
+.hb { display: flex; flex-direction: column; gap: 14px; padding: 0 10px 4px; height: 100%; }
+.hb-head { display: flex; align-items: center; gap: 16px; padding-top: 6px; }
+.hb-head .titles { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.hb-head h1 { margin: 0; font-size: 30px; font-weight: 700; line-height: 36px; letter-spacing: -0.01em; }
+.hb-head .titles span { font-size: 13px; line-height: 16px; color: var(--text-secondary); }
+.hb-search { width: 360px; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-muted); }
+.hb-search:focus-within { border-color: rgba(46, 229, 157, 0.6); }
+.hb-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; font-size: 14px; line-height: 17px; padding: 0; color: var(--text-primary); user-select: text; }
+.hb-search input::placeholder { color: rgba(243, 246, 244, 0.5); }
+.hb-search .clear { border: none; background: none; padding: 0; color: var(--text-muted); display: flex; }
+.hb-body { flex: 1; min-height: 0; display: flex; align-items: stretch; gap: 14px; }
+
+.hb-list { width: 316px; flex: none; padding: 8px; display: flex; }
+.hb-list .scroll { flex: 1; overflow-y: auto; padding: 4px 0; display: flex; flex-direction: column; gap: 2px; }
+.hb-results { font-size: 11px; font-weight: 600; color: var(--text-muted); padding: 6px 10px; }
+.hb-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; border: none; background: none; width: 100%; text-align: left; flex: none; }
+.hb-row > svg { width: 22px; color: var(--text-secondary); }
+.hb-row .titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hb-row b { font-size: 13px; line-height: 16px; font-weight: 400; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hb-row .titles span { font-size: 11px; line-height: 14px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hb-row.on { background: rgba(46, 229, 157, 0.14); }
+.hb-row.on > svg { color: var(--accent); }
+.hb-row.on b { font-weight: 600; }
+
+.hb-page { flex: 1; min-width: 0; overflow-y: auto; }
+.hb-page-in { display: flex; flex-direction: column; gap: 18px; padding: 24px; max-width: 860px; }
+.hb-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 30px; color: var(--text-muted); }
+.hb-empty p { margin: 0; font-size: 13px; color: var(--text-secondary); text-align: center; }
+
+/* Title row of a page. */
+.hb-title { display: flex; align-items: flex-start; gap: 14px; }
+.hb-title .icon-tile { flex: none; }
+.hb-title .titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hb-title h2 { margin: 0; font-size: 22px; line-height: 27px; font-weight: 600; user-select: text; }
+.hb-title .titles span { font-size: 13px; line-height: 16px; color: var(--text-secondary); }
+.hb-star { border: none; background: none; padding: 0; color: var(--text-secondary); display: flex; margin-top: 2px; }
+.hb-star.on { color: var(--signal-yellow); }
+.hb-star.on svg { fill: currentColor; }
+
+/* Calculator. */
+.hb-calc { display: flex; flex-direction: column; gap: 18px; }
+.hb-calc-row { display: flex; align-items: flex-start; gap: 20px; }
+.hb-fields { flex: 0 1 380px; min-width: 300px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.hb-field { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.hb-field label { font-size: 12px; line-height: 15px; color: var(--text-secondary); }
+.hb-num { display: flex; align-items: center; gap: 8px; }
+.hb-num input { flex: 1; min-width: 0; font-size: 15px; line-height: 16px; font-weight: 500; font-variant-numeric: tabular-nums; padding: 7px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.28); border: 1px solid rgba(255, 255, 255, 0.1); outline: none; user-select: text; }
+.hb-num input:focus { border-color: rgba(46, 229, 157, 0.6); }
+.hb-num input.invalid { border-color: rgba(255, 69, 58, 0.8); }
+.hb-num .unit { width: 52px; flex: none; font-size: 12px; color: var(--text-muted); }
+.hb-choice { max-width: 320px; }
+.hb-reset { border: none; background: none; padding: 0; font-size: 12px; color: var(--text-muted); }
+.hb-answers { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.hb-primary { display: flex; flex-direction: column; gap: 2px; padding: 14px; border-radius: 12px; background: rgba(46, 229, 157, 0.08); }
+.hb-primary .label { font-size: 12px; line-height: 15px; color: var(--text-secondary); }
+.hb-primary .line { display: flex; align-items: baseline; gap: 6px; }
+.hb-primary .value { font-size: 36px; line-height: 43px; font-weight: 300; color: var(--accent); user-select: text; }
+.hb-primary .unit { font-size: 15px; color: var(--text-secondary); }
+.hb-answer { display: flex; align-items: center; gap: 8px; padding: 0 14px; }
+.hb-answer .label { flex: 1; font-size: 13px; line-height: 17px; color: var(--text-secondary); margin-right: 4px; }
+.hb-answer .value { font-size: 14px; font-variant-numeric: tabular-nums; color: var(--text-primary); user-select: text; }
+.hb-copy { border: none; background: none; padding: 0; color: var(--text-muted); display: inline-flex; }
+.hb-copy.done { color: var(--status-good); }
+.hb-formula { display: flex; align-items: flex-start; gap: 8px; padding: 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.18); color: var(--text-muted); }
+.hb-formula span { font-size: 12px; line-height: 15px; color: var(--text-secondary); user-select: text; }
+
+/* Article blocks. */
+.hb-article { display: flex; flex-direction: column; gap: 14px; }
+.hb-h { margin: 4px 0 0; font-size: 16px; font-weight: 600; }
+.hb-p, .hb-text { margin: 0; font-size: 14px; line-height: 18px; color: var(--text-primary); user-select: text; }
+.hb-bullets { display: flex; flex-direction: column; gap: 7px; }
+.hb-bullets > div { display: flex; align-items: baseline; gap: 8px; }
+.hb-bullets i { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); flex: none; position: relative; top: -2px; }
+.hb-steps { display: flex; flex-direction: column; gap: 9px; }
+.hb-steps > div { display: flex; align-items: baseline; gap: 10px; }
+.hb-steps i { font-style: normal; width: 22px; height: 22px; flex: none; border-radius: 50%; background: var(--accent); color: #000; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; }
+.hb-callout { display: flex; align-items: flex-start; gap: 10px; padding: 12px; border-radius: 10px; }
+.hb-callout span { flex: 1; font-size: 13px; line-height: 16px; color: var(--text-primary); user-select: text; }
+.hb-callout.warning { background: rgba(255, 214, 10, 0.1); box-shadow: inset 0 0 0 1px rgba(255, 214, 10, 0.3); color: var(--status-warning); }
+.hb-callout.tip { background: rgba(46, 229, 157, 0.1); box-shadow: inset 0 0 0 1px rgba(46, 229, 157, 0.3); color: var(--accent); }
+.hb-link { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--data-blue); text-decoration: none; }
+.hb-table { display: grid; border-radius: 10px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.hb-table .th { font-size: 12px; font-weight: 600; color: var(--text-secondary); padding: 8px 10px; background: rgba(255, 255, 255, 0.06); }
+.hb-table .td { font-size: 13px; line-height: 16px; color: var(--text-primary); padding: 7px 10px; user-select: text; }
+.hb-table .td.first { font-weight: 500; }
+.hb-table .td.odd { background: rgba(255, 255, 255, 0.025); }
+.hb-connector { display: flex; align-items: center; gap: 18px; padding: 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.2); align-self: flex-start; }
+.hb-connector .faceBox { position: relative; flex: none; display: flex; align-items: center; }
+.hb-connector .face.round { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(147, 156, 150, 0.7); background: rgba(255, 255, 255, 0.03); }
+.hb-connector .face.rect { position: absolute; inset: 0; border-radius: 14px; border: 2px solid rgba(147, 156, 150, 0.7); }
+.hb-connector .face.jack { display: flex; gap: 3px; height: 26px; width: 100%; }
+.hb-connector .face.jack .tip { width: 52px; border-radius: 13px; background: rgba(255, 255, 255, 0.18); }
+.hb-connector .face.jack .ring { width: 60px; background: rgba(255, 255, 255, 0.12); }
+.hb-connector .face.jack .sleeve { flex: 1; background: rgba(255, 255, 255, 0.18); }
+.hb-connector .pin { position: absolute; transform: translate(-50%, -50%); min-width: 24px; height: 24px; padding: 0 5px; border-radius: 12px; background: var(--accent); color: #000; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; display: flex; align-items: center; justify-content: center; }
+.hb-connector .caption { font-size: 12px; line-height: 15px; color: var(--text-secondary); }
+.hb-callout.warning svg path:first-child { fill: currentColor; }
+.hb-callout.warning svg path:not(:first-child) { stroke: #161400; stroke-width: 2.6; }

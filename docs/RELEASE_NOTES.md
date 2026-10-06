@@ -1,3 +1,47 @@
+# SSMT 1.5.1 — обучение FOH Assist: все параметры пульта
+
+## Русский
+
+**Обучение FOH Assist записывает весь пульт (Mac и Windows).** Раз в секунду, только чтение, на пульте ничего не меняется:
+- **все параметры каналов:** гейн и фантом, срез НЧ, полярность, задержка, гейт, компрессор, инсерт, эквалайзер,
+  фейдер, mute, панорама, посылы на все шины, DCA и группы mute;
+- **шины и мониторы:** фейдеры, эквалайзеры (6 полос), компрессоры; матрицы, главный выход, DCA, эффекты и их параметры;
+  на X32 также aux-входы и возвраты эффектов;
+- **индикаторы:** уровень каналов (пик за секунду), подавление гейта и компрессора по каждому каналу, уровни и
+  подавление шин, матриц и главного выхода;
+- **RTA пульта:** спектр того источника, который выбран для RTA на пульте, по третям октавы.
+- Счётчик «параметров пульта» на экране записи показывает, сколько прочитано (на X32 около 7 500).
+- Пульт опрашивается понемногу: первый проход за минуту, потом 25 запросов в секунду; изменения с пульта приходят
+  сразу. Запись четырёхчасового шоу занимает около 20 МБ. Старые записи читаются как раньше.
+
+**Запись на всё мероприятие.** Можно поставить на несколько часов:
+- файл пишется каждую секунду и сбрасывается на диск каждые 30 с: при сбое или отключении питания теряется не больше
+  30 секунд, а оборванная запись читается;
+- компьютер не засыпает, пока идёт запись (Mac и Windows);
+- если Wi-Fi пропал, запись продолжается, секунды без связи помечаются и не идут в обучение;
+- записи лежат в «Документы/SSMT/Learning».
+
+**Данные для обучения.** Кнопка «Собрать данные для обучения» делает из всех записей один файл `SSMT-dataset.jsonl`
+в той же папке: по каждому звучащему каналу раз в 10 секунд его звук (пик и средний уровень, подавление гейта и
+компрессора, RTA пульта) и все настройки канала (гейн, эквалайзер, динамика, фейдер, посылы).
+
+## English
+
+**SSMT 1.5.1.** FOH Assist learning now records the whole console once a second, read-only: every channel parameter
+(gain and phantom, high-pass, polarity, delay, gate, compressor, insert, EQ, fader, mute, pan, every send, DCA and
+mute groups), buses and monitors (faders, 6-band EQ, compressors), matrices, main outputs, DCAs, effects with their
+parameters, X32 aux inputs and FX returns; per-channel gate and compressor gain reduction, output levels and gain
+reduction, and the console RTA (whatever source is selected for it on the console) in third octaves. The record panel
+counts the console parameters read (about 7,500 on an X32). Queries are paced: a full pass in about a minute, then 25 a
+second; changes made on the console arrive at once. A four-hour show takes about 20 MB. Older recordings still read.
+
+Recordings can run for a whole show: flushed to disk every 30 s (a crash loses at most that and a cut file still reads),
+the computer does not sleep while recording, and seconds without the console are marked and left out of learning.
+"Build the training dataset" turns all recordings into one `SSMT-dataset.jsonl` next to them: for every playing channel
+every 10 s, its sound (peak and level, gate and compressor gain reduction, the console RTA) and every channel setting.
+
+---
+
 # SSMT 1.5.0 — Windows и обучение FOH Assist
 
 ## Русский

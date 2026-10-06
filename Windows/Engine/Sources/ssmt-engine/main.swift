@@ -6,7 +6,7 @@ import SSMTCore
 // packets come back as "osc" commands. With a real console the engine is read-only: every packet passes through
 // `ConsoleReadOnly`, and soundcheck commands are taken in the simulator only.
 
-let engineVersion = "1.5.0"
+let engineVersion = "1.5.1"
 
 // MARK: - I/O
 
@@ -68,8 +68,58 @@ final class Engine {
     var sim: SimulatedConsole?
     var session: AssistSession?
     var references: [Int: [Double]] = [:]
+    var tap = TapPoint.preEQ
+    /// Snapshot tests: the simulator shown as a real (read-only) console.
+    var previewReadOnly = false
+    /// Snapshot tests: recordings as if read from disk (AssistStore.showRecordings).
+    var previewRecordings: [(file: String, rec: LearnRecording)]?
+    /// Last analysis per channel (soundcheck and show guard), as AssistStore.features.
+    var features: [Int: SignalFeatures] = [:]
+    var groupPhase: GroupPhase?
+    var micLevel: Double?
+    var micCalibrated = false
+    /// Why the console did not connect ("noAnswer", "not supported yet").
+    var failure = ""
+    /// Channel levels of the simulator for learning (AssistStore.simLevels), apart from the live meters.
+    var simLearnLevels: [Int: Double] = [:]
+
+    // Show guard and show simulation (AssistStore, simulator only: a real console is read-only).
+    var guardian: ShowGuard?
+    var guarding = false
+    var guardStart = Date()
+    var guardTime: Double = 0
+    var guardSteps = 0
+    var guardElapsed: Double = 0
+    var guardLog: [(time: Double, action: GuardAction)] = []
+    var corrections: [ShowGuard.Correction] = []
+    var nextGuardStep = Date.distantFuture
+    let hallDetector = FeedbackDetector()
+    let stageDetector = FeedbackDetector()
+    var rehearsal: ShowRehearsal?
+    var rehearsalScene: ShowRehearsal.Scene?
+    var rehearsalLog: [(time: Double, event: ShowRehearsal.Event)] = []
+    var nextRehearsalStep = Date.distantFuture
+
+    // Console test and fader wave.
+    let testBox = TestBox()
+    var testing = false
+    var testChecks: [ConsoleTestCheck] = []
+    var waving = false
+    var waveCycle = 4.0
+    var waveStart = Date()
+    var waveBackup: [Int: Double] = [:]
+    var nextWaveTick = Date.distantFuture
+
+    // What the link to a real console brings, per second (AssistStore.LinkStats).
+    var frameCount = (ch: 0, bus: 0, rta: 0)
+    var linkStats: [String: Any] = [:]
+    var nextLinkStats = Date.distantFuture
 
     var recorder: LearningRecorder?
+    /// Every parameter and meter of the console while connected (read-only).
+    var capture: ConsoleCapture?
+    /// Console parameters in the last frame.
+    var learnParams = 0
     var recordFile: FileHandle?
     var recordURL: URL?
     var learnStartedAt = Date()
@@ -80,11 +130,15 @@ final class Engine {
     var nextRenew = Date.distantFuture
     var nextJobStep = Date.distantFuture
     var nextLearnFrame = Date.distantFuture
-    var nextSimLevels = Date.distantFuture
     var askAgain: [Date] = []
     var lastAlive = false
 
     var isReal: Bool { family == .x32 || family == .xAir }
+    /// A real console is read-only in this version: soundcheck, show guard and console test are simulator only.
+    var readOnly: Bool { isReal || previewReadOnly }
+
+    /// The program's other functions (Modules/).
+    lazy var modules: [EngineModule] = makeModules()
 
     // MARK: commands
 
@@ -121,31 +175,55 @@ final class Engine {
         case "character":
             character = MixCharacter(rawValue: str("value") ?? "") ?? .musical
             session?.character = character
+            guardian?.character = character
+            stateDirty = true
+        case "tap":
+            tap = TapPoint(rawValue: str("value") ?? "") ?? .preEQ
+            session?.tap = tap
+            stateDirty = true
         case "tune":
-            guard let session, sim != nil, let ch = int("channel") else { return refuse(cmd) }
+            guard let session, sim != nil, !readOnly, let ch = int("channel") else { return refuse(cmd) }
             session.startChannel(ch)
             beginJob()
         case "tuneGroup":
-            guard let session, sim != nil else { return refuse(cmd) }
+            guard let session, sim != nil, !readOnly else { return refuse(cmd) }
             let sel: AssistGroupSelection
             switch str("group") {
             case "choir": sel = .choir
             case "range": sel = .range(int("from") ?? 1, int("to") ?? 8)
             default: sel = .orchestra
             }
-            if session.startGroup(sel).isEmpty { Out.emit("message", ["key": "nothingFound"]) } else { beginJob() }
+            if session.startGroup(sel).isEmpty { Out.emit("message", ["key": "nothingFound"]); return }
+            if sel == .orchestra { ProfileModule.shared?.record("foh.orchestra") }
+            if sel == .choir { ProfileModule.shared?.record("foh.choir") }
+            beginJob()
         case "polarity":
-            guard let session, sim != nil else { return refuse(cmd) }
+            guard let session, sim != nil, !readOnly else { return refuse(cmd) }
             if session.startPolarity().isEmpty { Out.emit("message", ["key": "nothingFound"]) } else { beginJob() }
         case "stopJob":
-            session?.stop()
-            nextJobStep = .distantFuture
-            stateDirty = true
+            stopJob()
         case "undo":
             guard let session, let sim else { return refuse(cmd) }
-            for s in session.undo() { strips[s.id] = s; sim.setStrip(s) }
+            ProfileModule.shared?.record("foh.revert")
+            for s in session.undo() { trackStrip(s); strips[s.id] = s; sim.setStrip(s) }
+            stopJob()
+        case "runNow":
+            // Steps at once instead of every 2 s (simulator demo, snapshot tests); the clock stops, as on the Mac.
             nextJobStep = .distantFuture
-            stateDirty = true
+            for _ in 0..<max(0, int("steps") ?? 1) { jobStep() }
+        default:
+            if handleLearn(cmd, obj) || handleAssist(cmd, obj) { return }
+            let c = Command(name: cmd, fields: obj)
+            if !modules.contains(where: { $0.handle(c, engine: self) }) {
+                Out.emit("error", ["key": "unknownCommand", "detail": cmd])
+            }
+        }
+    }
+
+    /// Learning commands (recordings, patterns, the language model's prompt). False when not one of them.
+    func handleLearn(_ cmd: String, _ obj: [String: Any]) -> Bool {
+        func str(_ k: String) -> String? { obj[k] as? String }
+        switch cmd {
         case "learnStart":
             learnStart(title: str("title") ?? "")
         case "learnStop":
@@ -160,6 +238,8 @@ final class Engine {
                 try? FileManager.default.removeItem(at: learnDir.appendingPathComponent(f))
             }
             emitRecordings()
+        case "exportDataset":
+            exportDataset()
         case "patterns":
             let p = patterns()
             Out.emit("patterns", ["patterns": Out.json(p), "summary": p.summary(russian: str("lang") != "en")])
@@ -167,8 +247,9 @@ final class Engine {
             let p = patterns()
             Out.emit("prompt", ["id": str("id") ?? "", "text": p.prompt(question: str("question") ?? "", russian: str("lang") != "en")])
         default:
-            Out.emit("error", ["key": "unknownCommand", "detail": cmd])
+            return false
         }
+        return true
     }
 
     func refuse(_ cmd: String) { Out.emit("message", ["key": "simulatorOnly", "detail": cmd]) }
@@ -186,32 +267,49 @@ final class Engine {
             sim = c
             strips = c.strips
             buses = c.buses
-            model = "SSMT simulator"
+            model = "SSMT simulator · \(c.strips.count) ch"
             status = "connected"
-            session = AssistSession(strips: strips.values.sorted { $0.id < $1.id }, character: character)
-            nextSimLevels = Date()
+            lastAlive = true
+            ProfileModule.shared?.record("foh.simulator")
         case .x32, .xAir:
             status = "connecting"
             model = ""
+            linkStats = [:]
+            frameCount = (0, 0, 0)
+            nextLinkStats = Date().addingTimeInterval(1)
             strips = Dictionary(uniqueKeysWithValues: (1...f.channelCount).map { ($0, ChannelStrip(id: $0)) })
             buses = Dictionary(uniqueKeysWithValues: (1...X32Codec.busCount(f)).map { ($0, BusStrip(id: $0)) })
             routing = X32InputRouting.preset(routingPreset) ?? X32InputRouting()
             heard = []
+            capture = ConsoleCapture(family: f)
             Out.emit("link", ["host": h, "port": Int(f.defaultPort)])
             sendToConsole(ConsoleReadOnly.connectRequests(family: f, routing: routing))
             nextRenew = Date().addingTimeInterval(8)
             askAgain = [2.5, 5, 9].map { Date().addingTimeInterval($0) }
         default:
             status = "failed"
-            Out.emit("message", ["key": "notSupported"])
+            failure = "not supported yet"
         }
+        // As on the Mac, every console gets a session (the kind of each channel is read from it).
+        session = AssistSession(strips: strips.values.sorted { $0.id < $1.id }, character: character, tap: tap)
+        session?.measurementMic = MeasurementMic()
         stateDirty = true
     }
 
     func disconnect() {
         if recorder != nil { learnStop() }
+        stopWave()
+        stopRehearsal()
+        stopJob()
+        stopGuard()
         if isReal { Out.emit("unlink") }
         family = nil
+        failure = ""
+        features = [:]
+        micLevel = nil
+        nextLinkStats = .distantFuture
+        linkStats = [:]
+        capture = nil
         sim = nil
         session = nil
         strips = [:]
@@ -219,9 +317,9 @@ final class Engine {
         channelLevels = [:]
         busLevels = [:]
         status = "disconnected"
+        lastAlive = false
         nextRenew = .distantFuture
         nextJobStep = .distantFuture
-        nextSimLevels = .distantFuture
         askAgain = []
         stateDirty = true
     }
@@ -236,15 +334,22 @@ final class Engine {
     func received(_ m: OSCMessage) {
         guard let family, isReal else { return }
         lastHeard = Date()
+        if !lastAlive && status == "connected" { lastAlive = true; stateDirty = true }
         if !m.arguments.isEmpty { heard.insert(m.address) }
+        capture?.take(m)
         if m.address == "/info" || m.address == "/xinfo" {
             let parts = m.arguments.compactMap { a -> String? in if case let .string(s) = a { return s } else { return nil } }
             model = parts.dropFirst().joined(separator: " · ")
+            if status == "connecting" { ProfileModule.shared?.record("foh.connect") }
             status = "connected"
+            failure = ""
             stateDirty = true
             return
         }
-        if status != "connected" { status = "connected"; stateDirty = true }
+        if status != "connected" {
+            if status == "connecting" { ProfileModule.shared?.record("foh.connect") }
+            status = "connected"; failure = ""; stateDirty = true
+        }
         if family != .xAir, X32InputRouting.blockAddresses.contains(m.address) || m.address.hasSuffix("/config/source") {
             if routingPreset == .auto, routing.apply(m) {
                 sendToConsole((1...family.channelCount).compactMap { X32Codec.gainAddress($0, family: family, routing: routing) }.map { OSCMessage($0) })
@@ -252,6 +357,11 @@ final class Engine {
             return
         }
         if let (bank, values) = ConsoleMeters.decode(m, family: family) {
+            switch bank {
+            case .channels: frameCount.ch += 1
+            case .buses: frameCount.bus += 1
+            case .rta: frameCount.rta += 1
+            }
             switch bank {
             case .channels: for (i, v) in values.enumerated() { channelLevels[i + 1] = v }
             case .buses: for (i, v) in values.prefix(X32Codec.busCount(family)).enumerated() { busLevels[i + 1] = v }
@@ -278,27 +388,57 @@ final class Engine {
 
     // MARK: soundcheck (simulator only)
 
+    /// AssistStore.begin: the first step comes after one window (2 s).
     func beginJob() {
         session?.measurementMic = MeasurementMic()
-        nextJobStep = Date()
+        nextJobStep = Date().addingTimeInterval(2)
         stateDirty = true
     }
 
+    func stopJob() {
+        session?.stop()
+        nextJobStep = .distantFuture
+        groupPhase = nil
+        stateDirty = true
+    }
+
+    /// AssistStore.step: features of the listened channels for the last window, the hall mic, the console updated.
     func jobStep() {
         guard let session, let sim, session.isRunning else { nextJobStep = .distantFuture; stateDirty = true; return }
-        let r = sim.render(seconds: 2, channels: session.listening, tap: .preEQ)
+        let r = sim.render(seconds: 2, channels: session.listening, tap: tap)
         let ex = FeatureExtractor()
         var feats: [Int: SignalFeatures] = [:]
         for (ch, x) in r.taps { feats[ch] = ex.analyze(x) }
-        for (ch, f) in feats where f.hasSignal { channelLevels[ch] = f.rmsDB }
+        hallLevel(r.mic, sampleRate: sim.sampleRate)
         let changed = session.tick(features: feats, mic: r.mic)
-        for s in changed { strips[s.id] = s; sim.setStrip(s) }
-        if !session.isRunning { nextJobStep = .distantFuture }
+        for s in changed { trackStrip(s); strips[s.id] = s; sim.setStrip(s) }
+        features.merge(session.features) { $1 }
+        for (ch, f) in feats where f.hasSignal { channelLevels[ch] = f.rmsDB }
+        groupPhase = session.group?.phase
+        // A channel that is ready becomes the show guard's tonal reference.
+        for ch in session.listening where references[ch] == nil {
+            let done = session.single?.channel == ch ? session.single?.state == .done : session.group?.tunings[ch]?.state == .done
+            if done, let f = session.features[ch], f.bandsDB.contains(where: { $0 > -119 }) { references[ch] = f.bandsDB }
+        }
+        if !session.isRunning {
+            nextJobStep = .distantFuture
+            // A finished soundcheck job.
+            ProfileModule.shared?.record("foh.soundcheck")
+            if character == .rock { ProfileModule.shared?.record("foh.rock") }
+            if character == .classical { ProfileModule.shared?.record("foh.classic") }
+        }
         emitLog()
         stateDirty = true
     }
 
-    /// Simulated channel meters for learning on the simulator: half a second of each audible channel.
+    /// The hall measurement mic's A-weighted level (AssistStore.micLevel).
+    func hallLevel(_ mic: [Float], sampleRate: Double) {
+        let l = MeasurementMic().levelA(mic, sampleRate: sampleRate)
+        micLevel = l.value
+        micCalibrated = l.calibrated
+    }
+
+    /// Simulated channel levels for learning (AssistStore.learnFrame): a quarter second of each audible channel.
     func simLevels() {
         guard let sim else { return }
         let chans = strips.values.filter { !$0.muted && $0.faderDB > -90 }.map(\.id)
@@ -306,7 +446,7 @@ final class Engine {
         let r = sim.render(seconds: 0.25, channels: chans, tap: .preEQ)
         for (ch, x) in r.taps {
             let p = x.reduce(0.0) { $0 + Double($1) * Double($1) } / Double(max(1, x.count))
-            channelLevels[ch] = Decibel.fromPower(p + 1e-15)
+            simLearnLevels[ch] = Decibel.fromPower(p + 1e-15)
         }
     }
 
@@ -340,6 +480,7 @@ final class Engine {
             recordFile?.seekToEndOfFile()
             recordURL = url
             recorder = rec
+            _ = capture?.takeSecond()   // the first second's meters start now
             learnStartedAt = Date()
             nextLearnFrame = Date()
         } catch {
@@ -351,9 +492,28 @@ final class Engine {
     func learnFrame() {
         guard var rec = recorder else { return }
         let t = Date().timeIntervalSince(learnStartedAt)
-        let line = rec.record(t: t, strips: strips, buses: buses, channelLevels: channelLevels, busLevels: busLevels)
+        var params: [String: ParamValue]?
+        var meters: LearnMeters?
+        if sim != nil {
+            // The simulator has no meter stream: a quarter second of each audible channel.
+            simLevels()
+            var c = ConsoleCapture(family: .simulator)
+            c.absorb(strips: strips, buses: buses)
+            params = c.params
+        } else if var c = capture {
+            // Every parameter is asked again in turn (a few a second), so the recording has the whole console.
+            sendToConsole(c.sweep())
+            meters = c.takeSecond()
+            params = c.params
+            capture = c
+        }
+        learnParams = params?.count ?? 0
+        let line = rec.record(t: t, strips: strips, buses: buses, channelLevels: sim != nil ? simLearnLevels : channelLevels, busLevels: busLevels,
+                              params: params, meters: meters, lost: isReal && Date().timeIntervalSince(lastHeard) > 4)
         recorder = rec
         recordFile?.write(line)
+        // On disk every 30 s: a crash or a power cut loses at most that.
+        if rec.shouldFlush { recordFile?.synchronizeFile() }
         emitLearn()
     }
 
@@ -373,6 +533,8 @@ final class Engine {
             f["seconds"] = Date().timeIntervalSince(learnStartedAt)
             f["frames"] = r.frames
             f["changes"] = r.changes
+            f["lost"] = r.lostFrames
+            f["params"] = learnParams
             f["title"] = r.header.title
             f["file"] = recordURL?.lastPathComponent ?? ""
         }
@@ -380,11 +542,27 @@ final class Engine {
     }
 
     func loadRecordings() -> [(file: String, rec: LearnRecording)] {
+        if let p = previewRecordings { return p }
         let urls = (try? FileManager.default.contentsOfDirectory(at: learnDir, includingPropertiesForKeys: nil)) ?? []
         return urls.filter { $0.pathExtension == "ssmtlearn" }.compactMap { u in
             guard let d = try? Data(contentsOf: u), let r = LearnRecording.parse(d) else { return nil }
             return (u.lastPathComponent, r)
         }.sorted { $0.rec.header.startedAt > $1.rec.header.startedAt }
+    }
+
+    /// All recordings as one training file (`LearnDataset`), next to them.
+    func exportDataset() {
+        let recs = loadRecordings().map(\.rec)
+        let data = LearnDataset.jsonLines(recs)
+        let url = learnDir.appendingPathComponent(LearnDataset.fileName)
+        do {
+            try FileManager.default.createDirectory(at: learnDir, withIntermediateDirectories: true)
+            try data.write(to: url, options: .atomic)
+            let rows = data.reduce(0) { $1 == 0x0A ? $0 + 1 : $0 }
+            Out.emit("dataset", ["path": url.path, "rows": rows, "recordings": recs.count, "bytes": data.count])
+        } catch {
+            Out.emit("error", ["key": "cannotWrite", "detail": "\(error)"])
+        }
     }
 
     func emitRecordings() {
@@ -402,6 +580,7 @@ final class Engine {
 
     func tick() {
         let now = Date()
+        for m in modules { m.tick(now, engine: self) }
         if now >= nextRenew, let family, isReal {
             sendToConsole(ConsoleReadOnly.renewals(family: family))
             nextRenew = now.addingTimeInterval(8)
@@ -409,22 +588,21 @@ final class Engine {
         if let first = askAgain.first, now >= first {
             askAgain.removeFirst()
             askMissing()
-            if askAgain.isEmpty, isReal, status == "connecting", now.timeIntervalSince(connectedAt) > 3 { status = "failed"; stateDirty = true }
         }
+        // No answer within 3 s (AssistStore.connect); the link keeps trying and connects if the console answers later.
+        if isReal, status == "connecting", now.timeIntervalSince(connectedAt) > 3 { status = "failed"; failure = "noAnswer"; stateDirty = true }
         if now >= nextJobStep {
             nextJobStep = now.addingTimeInterval(2)
             jobStep()
         }
-        if now >= nextSimLevels, sim != nil {
-            nextSimLevels = now.addingTimeInterval(recorder != nil ? 1 : 2)
-            if session?.isRunning != true { simLevels() }
-        }
+        tickAssist(now)
         if now >= nextLearnFrame {
             nextLearnFrame = nextLearnFrame.addingTimeInterval(1)
             if nextLearnFrame < now { nextLearnFrame = now.addingTimeInterval(1) }
             learnFrame()
         }
         let alive = sim != nil || (isReal && now.timeIntervalSince(lastHeard) < 4)
+        if alive && !lastAlive && status == "connected" { ProfileModule.shared?.record("foh.reconnect") }
         if alive != lastAlive { lastAlive = alive; stateDirty = true }
         if now >= nextMeters, family != nil {
             nextMeters = now.addingTimeInterval(0.1)
@@ -440,30 +618,6 @@ final class Engine {
 
     func levelsArray(_ m: [Int: Double], _ n: Int) -> [Double] {
         n > 0 ? (1...n).map { v -> Double in let x = m[v] ?? -120; return x.isFinite ? (max(-120, min(20, x)) * 10).rounded() / 10 : -120 } : []
-    }
-
-    func emitState() {
-        var states: [String: String] = [:]
-        var kinds: [String: String] = [:]
-        for ch in strips.keys {
-            if let s = tuningState(ch) { states["\(ch)"] = s }
-            if let k = SourceClassifier.kind(forName: strips[ch]?.name ?? "") { kinds["\(ch)"] = k.rawValue }
-        }
-        var job = "none"
-        if let s = session, s.isRunning {
-            switch s.job {
-            case .none: job = "none"
-            case let .channel(ch): job = "channel:\(ch)"
-            case .group: job = "group:" + (s.group?.phase.rawValue ?? "")
-            case .polarity: job = "polarity"
-            }
-        }
-        Out.emit("state", [
-            "family": family?.rawValue ?? "", "host": host, "status": status, "model": model, "alive": lastAlive,
-            "readOnly": isReal, "routing": routingPreset.rawValue, "character": character.rawValue, "job": job,
-            "strips": Out.json(strips.values.sorted { $0.id < $1.id }), "buses": Out.json(buses.values.sorted { $0.id < $1.id }),
-            "states": states, "kinds": kinds,
-        ])
     }
 }
 

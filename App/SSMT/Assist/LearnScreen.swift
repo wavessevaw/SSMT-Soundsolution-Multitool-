@@ -54,6 +54,7 @@ private struct RecordPanel: View {
                 HStack(spacing: 10) {
                     stat("\(store.learnFrames)", loc.t("assist.learn.frames"))
                     stat("\(store.learnChanges)", loc.t("assist.learn.changes"))
+                    stat("\(store.learnParams)", loc.t("assist.learn.params"))
                 }
                 Button { store.stopLearning() } label: {
                     Label(loc.t("assist.learn.stop"), systemImage: "stop.fill").frame(maxWidth: .infinity)
@@ -113,6 +114,16 @@ private struct ProgressPanel: View {
                     Button { store.deleteRecording(r.file) } label: { Image(systemName: "trash") }
                         .buttonStyle(.plain).foregroundStyle(Theme.textMuted).disabled(store.learning)
                         .help(loc.t("assist.learn.delete"))
+                }
+            }
+            if !store.recordings.isEmpty {
+                Button { store.exportDataset() } label: { Label(loc.t("assist.learn.dataset"), systemImage: "tray.and.arrow.down") }
+                    .buttonStyle(SSMTButtonStyle()).disabled(store.learning)
+                    .help(loc.t("assist.learn.datasetHint"))
+                if let d = store.datasetResult {
+                    Text(String(format: loc.t("assist.learn.datasetDone"), d.rows, d.recordings, d.url.lastPathComponent))
+                        .font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }

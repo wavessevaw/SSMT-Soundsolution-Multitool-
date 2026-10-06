@@ -3963,6 +3963,57 @@
         }
       }
     },
+    "assist.learn.dataset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Build the training dataset"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Собрать данные для обучения"
+          }
+        }
+      }
+    },
+    "assist.learn.datasetDone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done: %d rows from %d recordings, %@ in the recordings folder."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Готово: %d строк из %d записей, файл %@ в папке с записями."
+          }
+        }
+      }
+    },
+    "assist.learn.datasetHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All recordings in one file for training: per channel every 10 s, the sound (level, gain reduction, RTA) and every setting of the channel."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все записи в один файл для обучения: по каждому каналу раз в 10 с звук (уровень, подавление, RTA) и все настройки канала."
+          }
+        }
+      }
+    },
     "assist.learn.delete": {
       "extractionState": "manual",
       "localizations": {
@@ -4037,13 +4088,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Start the recording before the event and stop it after. Once a second the console is recorded: faders, gain, EQ, dynamics and channel levels."
+            "value": "Start the recording before the event and stop it after. Once a second every console parameter is recorded: faders, gain, channel and bus EQ, gate and compressor with gain reduction, sends, DCAs, effects, levels and the RTA."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Включите запись перед началом мероприятия и остановите после него. Раз в секунду записывается состояние пульта: фейдеры, гейн, эквалайзер, динамика и уровни каналов."
+            "value": "Включите запись перед началом мероприятия и остановите после него. Раз в секунду записываются все параметры пульта: фейдеры, гейн, эквалайзеры каналов и шин, гейт и компрессор с подавлением, посылы, DCA, эффекты, уровни и RTA."
           }
         }
       }
@@ -4095,6 +4146,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "Открыть папку с записями"
+          }
+        }
+      }
+    },
+    "assist.learn.params": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "console parameters"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "параметров пульта"
           }
         }
       }
@@ -9964,6 +10032,57 @@
         }
       }
     },
+    "game.win.getEmulator": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get BlastEm (free emulator)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Скачать BlastEm (бесплатный эмулятор)"
+          }
+        }
+      }
+    },
+    "game.win.play": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Play in the emulator"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Играть в эмуляторе"
+          }
+        }
+      }
+    },
+    "game.win.reveal": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show in folder"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Показать в папке"
+          }
+        }
+      }
+    },
     "gauge.before": {
       "extractionState": "manual",
       "localizations": {
@@ -11779,6 +11898,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "Загрузка…"
+          }
+        }
+      }
+    },
+    "menu.file": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Файл"
+          }
+        }
+      }
+    },
+    "menu.minimize": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Minimize"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Свернуть"
+          }
+        }
+      }
+    },
+    "menu.quit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quit SSMT"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Завершить SSMT"
+          }
+        }
+      }
+    },
+    "menu.window": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Window"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Окно"
           }
         }
       }

@@ -13,8 +13,6 @@ final class X32Link: @unchecked Sendable {
     private let queue = DispatchQueue(label: "ssmt.assist.x32")
     private var connection: NWConnection?
     private var keepAlive: DispatchSourceTimer?
-    /// Meter banks to keep streaming.
-    var meterBanks: [ConsoleMeters.Bank] = [.channels, .buses, .rta]
     /// Every message received from the console (called on the link's queue).
     var onMessage: ((OSCMessage) -> Void)?
     /// Learning mode: only queries, the update subscription and meter requests leave; nothing is set on the console.
@@ -61,7 +59,7 @@ final class X32Link: @unchecked Sendable {
     }
 
     private func subscriptions() -> [OSCMessage] {
-        [X32Codec.subscribe(family: family)] + meterBanks.map { ConsoleMeters.request($0, family: family) }
+        [X32Codec.subscribe(family: family)] + ConsoleCapture.meterRequests(family: family)
     }
 
     /// Asks for the input routing (X32), every channel strip and every mix bus. Spaced out — a few
@@ -299,6 +297,8 @@ final class AssistStore: ObservableObject {
     @Published private(set) var learnSeconds: Double = 0
     @Published private(set) var learnFrames = 0
     @Published private(set) var learnChanges = 0
+    /// Console parameters in the last recorded second.
+    @Published private(set) var learnParams = 0
     @Published var learnTitle = ""
     @Published private(set) var recordings: [RecordingInfo] = []
     @Published private(set) var patterns: LearnedPatterns?
@@ -316,7 +316,13 @@ final class AssistStore: ObservableObject {
     private var learnFile: FileHandle?
     private var learnStart = Date()
     private var learnTimer: Timer?
+    /// Keeps the Mac awake while recording (a show runs for hours with nobody at the computer).
+    private var learnActivity: NSObjectProtocol?
+    /// Where the last training dataset was written, and how many rows it has.
+    @Published private(set) var datasetResult: (url: URL, rows: Int, recordings: Int)?
     private var simLevels: [Int: Double] = [:]
+    /// Every parameter and meter of a real console while connected (read-only).
+    private var consoleCapture: ConsoleCapture?
 
     /// Where recordings are kept (the Windows app uses the same folder name).
     var learnDirectory: URL {
@@ -369,6 +375,7 @@ final class AssistStore: ObservableObject {
             mode = .learn
             l.onMessage = { [weak self] m in Task { @MainActor in self?.received(m) } }
             link = l
+            consoleCapture = ConsoleCapture(family: family)
             l.start()
             routing = X32InputRouting.preset(routingPreset) ?? X32InputRouting()
             heard = []
@@ -455,6 +462,7 @@ final class AssistStore: ObservableObject {
         stopGuard()
         link?.stop()
         link = nil
+        consoleCapture = nil
         capture?.stop()
         capture = nil
         sim = nil
@@ -502,6 +510,7 @@ final class AssistStore: ObservableObject {
         lastHeard = Date()
         if !linkAlive && isConnected { linkAlive = true }
         if !m.arguments.isEmpty { heard.insert(m.address) }
+        consoleCapture?.take(m)
         if m.address == X32Codec.mainOnAddress(family), let a = m.arguments.first {
             switch a { case let .int(i): mainOn = i != 0; case let .float(f): mainOn = f != 0; default: break }
             return
@@ -1096,11 +1105,15 @@ final class AssistStore: ObservableObject {
             return
         }
         recorder = rec
+        _ = consoleCapture?.takeSecond()   // the first second's meters start now
         learnStart = Date()
         learnSeconds = 0
         learnFrames = 0
         learnChanges = 0
+        learnParams = 0
         learning = true
+        learnActivity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .idleSystemSleepDisabled],
+                                                              reason: "Recording the console for learning")
         learnFrame()
         let t = Timer(timeInterval: 1, repeats: true) { [weak self] _ in Task { @MainActor in self?.learnFrame() } }
         RunLoop.main.add(t, forMode: .common)
@@ -1115,6 +1128,7 @@ final class AssistStore: ObservableObject {
         learnFile = nil
         recorder = nil
         learning = false
+        if let a = learnActivity { ProcessInfo.processInfo.endActivity(a); learnActivity = nil }
         refreshRecordings()
     }
 
@@ -1131,8 +1145,25 @@ final class AssistStore: ObservableObject {
             }
         }
         let levels = sim != nil ? simLevels : liveMeters.channels
+        var params: [String: ParamValue]?
+        var meters: LearnMeters?
+        if sim != nil {
+            var c = ConsoleCapture(family: .simulator)
+            c.absorb(strips: stripMap, buses: busMap)
+            params = c.params
+        } else if var c = consoleCapture {
+            // Every parameter is asked again in turn (a few a second), so the recording holds the whole console.
+            link?.ask(c.sweep().map(\.address))
+            meters = c.takeSecond()
+            params = c.params
+            consoleCapture = c
+        }
         let t = Date().timeIntervalSince(learnStart)
-        learnFile?.write(rec.record(t: t, strips: stripMap, buses: busMap, channelLevels: levels, busLevels: busLevels))
+        learnFile?.write(rec.record(t: t, strips: stripMap, buses: busMap, channelLevels: levels, busLevels: busLevels,
+                                    params: params, meters: meters, lost: sim == nil && !linkAlive))
+        // On disk every 30 s: a crash or a power cut loses at most that.
+        if rec.shouldFlush { learnFile?.synchronizeFile() }
+        learnParams = params?.count ?? 0
         recorder = rec
         learnSeconds = t
         learnFrames = rec.frames
@@ -1156,6 +1187,25 @@ final class AssistStore: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.recordings = infos
                 self?.patterns = learned
+            }
+        }
+    }
+
+    /// All recordings as one training file (`LearnDataset`) next to them, built off the main thread.
+    func exportDataset() {
+        let dir = learnDirectory
+        datasetResult = nil
+        DispatchQueue.global(qos: .userInitiated).async {
+            let urls = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+            let recs = urls.filter { $0.pathExtension == "ssmtlearn" }.compactMap { u in
+                (try? Data(contentsOf: u)).flatMap(LearnRecording.parse)
+            }
+            let data = LearnDataset.jsonLines(recs)
+            let url = dir.appendingPathComponent(LearnDataset.fileName)
+            let rows = data.reduce(0) { $1 == 0x0A ? $0 + 1 : $0 }
+            let ok = (try? data.write(to: url, options: .atomic)) != nil
+            Task { @MainActor [weak self] in
+                if ok { self?.datasetResult = (url, rows, recs.count) } else { self?.message = url.path }
             }
         }
     }

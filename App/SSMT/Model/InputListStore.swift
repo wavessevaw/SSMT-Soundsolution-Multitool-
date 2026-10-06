@@ -38,16 +38,8 @@ final class InputListStore: ObservableObject {
         }
     }
 
-    /// A new document starts with a small band so every tool is visible right away.
-    static var starter: InputListDocument {
-        var d = InputListDocument()
-        d.stage.add(.riser, at: (5, 4.5), label: "Drum riser")
-        d.stage.add(.drumKit, at: (5, 4.5), label: "Drums")
-        d.stage.add(.person, at: (5, 1.2), label: "Lead vocal")
-        d.stage.add(.wedge, at: (5, 0.4), label: "Mix 1")
-        d.stage.add(.text, at: (5, 0.0), label: "Audience")
-        return d
-    }
+    /// A new document starts with a small band so every tool is visible right away (SSMTCore, shared with Windows).
+    static var starter: InputListDocument { InputListDocument.starter }
 
     // MARK: Editing with undo
 
@@ -144,11 +136,7 @@ final class InputListStore: ObservableObject {
     }
 
     /// File name from the artist / event ("Band - Club").
-    var suggestedName: String {
-        let parts = [doc.artist, doc.event].map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-        let name = parts.isEmpty ? "Ptch" : parts.joined(separator: " - ")
-        return name.replacingOccurrences(of: "/", with: "-")
-    }
+    var suggestedName: String { doc.suggestedName }
 
     private func scheduleAutosave() {
         autosaveWork?.cancel()

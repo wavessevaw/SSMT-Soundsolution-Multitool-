@@ -1,0 +1,18 @@
+/* The floating diagnostics window (MiniDiagnosticsView). The window is frameless and moved by its background. */
+body.mini { background: var(--background); overflow: hidden; -webkit-app-region: drag; }
+body.mini button, body.mini .mac-menu { -webkit-app-region: no-drag; }
+#mini { position: fixed; inset: 0; }
+.mini-panel { height: 100%; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.mini-head { display: flex; align-items: center; gap: 8px; }
+.mini-head img { height: 16px; width: auto; }
+.mini-head .status { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-icon { border: none; background: none; padding: 0; width: 26px; height: 18px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-primary); }
+.mini-curve { position: relative; height: 92px; flex: none; border-radius: var(--radius-small); background: rgba(255, 255, 255, 0.04); }
+.mini-curve .dev { position: absolute; top: 8px; right: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.spl-row { display: flex; gap: 6px; }
+.spl-cell { flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.spl-cell b { font-size: 20px; font-weight: 300; font-variant-numeric: tabular-nums; line-height: 24px; }
+.spl-cell span { font-size: 11px; color: var(--text-muted); }
+.q-row { gap: 10px; }
+.q-row .q { font-size: 12px; }
+.mini-panel .btn.stop { gap: 6px; font-weight: 600; }

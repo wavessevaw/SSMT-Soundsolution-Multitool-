@@ -28,6 +28,17 @@ function broadcastAddresses() {
   return [...out];
 }
 
+/** IPv4 addresses of this computer, without loopback (Qtrl's network hints). */
+function localInterfaces() {
+  const out = [];
+  for (const [name, list] of Object.entries(os.networkInterfaces())) {
+    for (const a of list || []) {
+      if ((a.family === 'IPv4' || a.family === 4) && !a.internal) out.push({ name, address: a.address, mask: a.netmask });
+    }
+  }
+  return out;
+}
+
 class EngineLink extends EventEmitter {
   /**
    * @param {{command: string, args?: string[], env?: object}} opts how to start the engine
@@ -52,12 +63,15 @@ class EngineLink extends EventEmitter {
     this.proc.on('error', (e) => this.emit('event', { event: 'engineError', detail: String(e && e.message || e) }));
     this.proc.on('exit', (code) => {
       this.closeSocket();
+      this.oscUnlisten();
       this.emit('event', { event: 'engineExit', code });
     });
   }
 
   stop() {
     this.closeSocket();
+    this.oscUnlisten();
+    if (this.oscOut) { try { this.oscOut.close(); } catch (_) { /* closed */ } this.oscOut = null; }
     if (this.proc) {
       try { this.proc.stdin.end(); } catch (_) { /* already closed */ }
       const p = this.proc;
@@ -82,8 +96,42 @@ class EngineLink extends EventEmitter {
         for (const p of ev.packets || []) this.queue.push(Buffer.from(p, 'base64'));
         this.startPump();
         break;
+      // Generic OSC (Qtrl's show devices): any host, any port, and one listening port for the monitor.
+      case 'oscSend': this.oscSend(ev); break;
+      case 'oscListen': this.oscListen(ev.port); break;
+      case 'oscUnlisten': this.oscUnlisten(); break;
+      case 'netInterfaces': this.send({ cmd: 'netInterfaces', items: localInterfaces() }); break;
       default: this.emit('event', ev);
     }
+  }
+
+  oscSend(ev) {
+    if (!this.oscOut) {
+      const s = dgram.createSocket('udp4');
+      s.on('message', (msg, rinfo) => this.send({ cmd: 'oscIn', from: rinfo.address, port: rinfo.port, data: msg.toString('base64') }));
+      s.on('error', () => { /* unreachable host: OSC is fire and forget */ });
+      s.bind(0);
+      this.oscOut = s;
+    }
+    try { this.oscOut.send(Buffer.from(ev.data || '', 'base64'), ev.port, ev.host, () => {}); } catch (_) { /* bad address */ }
+  }
+
+  oscListen(port) {
+    this.oscUnlisten();
+    const s = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    this.oscIn = s;
+    s.on('message', (msg, rinfo) => this.send({ cmd: 'oscIn', from: rinfo.address, port: rinfo.port, data: msg.toString('base64') }));
+    s.on('error', (e) => {
+      if (this.oscIn === s) this.oscIn = null;
+      try { s.close(); } catch (_) { /* closed */ }
+      this.send({ cmd: 'oscListenError', detail: String(e.code || e.message || e) });
+    });
+    s.bind(port);
+  }
+
+  oscUnlisten() {
+    if (this.oscIn) { try { this.oscIn.close(); } catch (_) { /* closed */ } }
+    this.oscIn = null;
   }
 
   openSocket(host, port) {
@@ -146,4 +194,4 @@ class EngineLink extends EventEmitter {
   }
 }
 
-module.exports = { EngineLink, broadcastAddresses, XINFO };
+module.exports = { EngineLink, broadcastAddresses, localInterfaces, XINFO };
